@@ -8,8 +8,8 @@ union
     struct
     {
         uint8_t rom[0x4000]; // starts at 0x0000
-        uint8_t videoChar[0x400]; // starts at 0x4000
-        uint8_t videoCol[0x400]; // starts at 0x4400
+        uint8_t video[0x400]; // starts at 0x4000
+        uint8_t colour[0x400]; // starts at 0x4400
         uint8_t ram[0x7f0];  // starts at 0x4800
         uint8_t sprites[0x10];  // starts at 0x4ff0
     };
@@ -5005,19 +5005,33 @@ void unknown()
 // 2311  77        ld      (hl),a
 // 2312  2c        inc     l
 // 2313  10fc      djnz    #2311           ; (-4)
-// 
+
+void selfTest ()
+{
+    intEnable =
+    soundEnable =
+    auxEnable =
+    flipScreen =
+    player1Start =
+    player2Start =
+    coinLockout =
+    coinCounter = 0;
+
 // 	;; Set 4000-43ff to 0x40 (video ram)
 // 2315  210040    ld      hl,#4000
 // 2318  0604      ld      b,#04
 // 231a  32c050    ld      (#50c0),a	; Kick the dog
-kickWatchdog();
-// 231d  320750    ld      (#5007),a	; Clear coin 
+    kickWatchdog();
+// 231d  320750    ld      (#5007),a	; Clear coin // redundnat
 // 2320  3e40      ld      a,#40
 // 2322  77        ld      (hl),a
 // 2323  2c        inc     l
 // 2324  20fc      jr      nz,#2322        ; (-4)
 // 2326  24        inc     h
 // 2327  10f1      djnz    #231a           ; (-15)
+
+    for (int i = 0; i < 0x3ff; i++)
+        memory.video[i] = 0x40;
 // 
 // 	;; Set 4400-47ff to 0x0f (color ram)
 // 2329  0604      ld      b,#04
@@ -5031,27 +5045,34 @@ kickWatchdog();
 // 2336  20fc      jr      nz,#2334        ; (-4)
 // 2338  24        inc     h
 // 2339  10f0      djnz    #232b           ; (-16)
+
+    for (int i = 0; i < 0x3ff; i++)
+        memory.colour[i] = 0x0f;
 // 	
 // 233b  ed5e      im      2		; interrupt mode 2
 // 233d  3efa      ld      a,#fa		
 // 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
 // 2341  af        xor     a		; a=0
 // 2342  320750    ld      (#5007),a	; Clear coin
+    coinCounter = 0;
 // 2345  3c        inc     a		; a=1 
 // 2346  320050    ld      (#5000),a	; Enable interrupts
+    intEnable = 1;
 // 2349  fb        ei			; Enable interrupts
 // 234a  76        halt			; Wait for interrupt
+    while (!interrupt())
+        ;
 // 	
 // 	;; Start the game ?
 // 234b  32c050    ld      (#50c0),a	; Kick the dog
-kickWatchdog();
+    kickWatchdog();
 // 234e  31c04f    ld      sp,#4fc0	; Set stack pointer to 0x4fc0
 // 
 // 2351  af        xor     a		; a=0
 // 2352  210050    ld      hl,#5000	
 // 2355  010808    ld      bc,#0808
 // 2358  cf        rst     #8		; Restart at 0x08 (disable all)
-memset (0x5000, 0, 8);
+    memset (0x5000, 0, 8);
 
 // 	;; Clear ram
 // 2359  21004c    ld      hl,#4c00
@@ -5060,16 +5081,16 @@ memset (0x5000, 0, 8);
 // 235f  cf        rst     #8
 // 2360  cf        rst     #8
 // 2361  cf        rst     #8
-memset (0x4c00, 0, 0x4be);
+    memset (memory.data+0x4c00, 0, 0x4be);
 
 // 	;; Clear sound registers, sprite positions
 // 2362  214050    ld      hl,#5040
 // 2365  0640      ld      b,#40
 // 2367  cf        rst     #8
-memset (0x5040, 0, 0x40);
+    memset (regsWrite.soundRegs, 0, 0x40);
 
 // 2368  32c050    ld      (#50c0),a	; Kick the dog
-kickWatchdog();
+    kickWatchdog();
 
 // 236b  cd0d24    call    #240d		; Clear color ram
 kickWatchdog();
@@ -5168,7 +5189,7 @@ memset (0x4c82, 0xff, 0x40);
 // 23f5  010400    ld      bc,#0004
 // 23f8  210040    ld      hl,#4000
 // 23fb  cf        rst     #8
-memset (0x4000, 0x40, 256);
+    memset (memory.video, 0x40, 0x400);
 
 // 23fc  0d        dec     c
 // 23fd  20fc      jr      nz,#23fb        ; (-4)
@@ -5178,7 +5199,7 @@ memset (0x4000, 0x40, 256);
 // 2402  214040    ld      hl,#4040
 // 2405  010480    ld      bc,#8004
 // 2408  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
+    memset (memory.video+0x40, 0x40, 0x380);
 // 2409  0d        dec     c
 // 240a  20fc      jr      nz,#2408        ; (-4)
 // 240c  c9        ret     
@@ -5188,17 +5209,24 @@ memset (0x4040, 0x40, 0x80);
 // 240e  010400    ld      bc,#0004
 // 2411  210044    ld      hl,#4400
 // 2414  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
 // 2415  0d        dec     c
 // 2416  20fc      jr      nz,#2414        ; (-4)
+    memset (memory.colour, 0, 0x400);
 // 2418  c9        ret     
-// 
+}
+
 // 2419  210040    ld      hl,#4000
 // 241c  013534    ld      bc,#3435
 // 241f  0a        ld      a,(bc)
 // 2420  a7        and     a
 // 2421  c8        ret     z
-// 
+bool testRomLoc (void)
+{
+    if (3435 != 0)
+        return true;
+    return false;
+}
+
 // 2422  fa2c24    jp      m,#242c
 // 2425  5f        ld      e,a
 // 2426  1600      ld      d,#00
@@ -5345,7 +5373,8 @@ memset (0x4040, 0x40, 0x80);
 // 2536  32ed45    ld      (#45ed),a
 // 2539  320d46    ld      (#460d),a
 // 253c  c9        ret     
-// 
+}
+
 // 253d  dd21004c  ld      ix,#4c00
 // 2541  dd360220  ld      (ix+#02),#20
 // 2545  dd360420  ld      (ix+#04),#20
@@ -5359,22 +5388,31 @@ memset (0x4040, 0x40, 0x80);
 // 2565  dd360907  ld      (ix+#09),#07
 // 2569  dd360b09  ld      (ix+#0b),#09
 // 256d  dd360d00  ld      (ix+#0d),#00
+    memory.ram[0x402] = { 0x20, 0x01, 0x20, 0x03, 0x20, 0x05, 0x02, 0x07, 0x2c,
+    0x09, 0x3f, 0x00 };
 // 2571  78        ld      a,b
 // 2572  a7        and     a
 // 2573  c20f26    jp      nz,#260f
 // 2576  216480    ld      hl,#8064
 // 2579  22004d    ld      (#4d00),hl
+    memory.data[0x4d00] = 0x8064; // 16bit
 // 257c  217c80    ld      hl,#807c
 // 257f  22024d    ld      (#4d02),hl
+    memory.data[0x4d02] = 0x807c; // 16bit
 // 2582  217c90    ld      hl,#907c
 // 2585  22044d    ld      (#4d04),hl
+    memory.data[0x4d04] = 0x907c; // 16bit
 // 2588  217c70    ld      hl,#707c
 // 258b  22064d    ld      (#4d06),hl
+    memory.data[0x4d06] = 0x707c; // 16bit
 // 258e  21c480    ld      hl,#80c4
 // 2591  22084d    ld      (#4d08),hl
+    memory.data[0x4d08] = 0x80c4; // 16bit
 // 2594  212c2e    ld      hl,#2e2c
 // 2597  220a4d    ld      (#4d0a),hl
 // 259a  22314d    ld      (#4d31),hl
+    memory.data[0x4d0a] = 0x2e2c; // 16bit
+    memory.data[0x4d31] = 0x2e2c; // 16bit
 // 259d  212f2e    ld      hl,#2e2f
 // 25a0  220c4d    ld      (#4d0c),hl
 // 25a3  22334d    ld      (#4d33),hl
@@ -5414,7 +5452,8 @@ memset (0x4040, 0x40, 0x80);
 // 2608  210000    ld      hl,#0000
 // 260b  22d24d    ld      (#4dd2),hl
 // 260e  c9        ret     
-// 
+}
+
 // 260f  219400    ld      hl,#0094
 // 2612  22004d    ld      (#4d00),hl
 // 2615  22024d    ld      (#4d02),hl
@@ -5986,7 +6025,7 @@ hl = scoreTable;
 // 2a9b  cd0b2b    call    #2b0b
 
 // 2a9e  11884e    ld      de,#4e88
-highScore = (de);
+    de = &highScore;
 
 // 2aa1  010300    ld      bc,#0003
 // 2aa4  edb0      ldir    
@@ -6526,6 +6565,7 @@ void drawMsgFromTable (int msg)
 // 2de5  dd8604    add     a,(ix+#04)
 // 2de8  cae82e    jp      z,#2ee8
 // 2deb  c3e42e    jp      #2ee4
+
 // 2dee  dd7e00    ld      a,(ix+#00)
 // 2df1  a7        and     a
 // 2df2  2027      jr      nz,#2e1b        ; (39)
@@ -7994,756 +8034,266 @@ kickWatchdog();
 // 370d  113e			; 34 1a3a    "EEEEEEEE"
 // 3711  b43d			; 35 2c3a    -POKEY   
 // 3711  303e			; 36 3d3a    "GGGGGGGG"
-// 
+
 // 	;; 36a5 Table Entry 0
-// 3713  d483
-// NOTE space is 0x40
-"HIGH SCORE"
-// 371f  2f
-// 3720  8f
-// 3721  2f
-// 3722  80
-// 
+// 3713
+{ 0xd4, 0x83, 'H', 'I','G','H',0X40,'S','C','O','R','E' },
+// 371f  2f 8f 2f 80
+
 // 	;; 36a5 Table Entry 1
-// 3723  3b        dec     sp
-// 3724  80        add     a,b
+// 3723  3b 80
 "CREDIT   "
-// 372e  2f        cpl     
-// 372f  8f        adc     a,a
-// 3730  2f        cpl     
-// 3731  80        add     a,b
-// 
+// 372e  2f 8f 2f 80
+
 // 	;; 36a5 Table Entry 2
-// 3732  3b        dec     sp
-// 3733  80        add     a,b
+// 3732  3b 80
 "FREE PLAY"
-// 373d  2f        cpl     
-// 373e  8f        adc     a,a
-// 373f  2f        cpl     
-// 3740  80        add     a,b
-// 
+// 373d  2f 8f 2f 80
+
 // 	;; 36a5 Table Entry 3
-// 3741  8c        adc     a,h
-// 3742  02        ld      (bc),a
+// 3741  8c 02
 "PLAYER ONE"
-// 374d  2f        cpl     
-// 374e  85        add     a,l
-// 374f  2f        cpl     
-// 3750  1010      djnz    #3762           ; (16)
-// 3752  1a        ld      a,(de)
-// 3753  1a        ld      a,(de)
-// 3754  1a        ld      a,(de)
-// 3755  1a        ld      a,(de)
-// 3756  1a        ld      a,(de)
-// 3757  1a        ld      a,(de)
-// 3758  1010      djnz    #376a           ; (16)
-// 
+// 374d  2f 85 2f 1010 1a 1a 1a 1a 1a 1a 1010
+
 // 	;; 36a5 Table Entry 4
-// 375a  8c        adc     a,h
-// 375b  02        ld      (bc),a
+// 375a  8c 02
 "PLAYER TWO"
-// 3766  2f        cpl     
-// 3767  85        add     a,l
-// 3768  2f        cpl     
-// 3769  80        add     a,b
-// 
+// 3766  2f 85 2f 80
+
 // 	;; 36a5 Table Entry 5
-// 376a  92        sub     d
-// 376b  02        ld      (bc),a
+// 376a  92 02
 "GAME  OVER"
-// 3776  2f        cpl     
-// 3777  81        add     a,c
-// 3778  2f        cpl     
-// 3779  80        add     a,b
-// 
+// 3776  2f 81 2f 80
+
 // 	;; 36a5 Table Entry 6
-// 377a  52        ld      d,d
-// 377b  02        ld      (bc),a
+// 377a  52 02
 "READY?"
-// 3782  2f        cpl     
-// 3783  89        adc     a,c
-// 3784  2f        cpl     
-// 3785  90        sub     b
-// 
+// 3782  2f 89 2f 90
+
 // 	;; 36a5 Table Entry 7
-// 3786  ee02      xor     #02
-// 3788  50        ld      d,b
-// 3789  55        ld      d,l
-// 378a  53        ld      d,e
-// 378b  48        ld      c,b
-// 378c  40        ld      b,b
-// 378d  53        ld      d,e
-// 378e  54        ld      d,h
-// 378f  41        ld      b,c
-// 3790  52        ld      d,d
-// 3791  54        ld      d,h
-// 3792  40        ld      b,b
-// 3793  42        ld      b,d
-// 3794  55        ld      d,l
-// 3795  54        ld      d,h
-// 3796  54        ld      d,h
-// 3797  4f        ld      c,a
-// 3798  4e        ld      c,(hl)
-// 3799  2f        cpl     
-// 379a  87        add     a,a
-// 379b  2f        cpl     
-// 379c  80        add     a,b
-// 379d  b2        or      d
-// 
+// 3786  ee 02
+"PUSH START BUTTON"
+// 3799  2f 87 2f 80
+
 // 	;; 36a5 Table Entry 8
-// 379e  02        ld      (bc),a
-// 379f  314050    ld      sp,#5040
-// 37a2  4c        ld      c,h
-// 37a3  41        ld      b,c
-// 37a4  59        ld      e,c
-// 37a5  45        ld      b,l
-// 37a6  52        ld      d,d
-// 37a7  40        ld      b,b
-// 37a8  4f        ld      c,a
-// 37a9  4e        ld      c,(hl)
-// 37aa  4c        ld      c,h
-// 37ab  59        ld      e,c
-// 37ac  40        ld      b,b
-// 37ad  2f        cpl     
-// 37ae  85        add     a,l
-// 37af  2f        cpl     
-// 37b0  80        add     a,b
-// 
+// 379d  b2 02
+"1 PLAYER ONLY "
+// 37ad  2f 85 2f 80
+
 // 	;; 36a5 Table Entry 9
-// 37b1  b2        or      d
-// 37b2  02        ld      (bc),a
-// 37b3  31404f    ld      sp,#4f40
-// 37b6  52        ld      d,d
-// 37b7  40        ld      b,b
-// 37b8  324050    ld      (#5040),a
-// 37bb  4c        ld      c,h
-// 37bc  41        ld      b,c
-// 37bd  59        ld      e,c
-// 37be  45        ld      b,l
-// 37bf  52        ld      d,d
-// 37c0  53        ld      d,e
-// 37c1  2f        cpl     
-// 37c2  85        add     a,l
-// 37c3  00        nop     
-// 37c4  2f        cpl     
-// 37c5  00        nop     
-// 37c6  80        add     a,b
-// 
+// 37b1  b2 02
+"1 OR 2 PLAYERS"
+// 37c1  2f 85 00 2f 00 80
+
 // 	;; 36a5 Table Entry ??
-// 37c7  00        nop     
-// 37c8  96        sub     (hl)
-// 37c9  03        inc     bc
-// 37ca  42        ld      b,d
-// 37cb  4f        ld      c,a
-// 37cc  4e        ld      c,(hl)
-// 37cd  55        ld      d,l
-// 37ce  53        ld      d,e
-// 37cf  40        ld      b,b
-// 37d0  50        ld      d,b
-// 37d1  55        ld      d,l
-// 37d2  43        ld      b,e
-// 37d3  4b        ld      c,e
-// 37d4  4d        ld      c,l
-// 37d5  41        ld      b,c
-// 37d6  4e        ld      c,(hl)
-// 37d7  40        ld      b,b
-// 37d8  46        ld      b,(hl)
-// 37d9  4f        ld      c,a
-// 37da  52        ld      d,d
-// 37db  40        ld      b,b
-// 37dc  40        ld      b,b
-// 37dd  40        ld      b,b
-// 37de  3030      jr      nc,#3810        ; (48)
-// 37e0  3040      jr      nc,#3822        ; (64)
-// 37e2  5d        ld      e,l
-// 37e3  5e        ld      e,(hl)
-// 37e4  5f        ld      e,a
-// 37e5  2f        cpl     
-// 37e6  8e        adc     a,(hl)
-// 37e7  2f        cpl     
-// 37e8  80        add     a,b
-// 37e9  ba        cp      d
-// 
-// 37ea  02        ld      (bc),a		; NAMCO
-// 37eb  5c        ld      e,h
-// 37ec  40        ld      b,b
-// 37ed  28R29      jr      z,#3818         ; (41)
-// 37ef  2a2b2c    ld      hl,(#2c2b)
-// 37f2  2d        dec     l
-// 37f3  2e40      ld      l,#40
-// 37f5  313938    ld      sp,#3839
-// 37f8  302f      jr      nc,#3829        ; (47)
-// 37fa  83        add     a,e
-// 37fb  2f        cpl     
-// 37fc  80        add     a,b
-// 
+// 37c7  00 96 03
+"BONUS PUCKMAN FOR   000 Pts"
+// 37e2  2f 8e 2f 80
+
+// 37e9  ba 02
+"L "
+// 37ed  28 29
+
+// 37ef  2a 2b 2c 2d 2e
+" 1980"
+// 37f8  2f 83 2f 80
+
 // 	;; 36a5 Table Entry c
-// 37fd  c30243    jp      #4302
-// 3800  48        ld      c,b
-// 3801  41        ld      b,c
-// 3802  52        ld      d,d
-// 3803  41        ld      b,c
-// 3804  43        ld      b,e
-// 3805  54        ld      d,h
-// 3806  45        ld      b,l
-// 3807  52        ld      d,d
-// 3808  40        ld      b,b
-// 3809  3a404e    ld      a,(#4e40)
-// 380c  49        ld      c,c
-// 380d  43        ld      b,e
-// 380e  4b        ld      c,e
-// 380f  4e        ld      c,(hl)
-// 3810  41        ld      b,c
-// 3811  4d        ld      c,l
-// 3812  45        ld      b,l
-// 3813  2f        cpl     
-// 3814  8f        adc     a,a
-// 3815  2f        cpl     
-// 3816  80        add     a,b
-// 
-// 3817  65        ld      h,l
-// 3818  012641    ld      bc,#4126
-// 381b  4b        ld      c,e
-// 381c  41        ld      b,c
-// 381d  42        ld      b,d
-// 381e  45        ld      b,l
-// 381f  49        ld      c,c
-// 3820  262f      ld      h,#2f
-// 3822  81        add     a,c
-// 3823  2f        cpl     
-// 3824  80        add     a,b
-// 3825  45        ld      b,l
-// 3826  01264d    ld      bc,#4d26
-// 3829  41        ld      b,c
-// 382a  43        ld      b,e
-// 382b  4b        ld      c,e
-// 382c  59        ld      e,c
-// 382d  262f      ld      h,#2f
-// 382f  81        add     a,c
-// 3830  2f        cpl     
-// 3831  80        add     a,b
-// 3832  48        ld      c,b
-// 3833  012650    ld      bc,#5026
-// 3836  49        ld      c,c
-// 3837  4e        ld      c,(hl)
-// 3838  4b        ld      c,e
-// 3839  59        ld      e,c
-// 383a  262f      ld      h,#2f
-// 383c  83        add     a,e
-// 383d  2f        cpl     
-// 383e  80        add     a,b
-// 383f  48        ld      c,b
-// 3840  01264d    ld      bc,#4d26
-// 3843  49        ld      c,c
-// 3844  43        ld      b,e
-// 3845  4b        ld      c,e
-// 3846  59        ld      e,c
-// 3847  262f      ld      h,#2f
-// 3849  83        add     a,e
-// 384a  2f        cpl     
-// 384b  80        add     a,b
-// 
+// 37fd  c3 02
+"CHARACTER / NICKNAME"
+// 3813  2f 8f 2f 80
+
+// 3817  65 01 26
+"AKABEI"
+// 3820  26 
+// 3821  2f 81 2f 80
+
+// 3825  45 01 26
+"MACKY"
+// 382d  26 2f 81 2f 80 48 01 26
+"PINKY"
+// 383a  26 2f 83 2f 80 48 01 26
+"MICKY"
+// 3847  26 2f 83 2f 80
+
 // 	;; 36a5 Table Entry 11
-// 384c  76        halt    
-// 384d  02        ld      (bc),a
-// 384e  1040      djnz    #3890           ; (64)
-// 3850  313040    ld      sp,#4030
-// 3853  5d        ld      e,l
-// 3854  5e        ld      e,(hl)
-// 3855  5f        ld      e,a
-// 3856  2f        cpl     
-// 3857  9f        sbc     a,a
-// 3858  2f        cpl     
-// 3859  80        add     a,b
+// 384c  76 02
+// 384e  10
+" 10 pts"
+// 3856  2f 9f 2f 80
 // 
 // 	;; 36a5 Table Entry 12
-// 385a  78        ld      a,b
-// 385b  02        ld      (bc),a
-// 385c  14        inc     d
-// 385d  40        ld      b,b
-// 385e  35        dec     (hl)
-// 385f  3040      jr      nc,#38a1        ; (64)
-// 3861  5d        ld      e,l
-// 3862  5e        ld      e,(hl)
-// 3863  5f        ld      e,a
-// 3864  2f        cpl     
-// 3865  9f        sbc     a,a
-// 3866  2f        cpl     
-// 3867  80        add     a,b
-// 
-// 3868  5d        ld      e,l
-// 3869  02        ld      (bc),a
-// 386a  2829      jr      z,#3895         ; (41)
-// 386c  2a2b2c    ld      hl,(#2c2b)
-// 386f  2d        dec     l
-// 3870  2e2f      ld      l,#2f
-// 3872  83        add     a,e
-// 3873  2f        cpl     
-// 3874  80        add     a,b
-// 3875  c5        push    bc
-// 3876  02        ld      (bc),a
-// 3877  40        ld      b,b
-// 3878  4f        ld      c,a
-// 3879  49        ld      c,c
-// 387a  4b        ld      c,e
-// 387b  41        ld      b,c
-// 387c  4b        ld      c,e
-// 387d  45        ld      b,l
-// 387e  3b        dec     sp
-// 387f  3b        dec     sp
-// 3880  3b        dec     sp
-// 3881  3b        dec     sp
-// 3882  2f        cpl     
-// 3883  81        add     a,c
-// 3884  2f        cpl     
-// 3885  80        add     a,b
-// 3886  c5        push    bc
-// 3887  02        ld      (bc),a
-// 3888  40        ld      b,b
-// 3889  55        ld      d,l
-// 388a  52        ld      d,d
-// 388b  43        ld      b,e
-// 388c  48        ld      c,b
-// 388d  49        ld      c,c
-// 388e  4e        ld      c,(hl)
-// 388f  3b        dec     sp
-// 3890  3b        dec     sp
-// 3891  3b        dec     sp
-// 3892  3b        dec     sp
-// 3893  3b        dec     sp
-// 3894  2f        cpl     
-// 3895  81        add     a,c
-// 3896  2f        cpl     
-// 3897  80        add     a,b
-// 3898  c8        ret     z
-// 3899  02        ld      (bc),a
-// 389a  40        ld      b,b
-// 389b  4d        ld      c,l
-// 389c  41        ld      b,c
-// 389d  43        ld      b,e
-// 389e  48        ld      c,b
-// 389f  49        ld      c,c
-// 38a0  42        ld      b,d
-// 38a1  55        ld      d,l
-// 38a2  53        ld      d,e
-// 38a3  45        ld      b,l
-// 38a4  3b        dec     sp
-// 38a5  3b        dec     sp
-// 38a6  2f        cpl     
-// 38a7  83        add     a,e
-// 38a8  2f        cpl     
-// 38a9  80        add     a,b
-// 38aa  c8        ret     z
-// 38ab  02        ld      (bc),a
-// 38ac  40        ld      b,b
-// 38ad  52        ld      d,d
-// 38ae  4f        ld      c,a
-// 38af  4d        ld      c,l
-// 38b0  50        ld      d,b
-// 38b1  3b        dec     sp
-// 38b2  3b        dec     sp
-// 38b3  3b        dec     sp
-// 38b4  3b        dec     sp
-// 38b5  3b        dec     sp
-// 38b6  3b        dec     sp
-// 38b7  3b        dec     sp
-// 38b8  2f        cpl     
-// 38b9  83        add     a,e
-// 38ba  2f        cpl     
-// 38bb  80        add     a,b
-// 
+// 385a  78 02
+// 385c  14
+" 50 pts"
+// 3864  2f 9f 2f 80
+
+// 3868  5d 02
+// 386a  28 29
+// 386c  2a 2b 2c 2d 2e
+// 3871  2f 83 2f 80 
+
+// 3875  c5 02
+" OIKAKE"
+// 387e  3b 3b 3b 3b
+// 3882  2f 81 2f 80 
+
+// 3886  c5 02 
+" URCHIN"
+// 388f  3b 3b 3b 3b 3b
+// 3894  2f 81 2f 80
+
+// 3898  c8 02
+" MACHIBUSE"
+// 38a4  3b 3b
+// 38a6  2f 83 2f 80 
+
+// 38aa  c8 02
+" BOMP"
+// 38b1  3b 3b 3b 3b 3b 3b 3b
+// 38b8  2f 83 2f 80
+
 // 	;; 36a5 Table Entry 21
-// 38bc  12        ld      (de),a
-// 38bd  02        ld      (bc),a
-// 38be  81        add     a,c
-// 38bf  85        add     a,l
-// 38c0  2f        cpl     
-// 38c1  83        add     a,e
-// 38c2  2f        cpl     
-// 38c3  90        sub     b
-// 
+// 38bc  12 02
+// 38be  81 85
+// 38c0  2f 83 2f 90
+
 // 	;; 36a5 Table Entry 22
-// 38c4  3202
-// 38c6  40
-// 38c7  82        add     a,d
-// 38c8  85        add     a,l
-// 38c9  40        ld      b,b
-// 38ca  2f        cpl     
-// 38cb  83        add     a,e
-// 38cc  2f        cpl     
-// 38cd  90        sub     b
-// 
+// 38c4  32 02
+// 38c6  40 82 85 40
+// 38ca  2f 83 2f 90
+
 // 	;; 36a5 Table Entry 23
-// 38ce  3202				; OFFSET 
-// 38d0  40
-// 38d1  83        add     a,e
-// 38d2  85        add     a,l
-// 38d3  40        ld      b,b
-// 38d4  2f        cpl     
-// 38d5  83        add     a,e
-// 38d6  2f        cpl     
-// 38d7  90        sub     b
-// 
+// 38ce  32 02				; OFFSET 
+// 38d0  40 83 85 40
+// 38d4  2f 83 2f 90 
+
 // 	;; 36a5 Table Entry 24
-// 38d8  320240    ld      (#4002),a
-// 38db  84        add     a,h
-// 38dc  85        add     a,l
-// 38dd  40        ld      b,b
-// 38de  2f        cpl     
-// 38df  83        add     a,e
-// 38e0  2f        cpl     
-// 38e1  90        sub     b
-// 
-// 38e2  320240    ld      (#4002),a
-// 38e5  86        add     a,(hl)
-// 38e6  8d        adc     a,l
-// 38e7  8e        adc     a,(hl)
-// 38e8  2f        cpl     
-// 38e9  83        add     a,e
-// 38ea  2f        cpl     
-// 38eb  90        sub     b
-// 38ec  320287    ld      (#8702),a
-// 38ef  88        adc     a,b
-// 38f0  8d        adc     a,l
-// 38f1  8e        adc     a,(hl)
-// 38f2  2f        cpl     
-// 38f3  83        add     a,e
-// 38f4  2f        cpl     
-// 38f5  90        sub     b
-// 38f6  320289    ld      (#8902),a
-// 38f9  8a        adc     a,d
-// 38fa  8d        adc     a,l
-// 38fb  8e        adc     a,(hl)
-// 38fc  2f        cpl     
-// 38fd  83        add     a,e
-// 38fe  2f        cpl     
-// 38ff  90        sub     b
-// 3900  32028b    ld      (#8b02),a
-// 3903  8c        adc     a,h
-// 3904  8d        adc     a,l
-// 3905  8e        adc     a,(hl)
-// 3906  2f        cpl     
-// 3907  83        add     a,e
-// 3908  2f        cpl     
-// 3909  90        sub     b
-// 
+// 38d8  3202
+// 38da  40 84 85 40 
+// 38de  2f 83 2f 90 
+
+// 38e2  3202
+// 38e4  40 86 8d 8e 
+// 38e8  2f 83 2f 90 
+
+// 38ec  3202
+// 38ee  87 88 8d 8e 
+// 38f2  2f 83 2f 90 
+
+// 38f6  3202
+// 38f8  89 8a 8d 8e 
+// 38fc  2f 83 2f 90 
+
+// 3900  3202
+// 3902  8b 8c 8d 8e 
+// 3906  2f 83 2f 90 
+
 // 	;; 36a5 Table Entry 23
-// 390a  04        inc     b
-// 390b  03        inc     bc
-// 390c  4d        ld      c,l
-// 390d  45        ld      b,l
-// 390e  4d        ld      c,l
-// 390f  4f        ld      c,a
-// 3910  52        ld      d,d
-// 3911  59        ld      e,c
-// 3912  40        ld      b,b
-// 3913  40        ld      b,b
-// 3914  4f        ld      c,a
-// 3915  4b        ld      c,e
-// 3916  2f        cpl     
-// 3917  8f        adc     a,a
-// 3918  2f        cpl     
-// 3919  80        add     a,b
-// 
+// 390a  04 03 
+"MEMORY  OK"
+// 3916  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 24
-// 391a  04        inc     b
-// 391b  03        inc     bc
-// 391c  42        ld      b,d
-// 391d  41        ld      b,c
-// 391e  44        ld      b,h
-// 391f  40        ld      b,b
-// 3920  40        ld      b,b
-// 3921  40        ld      b,b
-// 3922  40        ld      b,b
-// 3923  52        ld      d,d
-// 3924  40        ld      b,b
-// 3925  4d        ld      c,l
-// 3926  2f        cpl     
-// 3927  8f        adc     a,a
-// 3928  2f        cpl     
-// 3929  80        add     a,b
-// 
+// 391a  04 
+// 391b  03 
+"BAD    R M"
+// 3926  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 26
-// 392a  08        ex      af,af'
-// 392b  03        inc     bc
-// 392c  314043    ld      sp,#4340
-// 392f  4f        ld      c,a
-// 3930  49        ld      c,c
-// 3931  4e        ld      c,(hl)
-// 3932  40        ld      b,b
-// 3933  40        ld      b,b
-// 3934  314043    ld      sp,#4340
-// 3937  52        ld      d,d
-// 3938  45        ld      b,l
-// 3939  44        ld      b,h
-// 393a  49        ld      c,c
-// 393b  54        ld      d,h
-// 393c  40        ld      b,b
-// 393d  2f        cpl     
-// 393e  8f        adc     a,a
-// 393f  2f        cpl     
-// 3940  80        add     a,b
-// 
+// 392a  08 03 
+"1 COIN  1 CREDIT "
+// 393d  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 28
-// 3941  08        ex      af,af'a
-// 3942  03        inc     bc
-// 3943  324043    ld      (#4340),a
-// 3946  4f        ld      c,a
-// 3947  49        ld      c,c
-// 3948  4e        ld      c,(hl)
-// 3949  53        ld      d,e
-// 394a  40        ld      b,b
-// 394b  314043    ld      sp,#4340
-// 394e  52        ld      d,d
-// 394f  45        ld      b,l
-// 3950  44        ld      b,h
-// 3951  49        ld      c,c
-// 3952  54        ld      d,h
-// 3953  40        ld      b,b
-// 3954  2f        cpl     
-// 3955  8f        adc     a,a
-// 3956  2f        cpl     
-// 3957  80        add     a,b
-// 
+// 3941  08 03 
+"2 COINS 1 CREDIT "
+// 3954  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 27
-// 3958  08        ex      af,af'
-// 3959  03        inc     bc
-// 395a  314043    ld      sp,#4340
-// 395d  4f        ld      c,a
-// 395e  49        ld      c,c
-// 395f  4e        ld      c,(hl)
-// 3960  40        ld      b,b
-// 3961  40        ld      b,b
-// 3962  324043    ld      (#4340),a
-// 3965  52        ld      d,d
-// 3966  45        ld      b,l
-// 3967  44        ld      b,h
-// 3968  49        ld      c,c
-// 3969  54        ld      d,h
-// 396a  53        ld      d,e
-// 396b  2f        cpl     
-// 396c  8f        adc     a,a
-// 396d  2f        cpl     
-// 396e  80        add     a,b
-// 
+// 3958  08 03 
+"1 COIN  2 CREDITS"
+// 396b  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 25
-// 396f  08        ex      af,af'
-// 3970  03        inc     bc
-// 3971  46        ld      b,(hl)
-// 3972  52        ld      d,d
-// 3973  45        ld      b,l
-// 3974  45        ld      b,l
-// 3975  40        ld      b,b
-// 3976  40        ld      b,b
-// 3977  50        ld      d,b
-// 3978  4c        ld      c,h
-// 3979  41        ld      b,c
-// 397a  59        ld      e,c
-// 397b  40        ld      b,b
-// 397c  40        ld      b,b
-// 397d  40        ld      b,b
-// 397e  40        ld      b,b
-// 397f  40        ld      b,b
-// 3980  40        ld      b,b
-// 3981  40        ld      b,b
-// 3982  2f        cpl     
-// 3983  8f        adc     a,a
-// 3984  2f        cpl     
-// 3985  80        add     a,b
-// 
+// 396f  08 
+// 3970  03 
+"FREE  PLAY       "
+// 3982  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 2a
-// 3986  0a        ld      a,(bc)
-// 3987  03        inc     bc
-// 3988  42        ld      b,d
-// 3989  4f        ld      c,a
-// 398a  4e        ld      c,(hl)
-// 398b  55        ld      d,l
-// 398c  53        ld      d,e
-// 398d  40        ld      b,b
-// 398e  40        ld      b,b
-// 398f  4e        ld      c,(hl)
-// 3990  4f        ld      c,a
-// 3991  4e        ld      c,(hl)
-// 3992  45        ld      b,l
-// 3993  2f        cpl     
-// 3994  8f        adc     a,a
-// 3995  2f        cpl     
-// 3996  80        add     a,b
-// 
+// 3986  0a 03 
+"BONUS  NONE"
+// 3993  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 2b
-// 3997  0a        ld      a,(bc)
-// 3998  03        inc     bc
-// 3999  42        ld      b,d
-// 399a  4f        ld      c,a
-// 399b  4e        ld      c,(hl)
-// 399c  55        ld      d,l
-// 399d  53        ld      d,e
-// 399e  40        ld      b,b
-// 399f  2f        cpl     
-// 39a0  8f        adc     a,a
-// 39a1  2f        cpl     
-// 39a2  80        add     a,b
-// 
-// 39a3  0c        inc     c
-// 39a4  03        inc     bc
-// 39a5  50        ld      d,b
-// 39a6  55        ld      d,l
-// 39a7  43        ld      b,e
-// 39a8  4b        ld      c,e
-// 39a9  4d        ld      c,l
-// 39aa  41        ld      b,c
-// 39ab  4e        ld      c,(hl)
-// 39ac  2f        cpl     
-// 39ad  8f        adc     a,a
-// 39ae  2f        cpl     
-// 39af  80        add     a,b
-// 
+// 3997  0a 03 
+"BONUS "
+// 399f  2f 8f 2f 80 
+
+// 39a3  0c 03 
+"PUCKMAN"
+// 39ac  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 2c
 // 39b0  0e03      ld      c,#03
-// 39b2  54        ld      d,h
-// 39b3  41        ld      b,c
-// 39b4  42        ld      b,d
-// 39b5  4c        ld      c,h
-// 39b6  45        ld      b,l
-// 39b7  40        ld      b,b
-// 39b8  40        ld      b,b
-// 39b9  2f        cpl     
-// 39ba  8f        adc     a,a
-// 39bb  2f        cpl     
-// 39bc  80        add     a,b
-// 
+"TABLE  "
+// 39b9  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 2d
 // 39bd  0e03      ld      c,#03
-// 39bf  55        ld      d,l
-// 39c0  50        ld      d,b
-// 39c1  52        ld      d,d
-// 39c2  49        ld      c,c
-// 39c3  47        ld      b,a
-// 39c4  48        ld      c,b
-// 39c5  54        ld      d,h
-// 39c6  2f        cpl     
-// 39c7  8f        adc     a,a
-// 39c8  2f        cpl     
-// 39c9  80        add     a,b
-// 
+"UPRIGHT"
+// 39c6  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry 2e
-// 39ca  0a        ld      a,(bc)
-// 39cb  02        ld      (bc),a
-// 39cc  3030      jr      nc,#39fe        ; (48)
-// 39ce  302f      jr      nc,#39ff        ; (47)
-// 39d0  8f        adc     a,a
-// 39d1  2f        cpl     
-// 39d2  80        add     a,b
-// 
+// 39ca  0a 02 
+"000"
+// 39cf  2f 8f 2f 80 
+
 // 	;; 36a5 Table Entry
-// 39d3  6b        ld      l,e
-// 39d4  012641    ld      bc,#4126
-// 39d7  4f        ld      c,a
-// 39d8  53        ld      d,e
-// 39d9  55        ld      d,l
-// 39da  4b        ld      c,e
-// 39db  45        ld      b,l
-// 39dc  262f      ld      h,#2f
-// 39de  85        add     a,l
-// 39df  2f        cpl     
-// 39e0  80        add     a,b
-// 39e1  4b        ld      c,e
-// 39e2  01264d    ld      bc,#4d26
-// 39e5  55        ld      d,l
-// 39e6  43        ld      b,e
-// 39e7  4b        ld      c,e
-// 39e8  59        ld      e,c
-// 39e9  262f      ld      h,#2f
-// 39eb  85        add     a,l
-// 39ec  2f        cpl     
-// 39ed  80        add     a,b
-// 39ee  6e        ld      l,(hl)
-// 39ef  012647    ld      bc,#4726
-// 39f2  55        ld      d,l
-// 39f3  5a        ld      e,d
-// 39f4  55        ld      d,l
-// 39f5  54        ld      d,h
-// 39f6  41        ld      b,c
-// 39f7  262f      ld      h,#2f
-// 39f9  87        add     a,a
-// 39fa  2f        cpl     
-// 39fb  80        add     a,b
-// 39fc  4e        ld      c,(hl)
-// 39fd  01264d    ld      bc,#4d26
-// 3a00  4f        ld      c,a
-// 3a01  43        ld      b,e
-// 3a02  4b        ld      c,e
-// 3a03  59        ld      e,c
-// 3a04  262f      ld      h,#2f
-// 3a06  87        add     a,a
-// 3a07  2f        cpl     
-// 3a08  80        add     a,b
-// 3a09  cb02      rlc     d
-// 3a0b  40        ld      b,b
-// 3a0c  4b        ld      c,e
-// 3a0d  49        ld      c,c
-// 3a0e  4d        ld      c,l
-// 3a0f  41        ld      b,c
-// 3a10  47        ld      b,a
-// 3a11  55        ld      d,l
-// 3a12  52        ld      d,d
-// 3a13  45        ld      b,l
-// 3a14  3b        dec     sp
-// 3a15  3b        dec     sp
-// 3a16  2f        cpl     
-// 3a17  85        add     a,l
-// 3a18  2f        cpl     
-// 3a19  80        add     a,b
-// 3a1a  cb02      rlc     d
-// 3a1c  40        ld      b,b
-// 3a1d  53        ld      d,e
-// 3a1e  54        ld      d,h
-// 3a1f  59        ld      e,c
-// 3a20  4c        ld      c,h
-// 3a21  49        ld      c,c
-// 3a22  53        ld      d,e
-// 3a23  54        ld      d,h
-// 3a24  3b        dec     sp
-// 3a25  3b        dec     sp
-// 3a26  3b        dec     sp
-// 3a27  3b        dec     sp
-// 3a28  2f        cpl     
-// 3a29  85        add     a,l
-// 3a2a  2f        cpl     
-// 3a2b  80        add     a,b
-// 3a2c  ce02      adc     a,#02
-// 3a2e  40        ld      b,b
-// 3a2f  4f        ld      c,a
-// 3a30  54        ld      d,h
-// 3a31  4f        ld      c,a
-// 3a32  42        ld      b,d
-// 3a33  4f        ld      c,a
-// 3a34  4b        ld      c,e
-// 3a35  45        ld      b,l
-// 3a36  3b        dec     sp
-// 3a37  3b        dec     sp
-// 3a38  3b        dec     sp
-// 3a39  2f        cpl     
-// 3a3a  87        add     a,a
-// 3a3b  2f        cpl     
-// 3a3c  80        add     a,b
-// 3a3d  ce02      adc     a,#02
-// 3a3f  40        ld      b,b
-// 3a40  43        ld      b,e
-// 3a41  52        ld      d,d
-// 3a42  59        ld      e,c
-// 3a43  42        ld      b,d
-// 3a44  41        ld      b,c
-// 3a45  42        ld      b,d
-// 3a46  59        ld      e,c
-// 3a47  3b        dec     sp
-// 3a48  3b        dec     sp
-// 3a49  3b        dec     sp
-// 3a4a  3b        dec     sp
-// 3a4b  2f        cpl     
-// 3a4c  87        add     a,a
-// 3a4d  2f        cpl     
-// 3a4e  80        add     a,b
+// 39d3  6b 01 26
+"AOSUKE"
+// 39dc  26
+// 39dd  2f 85 2f 80 
+
+// 39e1  4b
+// 39e2  0126
+"MUCKY"
+// 39e9  26
+// 39ea  2f 85 2f 80 
+// 39ee  6e
+// 39ef  0126
+"GUZUTA"
+// 39f7  26
+// 39f8  2f 87 2f 80 
+
+// 39fc  4e
+// 39fd  0126
+"MOCKY"
+// 3a04  26
+// 3a05  2f 87 2f 80 
+
+// 3a09  cb02
+" KIMAGURE"
+// 3a14  3b
+// 3a15  3b
+// 3a16  2f 85 2f 80 
+
+// 3a1a  cb02
+" STYLIST"
+// 3a24  3b 3b 3b 3b 
+// 3a28  2f 85 2f 80 
+
+// 3a2c  ce02
+" OTOBOKE"
+// 3a36  3b 3b 3b 
+// 3a39  2f 87 2f 80 
+
+// 3a3d  ce02
+" CRYBABY"
+// 3a47  3b 3b 3b 3b 
+// 3a4b  2f 87 2f 80 
+
 // 3a4f  010103    ld      bc,#0301
 // 3a52  010101    ld      bc,#0101
 // 3a55  03        inc     bc
@@ -9361,52 +8911,24 @@ kickWatchdog();
 // 3db3  80        add     a,b
 // 
 // 	;; 36a5 Table Entry 35
-// 3db4  ce02      adc     a,#02
-// 3db6  3b        dec     sp
-// 3db7  50        ld      d,b
-// 3db8  4f        ld      c,a
-// 3db9  4b        ld      c,e
-// 3dba  45        ld      b,l
-// 3dbb  59        ld      e,c
-// 3dbc  40        ld      b,b
-// 3dbd  40        ld      b,b
-// 3dbe  40        ld      b,b
-// 3dbf  40        ld      b,b
-// 3dc0  2f        cpl     
-// 3dc1  87        add     a,a
-// 3dc2  2f        cpl     
-// 3dc3  80        add     a,b
+// 3db4  ce023b
+"POKEY    "
+// 3dc0  2f 87 2f 80
 // 
 // 	;; 36a5 Table Entry 31
-// 3dc4  6e        ld      l,(hl)
-// 3dc5  0126
+// 3dc4  6e0126
 "CLYDE"
-// 3dcc  2640      ld      h,#40
-// 3dce  40        ld      b,b
-// 3dcf  2f        cpl     
-// 3dd0  87        add     a,a
-// 3dd1  2f        cpl     
-// 3dd2  80        add     a,b
+// 3dcc  264040 2f872f80
 // 
 // 	;; 36a5 Table Entry 15
-// 3dd3  c5        push    bc
-// 3dd4  02        ld      (bc),a
-// 3dd5  3b        dec     sp
+// 3dd3  c5023b
 "AAAAAAAA"
-// 3dde  3b        dec     sp
-// 3ddf  2f        cpl     
-// 3de0  81        add     a,c
-// 3de1  2f        cpl     
-// 3de2  80        add     a,b
+// 3dde  3b2f812f80
 // 
 // 	;; 36a5 Table Entry e
-// 3de3  65        ld      h,l
-// 3de4  0126
+// 3de3  650126
 "BBBBBBB"
-// 3ded  262f      ld      h,#2f
-// 3def  81        add     a,c
-// 3df0  2f        cpl     
-// 3df1  80        add     a,b
+// 3ded  262f 812f 80
 // 
 // 	;; 36a5 Table Entry 17
 // 3df2  c8        ret     z
