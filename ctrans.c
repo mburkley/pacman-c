@@ -1,3 +1,48 @@
+/* Memory map table.  Starts at flat map but replace with specific locations as
+ * they are discovered */
+
+// Video : https://www.walkofmind.com/programming/pie/video_memory.htm
+
+union
+{
+    struct
+    {
+        uint8_t rom[0x4000]; // starts at 0x0000
+        uint8_t videoChar[0x400]; // starts at 0x4000
+        uint8_t videoCol[0x400]; // starts at 0x4400
+        uint8_t ram[0x7f0];  // starts at 0x4800
+        uint8_t sprites[0x10];  // starts at 0x4ff0
+    };
+    uint8_t data[0x5000];
+}
+memory;
+
+struct
+{
+    uint8_t in0; // 0x5000-0x503f
+    uint8_t in1; // 0x5040-0x507f
+    uint8_t dipSwitches; // 0x5080-0x50bf
+}
+regsRead;
+
+#define DIP_TEST_SWITCH (regsRead.in0 & 0x10)
+
+struct
+{
+    uint8_t intEnable;  // 0x5000
+    uint8_t soundEnable; // 0x5001
+    uint8_t auxEnable; // 0x5002
+    uint8_t flipScreen; // 0x5003
+    uint8_t player1Start; // 0x5004
+    uint8_t player2Start; // 0x5005
+    uint8_t coinLockout; // 0x5006
+    uint8_t coinCounter; // 0x5007
+    uint8_t soundRegs[0x40]; // 0x5040
+    uint8_t spriteCoords[0x10]; // 0x5060
+    uint8_t watchdog; // 0x50c0-0x50ff
+}
+regsWrite;
+
 // 	;; 4e66 last state coin inputs shifted left by 1
 // 	;; COINS_PER_CREDIT #coins per #credits
 // 	;; partialCredit #left over coins (partial credits)
@@ -11,9 +56,10 @@ uint32_t p1Score;
 uint32_t p2Score;
 // 	;; 4e88-4e8b High score
 uint32_t highScore;
-// 	
+
 // 	;; 4370 #players (0=1, 1=2)
-// 	
+uint8_t numPlayers;
+
 // 	Starting address: 0
 //   Ending address: 16383
 //      Output file: (none)
@@ -137,24 +183,23 @@ uint32_t highScore;
 // 0088  0e0f      ld      c,#0f
 // 008a  1011      djnz    #009d           ; (17)
 // 008c  14        inc     d
-// 
+
+
 // 	;; Non-test mode interrupt routine
-// 008d  f5        push    af
-kickWatchdog();
-// 0091  af        xor     a
-// 0092  320050    ld      (#5000),a	; Disable interrupts (hardware) 
-// 0095  f3        di			; Disable interrupts (CPU) 
-// 0096  c5        push    bc
-// 0097  d5        push    de
-// 0098  e5        push    hl
-// 0099  dde5      push    ix
-// 009b  fde5      push    iy
-// 	
+// 008d
+
+void isr()
+{
+    kickWatchdog();
+    regsWrite.intEnable = 0;
+
 // 009d  218c4e    ld      hl,#4e8c	; Write freq/volume for sound regs 
 // 00a0  115050    ld      de,#5050
 // 00a3  011000    ld      bc,#0010
 // 00a6  edb0      ldir
-// 	
+
+    memcpy (regsWrite.&soundRegs[0x10], &memory.ram[0x68c], 0x10);
+
 // 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
 // 00ab  a7        and     a
 // 
@@ -180,7 +225,9 @@ kickWatchdog();
 // 00d8  11224c    ld      de,#4c22
 // 00db  011c00    ld      bc,#001c
 // 00de  edb0      ldir
-// 
+
+    memcpy (memory.data+0x4c22, memory.data+0x4c02, 0x1c);
+
 // 00e0  dd21204c  ld      ix,#4c20
 // 00e4  dd7e02    ld      a,(ix+#02)
 // 00e7  07        rlca    
@@ -244,10 +291,12 @@ kickWatchdog();
 // 0179  11f24f    ld      de,#4ff2
 // 017c  010c00    ld      bc,#000c
 // 017f  edb0      ldir    
+    memcpy (memory.data+0x4ff2, memory.data+0x4c22, 0xc);
 // 0181  21324c    ld      hl,#4c32
 // 0184  116250    ld      de,#5062
 // 0187  010c00    ld      bc,#000c
 // 018a  edb0      ldir    
+    memcpy (regsWrite.spriteCoords+2, memory.data+0x4c32, 0xc);
 // 018c  cddc01    call    #01dc
 // 018f  cd2102    call    #0221
 // 0192  cdc803    call    #03c8
@@ -276,17 +325,12 @@ kickWatchdog();
 // 01c9  a7        and     a
 // 01ca  2808      jr      z,#01d4         ; (8)
 // 
-// 01cc  3a4050    ld      a,(#5040)	; Check test switch 
-// 01cf  e610      and     #10
-// 01d1  ca0000    jp      z,#0000		; Reset if test
-// 	 
-// 01d4  3e01      ld      a,#01		; Enable interrupts (hardware) 
-// 01d6  320050    ld      (#5000),a
-// 01d9  fb        ei			; Enable interrupts (CPU) 
-// 01da  f1        pop     af
-// 01db  c9        ret     
-// 
-// 	
+    if (DIP_TEST_SWITCH)
+        reset();
+
+    regsWrite.intEnable = 1;
+}
+
 // 01dc  21844c    ld      hl,#4c84
 // 01df  34        inc     (hl)
 // 01e0  23        inc     hl
@@ -466,8 +510,15 @@ kickWatchdog();
 // 02e5  34        inc     (hl)			; add 1 
 // 02e6  96        sub     (hl)
 // 02e7  c0        ret     nz			; not enough coins for credit 
-// 
 // 02e8  77        ld      (hl),a			; store leftover coins 
+
+bool checkCoinCredit ()
+{
+    if (++partialCredit < COINS_PER_CREDIT)
+        return false;
+
+    partialCredit -= COINS_PER_CREDIT;
+
 // 02e9  3a6d4e    ld      a,(#CREDITS_PER_COIN)		; #credits per #coins 
 // 02ec  216e4e    ld      hl,#coinCredits		; #credits 
 // 02ef  86        add     a,(hl)			; add # credits 
@@ -475,27 +526,52 @@ kickWatchdog();
 // 02f1  d2f602    jp      nc,#02f6
 // 02f4  3e99      ld      a,#99
 // 02f6  77        ld      (hl),a			; store #credits, max 99 
+
+    coinCredits += CREDITS_PER_COIN;
+
+    if (coinCredits > 99)
+        coinCredits = 99;
+
 // 02f7  219c4e    ld      hl,#4e9c
 // 02fa  cbce      set     1,(hl)			; set bit 1 of 4e9c 
 // 02fc  c9        ret     
-// 
+
+    *(0x4e9c) |= 1;
+
 // 02fd  21ce4d    ld      hl,#4dce
 // 0300  34        inc     (hl)
 // 0301  7e        ld      a,(hl)
 // 0302  e60f      and     #0f
+
+    uint16_t *a = 0x4dce;
+    (*a)++;
+    char b = *a & 0xf;
+
 // 0304  201f      jr      nz,#0325        ; (31)
+
+    if (b == 0)
+    {
 // 0306  7e        ld      a,(hl)
 // 0307  0f        rrca    
 // 0308  0f        rrca    
 // 0309  0f        rrca    
 // 030a  0f        rrca    
+
+        b = *a;
+        b = (b>>4) | ((b&0xf)<<4);
+
 // 030b  47        ld      b,a
 // 030c  3ad64d    ld      a,(#4dd6)
 // 030f  2f        cpl     
 // 0310  b0        or      b
+
+        b |= ~(0x4dd6);
+
 // 0311  4f        ld      c,a
 // 0312  3a6e4e    ld      a,(#coinCredits)
 // 0315  d601      sub     #01
+
+        coinCredits-1
 // 0317  3002      jr      nc,#031b        ; (2)
 // 0319  af        xor     a
 // 031a  4f        ld      c,a
@@ -1287,6 +1363,7 @@ kickWatchdog();
 // 0814  11464d    ld      de,#4d46
 // 0817  011c00    ld      bc,#001c
 // 081a  edb0      ldir    
+    memcpy (...
 // 081c  010c00    ld      bc,#000c
 // 081f  a7        and     a
 // 0820  ed42      sbc     hl,bc
@@ -2893,37 +2970,64 @@ memset (0x4e0c, 0, 7);
 // 1376  3aa64d    ld      a,(#4da6)
 // 1379  a7        and     a
 // 137a  c8        ret     z
-// 
+
+void unknown()
+{
 // 137b  dd21a74d  ld      ix,#4da7
 // 137f  dd7e00    ld      a,(ix+#00)
 // 1382  ddb601    or      (ix+#01)
 // 1385  ddb602    or      (ix+#02)
 // 1388  ddb603    or      (ix+#03)
 // 138b  ca9813    jp      z,#1398
+    if ((*(uint32_t*)&memory.data[0x4da7]) != 0)
+    {
+
 // 138e  2acb4d    ld      hl,(#4dcb)
 // 1391  2b        dec     hl
 // 1392  22cb4d    ld      (#4dcb),hl
+        hl = --(uint16_t) memory.data[0x4dcb];
+
 // 1395  7c        ld      a,h
 // 1396  b5        or      l
 // 1397  c0        ret     nz
-// 
+        if (hl == 0)
+            return;
+    }
+
 // 1398  210b4c    ld      hl,#4c0b
 // 139b  3609      ld      (hl),#09
+    memory.data[0x4c0b] = 9;
+
 // 139d  3aac4d    ld      a,(#4dac)
 // 13a0  a7        and     a
 // 13a1  c2a713    jp      nz,#13a7
+
+    if (memory.data[0x4dac] == 0)
+    {
 // 13a4  32a74d    ld      (#4da7),a
+        memory.data[0x4da7] = 0;
+    }
+
 // 13a7  3aad4d    ld      a,(#4dad)
 // 13aa  a7        and     a
 // 13ab  c2b113    jp      nz,#13b1
+    if (memory.data[0x4dad] == 0)
+    {
+
 // 13ae  32a84d    ld      (#4da8),a
+        memory.data[0x4da8] = 0;
+    }
+
 // 13b1  3aae4d    ld      a,(#4dae)
 // 13b4  a7        and     a
 // 13b5  c2bb13    jp      nz,#13bb
+
 // 13b8  32a94d    ld      (#4da9),a
+
 // 13bb  3aaf4d    ld      a,(#4daf)
 // 13be  a7        and     a
 // 13bf  c2c513    jp      nz,#13c5
+
 // 13c2  32aa4d    ld      (#4daa),a
 // 13c5  af        xor     a
 // 13c6  32cb4d    ld      (#4dcb),a
@@ -3763,9 +3867,13 @@ memset (0x4e0c, 0, 7);
 // 1a6a  3a9d4d    ld      a,(#4d9d)
 // 1a6d  fe06      cp      #06
 // 1a6f  c0        ret     nz
-// 
+
+void unknown()
+{
+
 // 1a70  2abd4d    ld      hl,(#4dbd)
 // 1a73  22cb4d    ld      (#4dcb),hl
+    memory.x4dcb = memory.x4dcb;
 // 1a76  3e01      ld      a,#01
 // 1a78  32a64d    ld      (#4da6),a
 // 1a7b  32a74d    ld      (#4da7),a
@@ -6058,7 +6166,16 @@ uint16_t scoreTable[] =
 // 2b9e  d1        pop     de
 // 2b9f  e1        pop     hl
 // 2ba0  c9        ret     
-// 
+
+void drawFruit (uint8_t* addr, int a)
+{
+    *addr++ = a++;
+    *addr = a++;
+    addr += 0x1f;
+    *addr++ = a++;
+    *addr = a;
+}
+
 // 	;; Draw # credits/free play on bottom of screen
 // 2ba1  3a6e4e    ld      a,(#coinCredits)		; Check # credits	
 // 2ba4  feff      cp      #ff
@@ -6122,6 +6239,7 @@ uint16_t scoreTable[] =
 // 2bff  210440    ld      hl,#4004	; Starting loc 
 // 2c02  1a        ld      a,(de)		;  
 // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
+drawFruit (0x4004, &(0x3b08));
 // 
 // 2c06  3e04      ld      a,#04		; v
 // 2c08  84        add     a,h		; v
@@ -8738,26 +8856,32 @@ kickWatchdog();
 // 3b02  d2fa3a    jp      nc,#3afa
 // 3b05  24        inc     h
 // 3b06  18f2      jr      #3afa           ; (-14)
+
 // 3b08  90        sub     b
 // 3b09  14        inc     d
 // 3b0a  94        sub     h
 // 3b0b  0f        rrca    
+
 // 3b0c  98        sbc     a,b
 // 3b0d  15        dec     d
 // 3b0e  98        sbc     a,b
 // 3b0f  15        dec     d
+
 // 3b10  a0        and     b
 // 3b11  14        inc     d
 // 3b12  a0        and     b
 // 3b13  14        inc     d
+
 // 3b14  a4        and     h
 // 3b15  17        rla     
 // 3b16  a4        and     h
 // 3b17  17        rla     
+
 // 3b18  a8        xor     b
 // 3b19  09        add     hl,bc
 // 3b1a  a8        xor     b
 // 3b1b  09        add     hl,bc
+
 // 3b1c  9c        sbc     a,h
 // 3b1d  169c      ld      d,#9c
 // 3b1f  16ac      ld      d,#ac
