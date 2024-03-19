@@ -1,3 +1,7 @@
+/*  C translation of original pac-man ROM code.  Original code remains as
+ *  comments.  Assembly that has been translated is boxed off with //---- 
+ */
+
 /* Memory map table.  Starts at flat map but replace with specific locations as
  * they are discovered */
 
@@ -43,22 +47,30 @@ struct
 }
 regsWrite;
 
-// 	;; 4e66 last state coin inputs shifted left by 1
-// 	;; COINS_PER_CREDIT #coins per #credits
-// 	;; partialCredit #left over coins (partial credits)
-// 	;; CREDITS_PER_COIN	#credits per #coins
-// 	;; coinCredits #credits
-// 	;; LIVES_PER_GAME #lives per game
-// 
-// 	;; 4e80-4e83 P1 score
-uint32_t p1Score;
-// 	;; 4e84-4e87 P2 score
-uint32_t p2Score;
-// 	;; 4e88-4e8b High score
-uint32_t highScore;
+//	;; 4e66 last state coin inputs shifted left by 1
+//	;; 4e6b #coins per #credits
+#define COINS_PER_CREDIT 1
+//	;; 4e6c #left over coins (partial credits)
+static int partialCredit;
+//	;; 4e6d	#credits per #coins
+#define CREDITS_PER_COIN 1
+//	;; 4e6e #credits
+int credits;
+//	;; 4e6f #lives per game
+#define LIVES_PER_GAME 1
 
-// 	;; 4370 #players (0=1, 1=2)
+//	;; 4e80-4e83 P1 score
+uint32_t p1Score;
+//	;; 4e84-4e87 P2 score
+uint32_t p2Score;
+//	;; 4e88-4e8b High score
+uint32_t highScore;
+	
+//	;; 4370 #players (0=1, 1=2)
 uint8_t numPlayers;
+
+//	;; 4dc5 counter for something
+uint16_t tbdCounter;
 
 // 	Starting address: 0
 //   Ending address: 16383
@@ -69,13 +81,21 @@ uint8_t numPlayers;
 // 0003  ed47      ld      i,a		; Interrupt page = 0x3f
 // 0005  c30b23    jp      #230b		; Run startup tests
 // 
+
+//-------------------------------
 // 	;; Fill "hl" to "hl+b" with "a"
 // 0008  77        ld      (hl),a
 // 0009  23        inc     hl
 // 000a  10fc      djnz    #0008           ; (-4)
 // 000c  c9        ret     
 // 000d  c30e07    jp      #070e
+//-------------------------------
+void setMemory (int addr, int count, uint8_t value)
+{
+    memset (addr, value, count);
+}
 
+//-------------------------------
 // 	;; hl = hl + a, (hl) -> a
 // 0010  85        add     a,l		
 // 0011  6f        ld      l,a		
@@ -84,7 +104,14 @@ uint8_t numPlayers;
 // 0015  67        ld      h,a
 // 0016  7e        ld      a,(hl)
 // 0017  c9        ret     
-// 
+//-------------------------------
+uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
+{
+    (*addr) += offset;
+    return memory.data[*addr];
+}
+
+//-------------------------------
 // 	;; Some sort of table lookup
 // 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
 // 	;; (Used to add up scores!)
@@ -96,7 +123,16 @@ uint8_t numPlayers;
 // 001d  56        ld      d,(hl)
 // 001e  eb        ex      de,hl
 // 001f  c9        ret     
-// 
+//-------------------------------
+uint16_t tableLookup (uint16_t *addr, uint8_t offset)
+{
+    int e = fetchOffset(addr, offset*2) 
+    (*addr)++;
+    int d = memory.data[*addr];
+    return e+d<<8;
+}
+
+//-------------------------------
 // 0020  e1        pop     hl
 // 0021  87        add     a,a
 // 0022  d7        rst     #10
@@ -105,7 +141,16 @@ uint8_t numPlayers;
 // 0025  56        ld      d,(hl)
 // 0026  eb        ex      de,hl
 // 0027  e9        jp      (hl)
-// 
+//-------------------------------
+tableCall (uint16_t *addr, uint8_t offset)
+{
+    int e = fetchOffset (addr, offset*2);
+    (*addr)++;
+    int d = memory.data[*addr];
+
+    // Call function at de
+}
+
 // 0028  e1        pop     hl
 // 0029  46        ld      b,(hl)
 // 002a  23        inc     hl
@@ -185,21 +230,34 @@ uint8_t numPlayers;
 // 008c  14        inc     d
 
 
+//-------------------------------
 // 	;; Non-test mode interrupt routine
-// 008d
-
+// 008d  f5        push    af
+// 008e  32c050    ld      (#50c0),a	; Kick watchdog 
+// 0091  af        xor     a
+// 0092  320050    ld      (#5000),a	; Disable interrupts (hardware) 
+// 0095  f3        di			; Disable interrupts (CPU) 
+// 0096  c5        push    bc
+// 0097  d5        push    de
+// 0098  e5        push    hl
+// 0099  dde5      push    ix
+// 009b  fde5      push    iy
+//-------------------------------
 void isr()
 {
     kickWatchdog();
     regsWrite.intEnable = 0;
+    interruptDisable();
 
+//-------------------------------
 // 009d  218c4e    ld      hl,#4e8c	; Write freq/volume for sound regs 
 // 00a0  115050    ld      de,#5050
 // 00a3  011000    ld      bc,#0010
 // 00a6  edb0      ldir
-
+//-------------------------------
     memcpy (regsWrite.&soundRegs[0x10], &memory.ram[0x68c], 0x10);
 
+//-------------------------------
 // 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
 // 00ab  a7        and     a
 // 
@@ -208,24 +266,56 @@ void isr()
 // 00af  2003      jr      nz,#00b4        ; (3)
 // 00b1  3a9f4e    ld      a,(#4e9f)
 // 00b4  324550    ld      (#5045),a
+//-------------------------------
+    a = memory.data[0x4ecf];
+
+    if (memory.data[0x4ecc] == 0)
+    {
+        a = memory.data[0x4e9f];
+    }
+
+    regsWrite.soundRegs[5] = a;
+
+//-------------------------------
 // 00b7  3adc4e    ld      a,(#4edc)
 // 00ba  a7        and     a
 // 00bb  3adf4e    ld      a,(#4edf)
 // 00be  2003      jr      nz,#00c3        ; (3)
 // 00c0  3aaf4e    ld      a,(#4eaf)
 // 00c3  324a50    ld      (#504a),a
+//-------------------------------
+    a = memory.data[0x4edf];
+
+    if ((a = memory.data[0x4edc]) == 0)
+    {
+        a = memory.data[0x4eaf];
+    }
+
+    regsWrite.soundRegs[0xa] = a;
+
+//-------------------------------
 // 00c6  3aec4e    ld      a,(#4eec)
 // 00c9  a7        and     a
 // 00ca  3aef4e    ld      a,(#4eef)
 // 00cd  2003      jr      nz,#00d2        ; (3)
 // 00cf  3abf4e    ld      a,(#4ebf)
 // 00d2  324f50    ld      (#504f),a
-// 	
+//-------------------------------
+    a = memory.data[0x4eef];
+
+    if ((a = memory.data[0x4eec]) == 0)
+    {
+        a = memory.data[0x4ebf];
+    }
+
+    regsWrite.soundRegs[0xf] = a;
+
+//-------------------------------
 // 00d5  21024c    ld      hl,#4c02
 // 00d8  11224c    ld      de,#4c22
 // 00db  011c00    ld      bc,#001c
 // 00de  edb0      ldir
-
+//-------------------------------
     memcpy (memory.data+0x4c22, memory.data+0x4c02, 0x1c);
 
 // 00e0  dd21204c  ld      ix,#4c20
@@ -321,14 +411,24 @@ void isr()
 // 01c3  e1        pop     hl
 // 01c4  d1        pop     de
 // 01c5  c1        pop     bc
+//-------------------------------
 // 01c6  3a004e    ld      a,(#4e00)
 // 01c9  a7        and     a
 // 01ca  2808      jr      z,#01d4         ; (8)
-// 
-    if (DIP_TEST_SWITCH)
+// 01cc  3a4050    ld      a,(#5040)	; Check test switch 
+// 01cf  e610      and     #10
+// 01d1  ca0000    jp      z,#0000		; Reset if test
+// 01d4  3e01      ld      a,#01		; Enable interrupts (hardware) 
+// 01d6  320050    ld      (#5000),a
+// 01d9  fb        ei			; Enable interrupts (CPU) 
+// 01da  f1        pop     af
+// 01db  c9        ret     
+//-------------------------------
+    if (memory.data[0x4e00] != 0 && DIP_TEST_SWITCH)
         reset();
 
     regsWrite.intEnable = 1;
+    interruptEnable ();
 }
 
 // 01dc  21844c    ld      hl,#4c84
@@ -385,6 +485,7 @@ void isr()
 // 021e  60        ld      h,b
 // 021f  0a        ld      a,(bc)
 // 0220  a0        and     b
+
 // 0221  21904c    ld      hl,#4c90
 // 0224  3a8a4c    ld      a,(#4c8a)
 // 0227  4f        ld      c,a
@@ -392,15 +493,33 @@ void isr()
 // 022a  7e        ld      a,(hl)
 // 022b  a7        and     a
 // 022c  282f      jr      z,#025d         ; (47)
-// 022e  e6c0      and     #c0
-// 0230  07        rlca    
-// 0231  07        rlca    
-// 0232  b9        cp      c
-// 0233  3028      jr      nc,#025d        ; (40)
-// 0235  35        dec     (hl)
-// 0236  7e        ld      a,(hl)
-// 0237  e63f      and     #3f
-// 0239  2022      jr      nz,#025d        ; (34)
+    c = memory.data[0x4c8a];
+    b=10;
+    hl = 0x4c90;
+    a = memory.data[hl];
+    if (a != 0)
+    {
+        //-------------------------------
+        // 022e  e6c0      and     #c0
+        // 0230  07        rlca    
+        // 0231  07        rlca    
+        // 0232  b9        cp      c
+        // 0233  3028      jr      nc,#025d        ; (40)
+        //-------------------------------
+        a &= 0xc0;
+        a>>=6;
+        if(a<c)
+        {
+            //-------------------------------
+            // 0235  35        dec     (hl)
+            // 0236  7e        ld      a,(hl)
+            // 0237  e63f      and     #3f
+            // 0239  2022      jr      nz,#025d        ; (34)
+            //-------------------------------
+            a = (memory.data[--hl] & 0x3f);
+            if (a == 0)
+            {
+
 // 023b  77        ld      (hl),a
 // 023c  c5        push    bc
 // 023d  e5        push    hl
@@ -426,6 +545,9 @@ void isr()
 // 0256  21f021    ld      hl,#21f0
 // 0259  b9        cp      c
 // 025a  22e1c1    ld      (#c1e1),hl
+}
+}
+
 // 025d  2c        inc     l
 // 025e  2c        inc     l
 // 025f  2c        inc     l
@@ -504,6 +626,7 @@ void isr()
 // 02db  32694e    ld      (#4e69),a
 // 02de  c9        ret     
 // 
+//-------------------------------
 // 	;; Coins -> credits routine
 // 02df  3a6b4e    ld      a,(#COINS_PER_CREDIT)		; #coins per #credits 
 // 02e2  216c4e    ld      hl,#partialCredit		; #leftover coins 
@@ -511,7 +634,7 @@ void isr()
 // 02e6  96        sub     (hl)
 // 02e7  c0        ret     nz			; not enough coins for credit 
 // 02e8  77        ld      (hl),a			; store leftover coins 
-
+//-------------------------------
 bool checkCoinCredit ()
 {
     if (++partialCredit < COINS_PER_CREDIT)
@@ -519,6 +642,7 @@ bool checkCoinCredit ()
 
     partialCredit -= COINS_PER_CREDIT;
 
+//-------------------------------
 // 02e9  3a6d4e    ld      a,(#CREDITS_PER_COIN)		; #credits per #coins 
 // 02ec  216e4e    ld      hl,#coinCredits		; #credits 
 // 02ef  86        add     a,(hl)			; add # credits 
@@ -526,72 +650,118 @@ bool checkCoinCredit ()
 // 02f1  d2f602    jp      nc,#02f6
 // 02f4  3e99      ld      a,#99
 // 02f6  77        ld      (hl),a			; store #credits, max 99 
+//-------------------------------
 
     coinCredits += CREDITS_PER_COIN;
 
     if (coinCredits > 99)
         coinCredits = 99;
 
+//-------------------------------
 // 02f7  219c4e    ld      hl,#4e9c
 // 02fa  cbce      set     1,(hl)			; set bit 1 of 4e9c 
 // 02fc  c9        ret     
+//-------------------------------
 
-    *(0x4e9c) |= 1;
+    memory.data[0x4e9c] |= 1;
 
+//-------------------------------
 // 02fd  21ce4d    ld      hl,#4dce
 // 0300  34        inc     (hl)
 // 0301  7e        ld      a,(hl)
 // 0302  e60f      and     #0f
+// 0304  201f      jr      nz,#0325        ; (31)
+//-------------------------------
 
-    uint16_t *a = 0x4dce;
+    uint16_t hl = 0x4dce;
     (*a)++;
     char b = *a & 0xf;
 
-// 0304  201f      jr      nz,#0325        ; (31)
-
     if (b == 0)
     {
+//-------------------------------
 // 0306  7e        ld      a,(hl)
 // 0307  0f        rrca    
 // 0308  0f        rrca    
 // 0309  0f        rrca    
 // 030a  0f        rrca    
-
+//-------------------------------
         b = *a;
         b = (b>>4) | ((b&0xf)<<4);
 
+//-------------------------------
 // 030b  47        ld      b,a
 // 030c  3ad64d    ld      a,(#4dd6)
 // 030f  2f        cpl     
 // 0310  b0        or      b
+//-------------------------------
+        a = b | ~(0x4dd6);
 
-        b |= ~(0x4dd6);
-
+//-------------------------------
 // 0311  4f        ld      c,a
 // 0312  3a6e4e    ld      a,(#coinCredits)
 // 0315  d601      sub     #01
-
-        coinCredits-1
 // 0317  3002      jr      nc,#031b        ; (2)
+//-------------------------------
+        c = a;
+        a = coinCredits-1;
+
+        if (a < 0)
+        {
+
+//-------------------------------
 // 0319  af        xor     a
 // 031a  4f        ld      c,a
 // 031b  2801      jr      z,#031e         ; (1)
 // 031d  79        ld      a,c
+//-------------------------------
+            c = 0;
+        }
+        else if (a != 0)
+        {
+            a = c;
+        }
+//-------------------------------
 // 031e  320550    ld      (#5005),a
 // 0321  79        ld      a,c
 // 0322  320450    ld      (#5004),a
+//-------------------------------
+        regsWrite.player2Start = a;
+        regsWrite.player1Start = c;
+    }
+
+//-------------------------------
 // 0325  dd21d843  ld      ix,#43d8
 // 0329  fd21c543  ld      iy,#43c5
 // 032d  3a004e    ld      a,(#4e00)
 // 0330  fe03      cp      #03
 // 0332  ca4403    jp      z,#0344
+//-------------------------------
+    ix = 0x43d8;
+    iy = 0x43c5;
+    if (memory.data[0x4e00] != 3)
+    {
+
+//-------------------------------
 // 0335  3a034e    ld      a,(#4e03)
 // 0338  fe02      cp      #02
 // 033a  d24403    jp      nc,#0344
+//-------------------------------
+        a = memory.data[0x4e03];
+        if (a >= 2)
+        {
+//-------------------------------
 // 033d  cd6903    call    #0369
 // 0340  cd7603    call    #0376
 // 0343  c9        ret     
-// 
+//-------------------------------
+            oneUp();
+            twoUp();
+            return;
+        }
+    }
+
+//-------------------------------
 // 0344  3a094e    ld      a,(#4e09)
 // 0347  a7        and     a
 // 0348  3ace4d    ld      a,(#4dce)
@@ -607,31 +777,88 @@ bool checkCoinCredit ()
 // 0364  a7        and     a
 // 0365  cc9003    call    z,#0390
 // 0368  c9        ret     
-// 
+//-------------------------------
+}
+
+void playerUp ()
+{
+    if (memory.data[0x4e09] == 0)
+    {
+        if ((memory.data[0x4dce] & 0x10) == 0)
+            oneUp();
+        else
+            oneBlank();
+    }
+    else
+    {
+        if ((memory.data[0x4dce] & 0x10) == 0)
+            twoUp();
+        else
+            twoBlank();
+    }
+}
+
+//-------------------------------
 // 0369  dd360050  ld      (ix+#00),#50
 // 036d  dd360155  ld      (ix+#01),#55
 // 0371  dd360231  ld      (ix+#02),#31
 // 0375  c9        ret     
-// 
+//-------------------------------
+void oneUp (uint8_t *ix)
+{
+    // PU1 ?
+    *ix = 0x50;
+    *(ix+1) = 0x55;
+    *(ix+2) = 0x31;
+}
+
+//-------------------------------
 // 0376  fd360050  ld      (iy+#00),#50
 // 037a  fd360155  ld      (iy+#01),#55
 // 037e  fd360232  ld      (iy+#02),#32
 // 0382  c9        ret     
-// 
+//-------------------------------
+void twoUp (uint8_t *iy)
+{
+    // PU2 ?
+    *iy = 0x50;
+    *(iy+1) = 0x55;
+    *(iy+2) = 0x31;
+}
+
+//-------------------------------
 // 0383  dd360040  ld      (ix+#00),#40
 // 0387  dd360140  ld      (ix+#01),#40
 // 038b  dd360240  ld      (ix+#02),#40
 // 038f  c9        ret     
-// 
+//-------------------------------
+void oneBlank (uint8_t *ix)
+{
+    *ix = *(ix+1) = *(ix+2) = 0x40;
+}
+
+//-------------------------------
 // 0390  fd360040  ld      (iy+#00),#40
 // 0394  fd360140  ld      (iy+#01),#40
 // 0398  fd360240  ld      (iy+#02),#40
 // 039c  c9        ret     
-// 
+//-------------------------------
+void twoBlank (uint8_t *iy)
+{
+    *iy = *(iy+1) = *(iy+2) = 0x40;
+}
+
+//-------------------------------
 // 039d  3a064e    ld      a,(#4e06)
 // 03a0  d605      sub     #05
 // 03a2  d8        ret     c
-// 
+//-------------------------------
+bool tbd (void)
+{
+    return (memory.data[0x4e06] < 5);
+}
+
+//-------------------------------
 // 03a3  2a084d    ld      hl,(#4d08)
 // 03a6  0608      ld      b,#08
 // 03a8  0e10      ld      c,#10
@@ -649,21 +876,34 @@ bool checkCoinCredit ()
 // 03c1  32054d    ld      (#4d05),a
 // 03c4  32d34d    ld      (#4dd3),a
 // 03c7  c9        ret     
-// 
+//-------------------------------
+void tbd ()
+{
+    uint8_t h = memory.data[0x4d09];
+    uint8_t l = memory.data[0x4d08];
+    memory.data[0x4d06] = l;
+    memory.data[0x4dd2] = l;
+    memory.data[0x4d02] = l-10;
+    memory.data[0x4d04] = l-10;
+    memory.data[0x4d03] = h+8;
+    memory.data[0x4d07] = h+8;
+    memory.data[0x4d05] = h-2;
+    memory.data[0x4dd3] = h-2;
+}
+
 // 03c8  3a004e    ld      a,(#4e00)
 // 03cb  e7        rst     #20
-// 03cc  d403fe    call    nc,#fe03
-// 03cf  03        inc     bc
-// 03d0  e5        push    hl
-// 03d1  05        dec     b
-// 03d2  be        cp      (hl)
-// 03d3  063a      ld      b,#3a
-// 03d5  014ee7    ld      bc,#e74e
-// 03d8  dc030c    call    c,#0c03
-// 03db  00        nop     
-// 03dc  ef        rst     #28
-// 03dd  00        nop     
-// 03de  00        nop     
+
+// 03cc  d403
+//       fe03
+// 03d0  e505
+// 03d2  be06
+//       3a01
+//       4ee7
+// 03d8  dc03
+//       0c00
+// 03dc  ef00
+
 // 03df  ef        rst     #28
 // 03e0  0600      ld      b,#00
 // 03e2  ef        rst     #28
@@ -680,13 +920,13 @@ bool checkCoinCredit ()
 // 03f1  ef        rst     #28
 // 03f2  07        rlca    
 // 03f3  00        nop     
+
 // 03f4  21014e    ld      hl,#4e01
 // 03f7  34        inc     (hl)
 // 03f8  210150    ld      hl,#5001
 // 03fb  3601      ld      (hl),#01
 // 03fd  c9        ret     
-// 
-// 	;; Can't find a jump to here?!
+
 // 03fe  cda12b    call    #2ba1			; Write # credits on screen
 // 0401  3a6e4e    ld      a,(#coinCredits)
 // 0404  a7        and     a
@@ -700,77 +940,44 @@ bool checkCoinCredit ()
 // 
 // 0413  3a024e    ld      a,(#4e02)
 // 0416  e7        rst     #20
-// 0417  5f        ld      e,a
-// 0418  04        inc     b
-// 0419  0c        inc     c
-// 041a  00        nop     
-// 041b  71        ld      (hl),c
-// 041c  04        inc     b
-// 041d  0c        inc     c
-// 041e  00        nop     
-// 041f  7f        ld      a,a
-// 0420  04        inc     b
-// 0421  0c        inc     c
-// 0422  00        nop     
-// 0423  85        add     a,l
-// 0424  04        inc     b
-// 0425  0c        inc     c
-// 0426  00        nop     
-// 0427  8b        adc     a,e
-// 0428  04        inc     b
-// 0429  0c        inc     c
-// 042a  00        nop     
-// 042b  99        sbc     a,c
-// 042c  04        inc     b
-// 042d  0c        inc     c
-// 042e  00        nop     
-// 042f  9f        sbc     a,a
-// 0430  04        inc     b
-// 0431  0c        inc     c
-// 0432  00        nop     
-// 0433  a5        and     l
-// 0434  04        inc     b
-// 0435  0c        inc     c
-// 0436  00        nop     
-// 0437  b3        or      e
-// 0438  04        inc     b
-// 0439  0c        inc     c
-// 043a  00        nop     
-// 043b  b9        cp      c
-// 043c  04        inc     b
-// 043d  0c        inc     c
-// 043e  00        nop     
-// 043f  bf        cp      a
-// 0440  04        inc     b
-// 0441  0c        inc     c
-// 0442  00        nop     
-// 0443  cd040c    call    #0c04
-// 0446  00        nop     
-// 0447  d304      out     (#04),a
-// 0449  0c        inc     c
-// 044a  00        nop     
-// 044b  d8        ret     c
-// 
-// 044c  04        inc     b
-// 044d  0c        inc     c
-// 044e  00        nop     
-// 044f  e0        ret     po
-// 
-// 0450  04        inc     b
-// 0451  0c        inc     c
-// 0452  00        nop     
-// 0453  1c        inc     e
-// 0454  05        dec     b
-// 0455  4b        ld      c,e
-// 0456  05        dec     b
-// 0457  56        ld      d,(hl)
-// 0458  05        dec     b
-// 0459  61        ld      h,c
-// 045a  05        dec     b
-// 045b  6c        ld      l,h
-// 045c  05        dec     b
-// 045d  7c        ld      a,h
-// 045e  05        dec     b
+
+// 0417  5f04
+// 0419  0c00 
+// 041b  7104 
+// 041d  0c00 
+// 041f  7f04 
+// 0421  0c00 
+// 0423  8504 
+// 0425  0c00 
+// 0427  8b04 
+// 0429  0c00 
+// 042b  9904 
+// 042d  0c00 
+// 042f  9f04 
+// 0431  0c00 
+// 0433  a504 
+// 0435  0c00 
+// 0437  b304 
+// 0439  0c00 
+// 043b  b904 
+// 043d  0c00 
+// 043f  bf04 
+// 0441  0c00 
+// 0443  cd04
+//       0c00
+// 0447  d304
+// 0449  0c00 
+// 044b  d804 
+// 044d  0c00 
+// 044f  e004 
+// 0451  0c00 
+// 0453  1c05 
+// 0455  4b05 
+// 0457  5605 
+// 0459  6105 
+// 045b  6c05 
+// 045d  7c05 
+
 // 045f  ef        rst     #28
 // 0460  00        nop     
 // 0461  01ef01    ld      bc,#01ef
@@ -778,6 +985,7 @@ bool checkCoinCredit ()
 // 0465  ef        rst     #28
 // 0466  04        inc     b
 // 0467  00        nop     
+
 // 0468  ef        rst     #28
 // 0469  1e00      ld      e,#00
 // 046b  0e0c      ld      c,#0c
@@ -790,11 +998,11 @@ bool checkCoinCredit ()
 // 0479  0e0c      ld      c,#0c
 // 047b  cd8505    call    #0585
 // 047e  c9        ret     
-// 
+
 // 047f  0e14      ld      c,#14
 // 0481  cd9305    call    #0593
 // 0484  c9        ret     
-// 
+
 // 0485  0e0d      ld      c,#0d
 // 0487  cd9305    call    #0593
 // 048a  c9        ret     
@@ -1118,74 +1326,44 @@ bool checkCoinCredit ()
 // 
 // 06be  3a044e    ld      a,(#4e04)
 // 06c1  e7        rst     #20
-// 06c2  79        ld      a,c
-// 06c3  08        ex      af,af'
-// 06c4  99        sbc     a,c
-// 06c5  08        ex      af,af'
-// 06c6  0c        inc     c
-// 06c7  00        nop     
-// 06c8  cd080d    call    #0d08
-// 06cb  09        add     hl,bc
-// 06cc  0c        inc     c
-// 06cd  00        nop     
-// 06ce  40        ld      b,b
-// 06cf  09        add     hl,bc
-// 06d0  0c        inc     c
-// 06d1  00        nop     
-// 06d2  72        ld      (hl),d
-// 06d3  09        add     hl,bc
-// 06d4  88        adc     a,b
-// 06d5  09        add     hl,bc
-// 06d6  0c        inc     c
-// 06d7  00        nop     
-// 06d8  d209d8    jp      nc,#d809
-// 06db  09        add     hl,bc
-// 06dc  0c        inc     c
-// 06dd  00        nop     
-// 06de  e8        ret     pe
-// 
-// 06df  09        add     hl,bc
-// 06e0  0c        inc     c
-// 06e1  00        nop     
+// 06c2  7908 
+// 06c4  9908 
+// 06c6  0c00 
+// 06c8  cd08
+//       0d09        add     hl,bc
+// 06cc  0c00 
+// 06ce  4009 
+// 06d0  0c00 
+// 06d2  7209 
+// 06d4  8809 
+// 06d6  0c00 
+// 06d8  d209
+//       d809        add     hl,bc
+// 06dc  0c00 
+// 06de  e809 
+// 06e0  0c00 
 // 06e2  fe09      cp      #09
-// 06e4  0c        inc     c
-// 06e5  00        nop     
-// 06e6  02        ld      (bc),a
-// 06e7  0a        ld      a,(bc)
-// 06e8  0c        inc     c
-// 06e9  00        nop     
-// 06ea  04        inc     b
-// 06eb  0a        ld      a,(bc)
-// 06ec  0c        inc     c
-// 06ed  00        nop     
+// 06e4  0c00 
+// 06e6  020a 
+// 06e8  0c00 
+// 06ea  040a 
+// 06ec  0c00 
 // 06ee  060a      ld      b,#0a
-// 06f0  0c        inc     c
-// 06f1  00        nop     
-// 06f2  08        ex      af,af'
-// 06f3  0a        ld      a,(bc)
-// 06f4  0c        inc     c
-// 06f5  00        nop     
-// 06f6  0a        ld      a,(bc)
-// 06f7  0a        ld      a,(bc)
-// 06f8  0c        inc     c
-// 06f9  00        nop     
-// 06fa  0c        inc     c
-// 06fb  0a        ld      a,(bc)
-// 06fc  0c        inc     c
-// 06fd  00        nop     
+// 06f0  0c00 
+// 06f2  080a 
+// 06f4  0c00 
+// 06f6  0a0a 
+// 06f8  0c00 
+// 06fa  0c0a 
+// 06fc  0c00 
 // 06fe  0e0a      ld      c,#0a
-// 0700  0c        inc     c
-// 0701  00        nop     
-// 0702  2c        inc     l
-// 0703  0a        ld      a,(bc)
-// 0704  0c        inc     c
-// 0705  00        nop     
-// 0706  7c        ld      a,h
-// 0707  0a        ld      a,(bc)
-// 0708  a0        and     b
-// 0709  0a        ld      a,(bc)
-// 070a  0c        inc     c
-// 070b  00        nop     
+// 0700  0c00 
+// 0702  2c0a 
+// 0704  0c00 
+// 0706  7c0a 
+// 0708  a00a 
+// 070a  0c00 
+
 // 070c  a3        and     e
 // 070d  0a        ld      a,(bc)
 // 070e  78        ld      a,b
@@ -1363,7 +1541,7 @@ bool checkCoinCredit ()
 // 0814  11464d    ld      de,#4d46
 // 0817  011c00    ld      bc,#001c
 // 081a  edb0      ldir    
-    memcpy (...
+    memcpy (...);
 // 081c  010c00    ld      bc,#000c
 // 081f  a7        and     a
 // 0820  ed42      sbc     hl,bc
@@ -1429,12 +1607,13 @@ bool checkCoinCredit ()
 // 0877  b4        or      h
 // 0878  00        nop     
 
-
-// 0879  21094e    ld      hl,#4e09
-// 087c  af        xor     a
-// 087d  060b      ld      b,#0b
-// 087f  cf        rst     #8
-memset (0x4e09, 0, 8);
+    //-------------------------------
+    // 0879  21094e    ld      hl,#4e09
+    // 087c  af        xor     a
+    // 087d  060b      ld      b,#0b
+    // 087f  cf        rst     #8
+    //-------------------------------
+    memset (0x4e09, 0, 11);
 
 // 0880  cdc924    call    #24c9
 // 0883  2a734e    ld      hl,(#4e73)
@@ -1443,17 +1622,25 @@ memset (0x4e09, 0, 8);
 // 088c  11384e    ld      de,#4e38
 // 088f  012e00    ld      bc,#002e
 // 0892  edb0      ldir    
+
 // 0894  21044e    ld      hl,#4e04
 // 0897  34        inc     (hl)
 // 0898  c9        ret     
-// 
-// 0899  3a004e    ld      a,(#4e00)
-// 089c  3d        dec     a
-// 089d  2006      jr      nz,#08a5        ; (6)
-// 089f  3e09      ld      a,#09
-// 08a1  32044e    ld      (#4e04),a
-// 08a4  c9        ret     
-// 
+
+    //-------------------------------
+    // 0899  3a004e    ld      a,(#4e00)
+    // 089c  3d        dec     a
+    // 089d  2006      jr      nz,#08a5        ; (6)
+    // 089f  3e09      ld      a,#09
+    // 08a1  32044e    ld      (#4e04),a
+    // 08a4  c9        ret     
+    //-------------------------------
+    a = memory.data[0x4e00] - 1;
+    if (a == 0)
+    {
+         a=0;
+         memory.data[0x4e04] = a;
+    }
 // 08a5  ef        rst     #28
 // 08a6  1100ef    ld      de,#ef00
 // 08a9  1c        inc     e
@@ -1476,10 +1663,15 @@ memset (0x4e09, 0, 8);
 // 08bb  f7        rst     #30
 // 08bc  54        ld      d,h
 // 08bd  0600      ld      b,#00
-// 08bf  3a724e    ld      a,(#4e72)
-// 08c2  47        ld      b,a
-// 08c3  3a094e    ld      a,(#4e09)
-// 08c6  a0        and     b
+
+    //-------------------------------
+    // 08bf  3a724e    ld      a,(#4e72)
+    // 08c2  47        ld      b,a
+    // 08c3  3a094e    ld      a,(#4e09)
+    // 08c6  a0        and     b
+    //-------------------------------
+    b = (memory.data[0x4e72] & memory.data[4e09]);
+
 // 08c7  320350    ld      (#5003),a
 // 08ca  c39408    jp      #0894
 // 08cd  3a0050    ld      a,(#5000)
@@ -1563,11 +1755,15 @@ memset (0x4e09, 0, 8);
 // 095c  21044e    ld      hl,#4e04
 // 095f  34        inc     (hl)
 // 0960  c9        ret     
-// 
 // 0961  cda60a    call    #0aa6
-// 0964  3a094e    ld      a,(#4e09)
-// 0967  ee01      xor     #01
-// 0969  32094e    ld      (#4e09),a
+
+    //-------------------------------
+    // 0964  3a094e    ld      a,(#4e09)
+    // 0967  ee01      xor     #01
+    // 0969  32094e    ld      (#4e09),a
+    //-------------------------------
+    memory.data[0x4e09] ^= 1;
+
 // 096c  3e09      ld      a,#09
 // 096e  32044e    ld      (#4e04),a
 // 0971  c9        ret     
@@ -1628,11 +1824,16 @@ memset (0x4e09, 0, 8);
 // 09c0  f7        rst     #30
 // 09c1  54        ld      d,h
 // 09c2  0600      ld      b,#00
-// 09c4  3a724e    ld      a,(#4e72)
-// 09c7  47        ld      b,a
-// 09c8  3a094e    ld      a,(#4e09)
-// 09cb  a0        and     b
-// 09cc  320350    ld      (#5003),a
+
+    //-------------------------------
+    // 09c4  3a724e    ld      a,(#4e72)
+    // 09c7  47        ld      b,a
+    // 09c8  3a094e    ld      a,(#4e09)
+    // 09cb  a0        and     b
+    // 09cc  320350    ld      (#5003),a
+    //-------------------------------
+    regsWrite.flipScreen = (memory.data[0x4e72] & memory.data[4e09]);
+
 // 09cf  c39408    jp      #0894
 // 09d2  3e03      ld      a,#03
 // 09d4  32044e    ld      (#4e04),a
@@ -1656,8 +1857,11 @@ memset (0x4e09, 0, 8);
 // 09f0  42        ld      b,d
 // 09f1  00        nop     
 // 09f2  00        nop     
-// 09f3  210000    ld      hl,#0000
-// 09f6  cd7e26    call    #267e
+    //-------------------------------
+    // 09f3  210000    ld      hl,#0000
+    // 09f6  cd7e26    call    #267e
+    //-------------------------------
+    tbd (0);
 // 09f9  21044e    ld      hl,#4e04
 // 09fc  34        inc     (hl)
 // 09fd  c9        ret     
@@ -1690,7 +1894,7 @@ memset (0x4e09, 0, 8);
 // 0a27  21044e    ld      hl,#4e04
 // 0a2a  34        inc     (hl)
 // 0a2b  c9        ret     
-// 
+
 // 0a2c  af        xor     a
 // 0a2d  32ac4e    ld      (#4eac),a
 // 0a30  32bc4e    ld      (#4ebc),a
@@ -1702,6 +1906,7 @@ memset (0x4e09, 0, 8);
 // 0a40  3802      jr      c,#0a44         ; (2)
 // 0a42  3e14      ld      a,#14
 // 0a44  e7        rst     #20
+
 // 0a45  6f        ld      l,a
 // 0a46  0a        ld      a,(bc)
 // 0a47  08        ex      af,af'
@@ -2316,200 +2521,8 @@ memset (0x4e0c, 0, 7);
 // 0f37  160d      ld      d,#0d
 // 0f39  07        rlca    
 // 0f3a  160d      ld      d,#0d
-// 0f3c  00        nop     
-// 0f3d  00        nop     
-// 0f3e  00        nop     
-// 0f3f  00        nop     
-// 0f40  00        nop     
-// 0f41  00        nop     
-// 0f42  00        nop     
-// 0f43  00        nop     
-// 0f44  00        nop     
-// 0f45  00        nop     
-// 0f46  00        nop     
-// 0f47  00        nop     
-// 0f48  00        nop     
-// 0f49  00        nop     
-// 0f4a  00        nop     
-// 0f4b  00        nop     
-// 0f4c  00        nop     
-// 0f4d  00        nop     
-// 0f4e  00        nop     
-// 0f4f  00        nop     
-// 0f50  00        nop     
-// 0f51  00        nop     
-// 0f52  00        nop     
-// 0f53  00        nop     
-// 0f54  00        nop     
-// 0f55  00        nop     
-// 0f56  00        nop     
-// 0f57  00        nop     
-// 0f58  00        nop     
-// 0f59  00        nop     
-// 0f5a  00        nop     
-// 0f5b  00        nop     
-// 0f5c  00        nop     
-// 0f5d  00        nop     
-// 0f5e  00        nop     
-// 0f5f  00        nop     
-// 0f60  00        nop     
-// 0f61  00        nop     
-// 0f62  00        nop     
-// 0f63  00        nop     
-// 0f64  00        nop     
-// 0f65  00        nop     
-// 0f66  00        nop     
-// 0f67  00        nop     
-// 0f68  00        nop     
-// 0f69  00        nop     
-// 0f6a  00        nop     
-// 0f6b  00        nop     
-// 0f6c  00        nop     
-// 0f6d  00        nop     
-// 0f6e  00        nop     
-// 0f6f  00        nop     
-// 0f70  00        nop     
-// 0f71  00        nop     
-// 0f72  00        nop     
-// 0f73  00        nop     
-// 0f74  00        nop     
-// 0f75  00        nop     
-// 0f76  00        nop     
-// 0f77  00        nop     
-// 0f78  00        nop     
-// 0f79  00        nop     
-// 0f7a  00        nop     
-// 0f7b  00        nop     
-// 0f7c  00        nop     
-// 0f7d  00        nop     
-// 0f7e  00        nop     
-// 0f7f  00        nop     
-// 0f80  00        nop     
-// 0f81  00        nop     
-// 0f82  00        nop     
-// 0f83  00        nop     
-// 0f84  00        nop     
-// 0f85  00        nop     
-// 0f86  00        nop     
-// 0f87  00        nop     
-// 0f88  00        nop     
-// 0f89  00        nop     
-// 0f8a  00        nop     
-// 0f8b  00        nop     
-// 0f8c  00        nop     
-// 0f8d  00        nop     
-// 0f8e  00        nop     
-// 0f8f  00        nop     
-// 0f90  00        nop     
-// 0f91  00        nop     
-// 0f92  00        nop     
-// 0f93  00        nop     
-// 0f94  00        nop     
-// 0f95  00        nop     
-// 0f96  00        nop     
-// 0f97  00        nop     
-// 0f98  00        nop     
-// 0f99  00        nop     
-// 0f9a  00        nop     
-// 0f9b  00        nop     
-// 0f9c  00        nop     
-// 0f9d  00        nop     
-// 0f9e  00        nop     
-// 0f9f  00        nop     
-// 0fa0  00        nop     
-// 0fa1  00        nop     
-// 0fa2  00        nop     
-// 0fa3  00        nop     
-// 0fa4  00        nop     
-// 0fa5  00        nop     
-// 0fa6  00        nop     
-// 0fa7  00        nop     
-// 0fa8  00        nop     
-// 0fa9  00        nop     
-// 0faa  00        nop     
-// 0fab  00        nop     
-// 0fac  00        nop     
-// 0fad  00        nop     
-// 0fae  00        nop     
-// 0faf  00        nop     
-// 0fb0  00        nop     
-// 0fb1  00        nop     
-// 0fb2  00        nop     
-// 0fb3  00        nop     
-// 0fb4  00        nop     
-// 0fb5  00        nop     
-// 0fb6  00        nop     
-// 0fb7  00        nop     
-// 0fb8  00        nop     
-// 0fb9  00        nop     
-// 0fba  00        nop     
-// 0fbb  00        nop     
-// 0fbc  00        nop     
-// 0fbd  00        nop     
-// 0fbe  00        nop     
-// 0fbf  00        nop     
-// 0fc0  00        nop     
-// 0fc1  00        nop     
-// 0fc2  00        nop     
-// 0fc3  00        nop     
-// 0fc4  00        nop     
-// 0fc5  00        nop     
-// 0fc6  00        nop     
-// 0fc7  00        nop     
-// 0fc8  00        nop     
-// 0fc9  00        nop     
-// 0fca  00        nop     
-// 0fcb  00        nop     
-// 0fcc  00        nop     
-// 0fcd  00        nop     
-// 0fce  00        nop     
-// 0fcf  00        nop     
-// 0fd0  00        nop     
-// 0fd1  00        nop     
-// 0fd2  00        nop     
-// 0fd3  00        nop     
-// 0fd4  00        nop     
-// 0fd5  00        nop     
-// 0fd6  00        nop     
-// 0fd7  00        nop     
-// 0fd8  00        nop     
-// 0fd9  00        nop     
-// 0fda  00        nop     
-// 0fdb  00        nop     
-// 0fdc  00        nop     
-// 0fdd  00        nop     
-// 0fde  00        nop     
-// 0fdf  00        nop     
-// 0fe0  00        nop     
-// 0fe1  00        nop     
-// 0fe2  00        nop     
-// 0fe3  00        nop     
-// 0fe4  00        nop     
-// 0fe5  00        nop     
-// 0fe6  00        nop     
-// 0fe7  00        nop     
-// 0fe8  00        nop     
-// 0fe9  00        nop     
-// 0fea  00        nop     
-// 0feb  00        nop     
-// 0fec  00        nop     
-// 0fed  00        nop     
-// 0fee  00        nop     
-// 0fef  00        nop     
-// 0ff0  00        nop     
-// 0ff1  00        nop     
-// 0ff2  00        nop     
-// 0ff3  00        nop     
-// 0ff4  00        nop     
-// 0ff5  00        nop     
-// 0ff6  00        nop     
-// 0ff7  00        nop     
-// 0ff8  00        nop     
-// 0ff9  00        nop     
-// 0ffa  00        nop     
-// 0ffb  00        nop     
-// 0ffc  00        nop     
-// 0ffd  00        nop     
+
+// 0f3c  data 0x00 0xf3c-0xffd    
 // 0ffe  48        ld      c,b
 // 0fff  36af      ld      (hl),#af
 // 1001  32d44d    ld      (#4dd4),a
@@ -2528,12 +2541,18 @@ memset (0x4e0c, 0, 7);
 // 1014  1c        inc     e
 // 1015  a2        and     d
 // 1016  c9        ret     
-// 
+
+//-------------------------------
 // 1017  cd9112    call    #1291
 // 101a  3aa54d    ld      a,(#4da5)
 // 101d  a7        and     a
 // 101e  c0        ret     nz
-// 
+//-------------------------------
+bool tbd()
+{
+    return (memory.data[0x4da5] == 0);
+}
+
 // 101f  cd6610    call    #1066
 // 1022  cd9410    call    #1094
 // 1025  cd9e10    call    #109e
@@ -2817,10 +2836,15 @@ memset (0x4e0c, 0, 7);
 // 1253  0627      ld      b,#27
 // 1255  80        add     a,b
 // 1256  47        ld      b,a
-// 1257  3a724e    ld      a,(#4e72)
-// 125a  4f        ld      c,a
-// 125b  3a094e    ld      a,(#4e09)
-// 125e  a1        and     c
+
+    //-------------------------------
+    // 1257  3a724e    ld      a,(#4e72)
+    // 125a  4f        ld      c,a
+    // 125b  3a094e    ld      a,(#4e09)
+    // 125e  a1        and     c
+    //-------------------------------
+    b = (memory.data[0x4e72] & memory.data[4e09]);
+
 // 125f  2804      jr      z,#1265         ; (4)
 // 1261  cbf0      set     6,b
 // 1263  cbf8      set     7,b
@@ -2848,9 +2872,10 @@ memset (0x4e0c, 0, 7);
 // 128b  21ac4e    ld      hl,#4eac
 // 128e  cbf6      set     6,(hl)
 // 1290  c9        ret     
-// 
+
 // 1291  3aa54d    ld      a,(#4da5)
 // 1294  e7        rst     #20
+tableCall (addr, memory.data[0x4da5]);
 // 1295  0c        inc     c
 // 1296  00        nop     
 // 1297  b7        or      a
@@ -2876,6 +2901,8 @@ memset (0x4e0c, 0, 7);
 // 12b4  13        inc     de
 // 12b5  53        ld      d,e
 // 12b6  13        inc     de
+
+//-------------------------------
 // 12b7  2ac54d    ld      hl,(#4dc5)
 // 12ba  23        inc     hl
 // 12bb  22c54d    ld      (#4dc5),hl
@@ -2883,29 +2910,65 @@ memset (0x4e0c, 0, 7);
 // 12c1  a7        and     a
 // 12c2  ed52      sbc     hl,de
 // 12c4  c0        ret     nz
-// 
+//-------------------------------
+bool tbd()
+{
+    tbdCounter++;
+    return (tbdCounter - 78) != 0;
+}
+
+//-------------------------------
 // 12c5  3e05      ld      a,#05
 // 12c7  32a54d    ld      (#4da5),a
 // 12ca  c9        ret     
-// 
-// 12cb  210000    ld      hl,#0000
-// 12ce  cd7e26    call    #267e
-// 12d1  3e34      ld      a,#34
-// 12d3  11b400    ld      de,#00b4
-// 12d6  4f        ld      c,a
-// 12d7  3a724e    ld      a,(#4e72)
-// 12da  47        ld      b,a
-// 12db  3a094e    ld      a,(#4e09)
-// 12de  a0        and     b
-// 12df  2804      jr      z,#12e5         ; (4)
-// 12e1  3ec0      ld      a,#c0
-// 12e3  b1        or      c
-// 12e4  4f        ld      c,a
-// 12e5  79        ld      a,c
-// 12e6  320a4c    ld      (#4c0a),a
-// 12e9  2ac54d    ld      hl,(#4dc5)
-// 12ec  23        inc     hl
-// 12ed  22c54d    ld      (#4dc5),hl
+//-------------------------------
+bool tbd()
+{
+    memory.data[0x4da5] = 5;
+}
+
+    //-------------------------------
+    // 12cb  210000    ld      hl,#0000
+    // 12ce  cd7e26    call    #267e
+    // 12d1  3e34      ld      a,#34
+    // 12d3  11b400    ld      de,#00b4
+    // 12d6  4f        ld      c,a
+    //-------------------------------
+    tbd (0);
+    c=0x34;
+    de=0xb4;
+
+    //-------------------------------
+    // 12d7  3a724e    ld      a,(#4e72)
+    // 12da  47        ld      b,a
+    // 12db  3a094e    ld      a,(#4e09)
+    // 12de  a0        and     b
+    // 12df  2804      jr      z,#12e5         ; (4)
+    //-------------------------------
+    a = (memory.data[0x4e72] & memory.data[4e09]);
+    if (a != 0)
+    {
+
+        //-------------------------------
+        // 12e1  3ec0      ld      a,#c0
+        // 12e3  b1        or      c
+        // 12e4  4f        ld      c,a
+        //-------------------------------
+        c |= 0xc0;
+    }
+
+    //-------------------------------
+    // 12e5  79        ld      a,c
+    // 12e6  320a4c    ld      (#4c0a),a
+    //-------------------------------
+    memory.data[0x4c0a] = c;
+
+    //-------------------------------
+    // 12e9  2ac54d    ld      hl,(#4dc5)
+    // 12ec  23        inc     hl
+    // 12ed  22c54d    ld      (#4dc5),hl
+    //-------------------------------
+    tbdCounter++;
 // 12f0  a7        and     a
 // 12f1  ed52      sbc     hl,de
 // 12f3  c0        ret     nz
@@ -2950,9 +3013,12 @@ memset (0x4e0c, 0, 7);
 // 1350  c3d612    jp      #12d6
 // 1353  3e3f      ld      a,#3f
 // 1355  320a4c    ld      (#4c0a),a
-// 1358  2ac54d    ld      hl,(#4dc5)
-// 135b  23        inc     hl
-// 135c  22c54d    ld      (#4dc5),hl
+    //-------------------------------
+    // 1358  2ac54d    ld      hl,(#4dc5)
+    // 135b  23        inc     hl
+    // 135c  22c54d    ld      (#4dc5),hl
+    //-------------------------------
+    tbdCounter++;
 // 135f  11b801    ld      de,#01b8
 // 1362  a7        and     a
 // 1363  ed52      sbc     hl,de
@@ -2973,56 +3039,78 @@ memset (0x4e0c, 0, 7);
 
 void unknown()
 {
-// 137b  dd21a74d  ld      ix,#4da7
-// 137f  dd7e00    ld      a,(ix+#00)
-// 1382  ddb601    or      (ix+#01)
-// 1385  ddb602    or      (ix+#02)
-// 1388  ddb603    or      (ix+#03)
-// 138b  ca9813    jp      z,#1398
+    //-------------------------------
+    // 137b  dd21a74d  ld      ix,#4da7
+    // 137f  dd7e00    ld      a,(ix+#00)
+    // 1382  ddb601    or      (ix+#01)
+    // 1385  ddb602    or      (ix+#02)
+    // 1388  ddb603    or      (ix+#03)
+    // 138b  ca9813    jp      z,#1398
+    //-------------------------------
     if ((*(uint32_t*)&memory.data[0x4da7]) != 0)
     {
-
-// 138e  2acb4d    ld      hl,(#4dcb)
-// 1391  2b        dec     hl
-// 1392  22cb4d    ld      (#4dcb),hl
+        //-------------------------------
+        // 138e  2acb4d    ld      hl,(#4dcb)
+        // 1391  2b        dec     hl
+        // 1392  22cb4d    ld      (#4dcb),hl
+        //-------------------------------
         hl = --(uint16_t) memory.data[0x4dcb];
 
-// 1395  7c        ld      a,h
-// 1396  b5        or      l
-// 1397  c0        ret     nz
+        //-------------------------------
+        // 1395  7c        ld      a,h
+        // 1396  b5        or      l
+        // 1397  c0        ret     nz
+        //-------------------------------
         if (hl == 0)
             return;
     }
 
-// 1398  210b4c    ld      hl,#4c0b
-// 139b  3609      ld      (hl),#09
+    //-------------------------------
+    // 1398  210b4c    ld      hl,#4c0b
+    // 139b  3609      ld      (hl),#09
+    //-------------------------------
     memory.data[0x4c0b] = 9;
 
-// 139d  3aac4d    ld      a,(#4dac)
-// 13a0  a7        and     a
-// 13a1  c2a713    jp      nz,#13a7
-
+    //-------------------------------
+    // 139d  3aac4d    ld      a,(#4dac)
+    // 13a0  a7        and     a
+    // 13a1  c2a713    jp      nz,#13a7
+    //-------------------------------
     if (memory.data[0x4dac] == 0)
     {
-// 13a4  32a74d    ld      (#4da7),a
+        //-------------------------------
+        // 13a4  32a74d    ld      (#4da7),a
+        //-------------------------------
         memory.data[0x4da7] = 0;
     }
 
-// 13a7  3aad4d    ld      a,(#4dad)
-// 13aa  a7        and     a
-// 13ab  c2b113    jp      nz,#13b1
+    //-------------------------------
+    // 13a7  3aad4d    ld      a,(#4dad)
+    // 13aa  a7        and     a
+    // 13ab  c2b113    jp      nz,#13b1
+    //-------------------------------
     if (memory.data[0x4dad] == 0)
     {
 
-// 13ae  32a84d    ld      (#4da8),a
+        //-------------------------------
+        // 13ae  32a84d    ld      (#4da8),a
+        //-------------------------------
         memory.data[0x4da8] = 0;
     }
 
-// 13b1  3aae4d    ld      a,(#4dae)
-// 13b4  a7        and     a
-// 13b5  c2bb13    jp      nz,#13bb
+    //-------------------------------
+    // 13b1  3aae4d    ld      a,(#4dae)
+    // 13b4  a7        and     a
+    // 13b5  c2bb13    jp      nz,#13bb
+    //-------------------------------
+    if (memory.data[0x4dad] == 0)
+    {
+        //-------------------------------
+        // 13b8  32a94d    ld      (#4da9),a
+        //-------------------------------
+        memory.data[0x4da9] = 0;
+    }
 
-// 13b8  32a94d    ld      (#4da9),a
 
 // 13bb  3aaf4d    ld      a,(#4daf)
 // 13be  a7        and     a
@@ -3076,13 +3164,19 @@ void unknown()
 // 141a  a7        and     a
 // 141b  ccd120    call    z,#20d1
 // 141e  c9        ret     
-// 
+
+//-------------------------------
 // 141f  3a724e    ld      a,(#4e72)
 // 1422  47        ld      b,a
 // 1423  3a094e    ld      a,(#4e09)
 // 1426  a0        and     b
 // 1427  c8        ret     z
-// 
+//-------------------------------
+bool tbd (void)
+{
+    return ((memory.data[0x4e72] & memory.data[4e09]) == 0);
+}
+
 // 1428  47        ld      b,a
 // 1429  dd21004c  ld      ix,#4c00
 // 142d  1e08      ld      e,#08
@@ -3131,12 +3225,16 @@ void unknown()
 // 1489  81        add     a,c
 // 148a  dd771c    ld      (ix+#1c),a
 // 148d  c3fe14    jp      #14fe
-// 1490  3a724e    ld      a,(#4e72)
-// 1493  47        ld      b,a
-// 1494  3a094e    ld      a,(#4e09)
-// 1497  a0        and     b
-// 1498  c0        ret     nz
-// 
+
+    //-------------------------------
+    // 1490  3a724e    ld      a,(#4e72)
+    // 1493  47        ld      b,a
+    // 1494  3a094e    ld      a,(#4e09)
+    // 1497  a0        and     b
+    // 1498  c0        ret     nz
+    //-------------------------------
+    return ((memory.data[0x4e72] & memory.data[4e09]) == 0);
+ 
 // 1499  47        ld      b,a
 // 149a  1e09      ld      e,#09
 // 149c  0e07      ld      c,#07
@@ -3621,10 +3719,15 @@ void unknown()
 // 1842  34        inc     (hl)
 // 1843  3a0e4e    ld      a,(#4e0e)
 // 1846  329e4d    ld      (#4d9e),a
-// 1849  3a724e    ld      a,(#4e72)
-// 184c  4f        ld      c,a
-// 184d  3a094e    ld      a,(#4e09)
-// 1850  a1        and     c
+
+    //-------------------------------
+    // 1849  3a724e    ld      a,(#4e72)
+    // 184c  4f        ld      c,a
+    // 184d  3a094e    ld      a,(#4e09)
+    // 1850  a1        and     c
+    //-------------------------------
+    c = (memory.data[0x4e72] & memory.data[4e09]);
+
 // 1851  4f        ld      c,a
 // 1852  213a4d    ld      hl,#4d3a
 // 1855  7e        ld      a,(hl)
@@ -4485,109 +4588,11 @@ void unknown()
 // 1f95  78        ld      a,b
 // 1f96  322b4d    ld      (#4d2b),a
 // 1f99  c9        ret     
-// 
-// 1f9a  00        nop     
-// 1f9b  00        nop     
-// 1f9c  00        nop     
-// 1f9d  00        nop     
-// 1f9e  00        nop     
-// 1f9f  00        nop     
-// 1fa0  00        nop     
-// 1fa1  00        nop     
-// 1fa2  00        nop     
-// 1fa3  00        nop     
-// 1fa4  00        nop     
-// 1fa5  00        nop     
-// 1fa6  00        nop     
-// 1fa7  00        nop     
-// 1fa8  00        nop     
-// 1fa9  00        nop     
-// 1faa  00        nop     
-// 1fab  00        nop     
-// 1fac  00        nop     
-// 1fad  00        nop     
-// 1fae  00        nop     
-// 1faf  00        nop     
-// 1fb0  00        nop     
-// 1fb1  00        nop     
-// 1fb2  00        nop     
-// 1fb3  00        nop     
-// 1fb4  00        nop     
-// 1fb5  00        nop     
-// 1fb6  00        nop     
-// 1fb7  00        nop     
-// 1fb8  00        nop     
-// 1fb9  00        nop     
-// 1fba  00        nop     
-// 1fbb  00        nop     
-// 1fbc  00        nop     
-// 1fbd  00        nop     
-// 1fbe  00        nop     
-// 1fbf  00        nop     
-// 1fc0  00        nop     
-// 1fc1  00        nop     
-// 1fc2  00        nop     
-// 1fc3  00        nop     
-// 1fc4  00        nop     
-// 1fc5  00        nop     
-// 1fc6  00        nop     
-// 1fc7  00        nop     
-// 1fc8  00        nop     
-// 1fc9  00        nop     
-// 1fca  00        nop     
-// 1fcb  00        nop     
-// 1fcc  00        nop     
-// 1fcd  00        nop     
-// 1fce  00        nop     
-// 1fcf  00        nop     
-// 1fd0  00        nop     
-// 1fd1  00        nop     
-// 1fd2  00        nop     
-// 1fd3  00        nop     
-// 1fd4  00        nop     
-// 1fd5  00        nop     
-// 1fd6  00        nop     
-// 1fd7  00        nop     
-// 1fd8  00        nop     
-// 1fd9  00        nop     
-// 1fda  00        nop     
-// 1fdb  00        nop     
-// 1fdc  00        nop     
-// 1fdd  00        nop     
-// 1fde  00        nop     
-// 1fdf  00        nop     
-// 1fe0  00        nop     
-// 1fe1  00        nop     
-// 1fe2  00        nop     
-// 1fe3  00        nop     
-// 1fe4  00        nop     
-// 1fe5  00        nop     
-// 1fe6  00        nop     
-// 1fe7  00        nop     
-// 1fe8  00        nop     
-// 1fe9  00        nop     
-// 1fea  00        nop     
-// 1feb  00        nop     
-// 1fec  00        nop     
-// 1fed  00        nop     
-// 1fee  00        nop     
-// 1fef  00        nop     
-// 1ff0  00        nop     
-// 1ff1  00        nop     
-// 1ff2  00        nop     
-// 1ff3  00        nop     
-// 1ff4  00        nop     
-// 1ff5  00        nop     
-// 1ff6  00        nop     
-// 1ff7  00        nop     
-// 1ff8  00        nop     
-// 1ff9  00        nop     
-// 1ffa  00        nop     
-// 1ffb  00        nop     
-// 1ffc  00        nop     
-// 1ffd  00        nop     
-// 1ffe  5d        ld      e,l
-// 1fff  e1        pop     hl
+
+// 1f9a data 0x00 0x1f9a-0x1ffd
+// 1ffe  5d
+// 1fff  e1
+
 // 2000  fd7e00    ld      a,(iy+#00)
 // 2003  dd8600    add     a,(ix+#00)
 // 2006  6f        ld      l,a
@@ -4595,13 +4600,20 @@ void unknown()
 // 200a  dd8601    add     a,(ix+#01)
 // 200d  67        ld      h,a
 // 200e  c9        ret     
-// 
+void tbd (uint16_t hl)
+{
+    uint8_t a = *iy + *ix;
+    l = a;
+    a = *(iy+1) + *(ix+1);
+    h = a;
+}
+
 // 200f  cd0020    call    #2000
 // 2012  cd6500    call    #0065
 // 2015  7e        ld      a,(hl)
 // 2016  a7        and     a
 // 2017  c9        ret     
-// 
+
 // 2018  7d        ld      a,l
 // 2019  cb3f      srl     a
 // 201b  cb3f      srl     a
@@ -4615,7 +4627,10 @@ void unknown()
 // 2029  c61e      add     a,#1e
 // 202b  67        ld      h,a
 // 202c  c9        ret     
-// 
+void tbd ()
+{
+}
+
 // 202d  f5        push    af
 // 202e  c5        push    bc
 // 202f  7d        ld      a,l
@@ -5022,7 +5037,8 @@ void selfTest ()
 // 2318  0604      ld      b,#04
 // 231a  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
-// 231d  320750    ld      (#5007),a	; Clear coin // redundnat
+// 231d  320750    ld      (#5007),a	; Clear coin
+    regsWrite.coinCounter = 0;
 // 2320  3e40      ld      a,#40
 // 2322  77        ld      (hl),a
 // 2323  2c        inc     l
@@ -5030,15 +5046,16 @@ void selfTest ()
 // 2326  24        inc     h
 // 2327  10f1      djnz    #231a           ; (-15)
 
-    for (int i = 0; i < 0x3ff; i++)
+    for (int i = 0; i <= 0x3ff; i++)
         memory.video[i] = 0x40;
-// 
+
 // 	;; Set 4400-47ff to 0x0f (color ram)
 // 2329  0604      ld      b,#04
 // 232b  32c050    ld      (#50c0),a	; Kick the dog
-kickWatchdog();
+    kickWatchdog();
 // 232e  af        xor     a		; a=0
 // 232f  320750    ld      (#5007),a	; Clear coin
+    regsWrite.coinCounter = 0;
 // 2332  3e0f      ld      a,#0f
 // 2334  77        ld      (hl),a
 // 2335  2c        inc     l
@@ -5048,16 +5065,20 @@ kickWatchdog();
 
     for (int i = 0; i < 0x3ff; i++)
         memory.colour[i] = 0x0f;
-// 	
+
 // 233b  ed5e      im      2		; interrupt mode 2
+    interruptMode (2);
+
 // 233d  3efa      ld      a,#fa		
 // 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
+    interruptVector (0xfa);
+
 // 2341  af        xor     a		; a=0
 // 2342  320750    ld      (#5007),a	; Clear coin
     coinCounter = 0;
 // 2345  3c        inc     a		; a=1 
 // 2346  320050    ld      (#5000),a	; Enable interrupts
-    intEnable = 1;
+    regsWrite.intEnable = 1;
 // 2349  fb        ei			; Enable interrupts
 // 234a  76        halt			; Wait for interrupt
     while (!interrupt())
@@ -5072,6 +5093,7 @@ kickWatchdog();
 // 2352  210050    ld      hl,#5000	
 // 2355  010808    ld      bc,#0808
 // 2358  cf        rst     #8		; Restart at 0x08 (disable all)
+    /*  Clear all write registers */
     memset (0x5000, 0, 8);
 
 // 	;; Clear ram
@@ -5093,10 +5115,13 @@ kickWatchdog();
     kickWatchdog();
 
 // 236b  cd0d24    call    #240d		; Clear color ram
-kickWatchdog();
+// 236e  32c050    ld      (#50c0),a	; Kick the dog
+    kickWatchdog();
 // 2371  0600      ld      b,#00
 // 2373  cded23    call    #23ed
-kickWatchdog();
+    jumpClearScreen ();
+// 2376  32c050    ld      (#50c0),a	; Kick the dog 
+    kickWatchdog();
 // 2379  21c04c    ld      hl,#4cc0
 // 237c  22804c    ld      (#4c80),hl
 // 237f  22824c    ld      (#4c82),hl
@@ -5104,52 +5129,67 @@ kickWatchdog();
 // 2382  3eff      ld      a,#ff
 // 2384  0640      ld      b,#40
 // 2386  cf        rst     #8
-memset (0x4c82, 0xff, 0x40);
+    memset (0x4c82, 0xff, 0x40);
 
 // 2387  3e01      ld      a,#01
 // 2389  320050    ld      (#5000),a	; enable interrupts
+    regsWrite.intEnable = 1;
 // 238c  fb        ei			; enable interrupts
+    interruptEnable();
 // 238d  2a824c    ld      hl,(#4c82)
 // 2390  7e        ld      a,(hl)
 // 2391  a7        and     a
 // 2392  fa8d23    jp      m,#238d
+    do
+    {
+        /*  Wait for redirection address in 0x4c82 to be non negative */
+        l = memory.data[0x4c82];
+        h = memory.data[0x4c83];
+        a = memory.data[h<<8|l];
+    }
+    while (a < 0);
+
 // 2395  36ff      ld      (hl),#ff
+    memory.data[hl] = 0xff;
 // 2397  2c        inc     l
 // 2398  46        ld      b,(hl)
+    b = memory.data[++hl];
 // 2399  36ff      ld      (hl),#ff
+    memory.data[hl] = 0xff;
 // 239b  2c        inc     l
+    l++;
 // 239c  2002      jr      nz,#23a0        ; (2)
 // 239e  2ec0      ld      l,#c0
+    if (l == 0)
+    {
+        l = 0xc0;
+    }
 // 23a0  22824c    ld      (#4c82),hl
 // 23a3  218d23    ld      hl,#238d
+    memory.data[0x4c82] = l;
+    memory.data[0x4c83] = h;
 // 23a6  e5        push    hl
 // 23a7  e7        rst     #20
-// 23a8  ed23      db      #ed, #23        ; Undocumented 8 T-State NOP
-// 23aa  d7        rst     #10
-// 23ab  24        inc     h
-// 23ac  19        add     hl,de
-// 23ad  24        inc     h
-// 23ae  48        ld      c,b
-// 23af  24        inc     h
-// 23b0  3d        dec     a
-// 23b1  25        dec     h
-// 23b2  8b        adc     a,e
-// 23b3  260d      ld      h,#0d
-// 23b5  24        inc     h
-// 23b6  98        sbc     a,b
-// 23b7  2630      ld      h,#30
-// 23b9  27        daa     
-// 23ba  6c        ld      l,h
-// 23bb  27        daa     
-// 23bc  a9        xor     c
-// 23bd  27        daa     
-// 23be  f1        pop     af
-// 23bf  27        daa     
-// 23c0  3b        dec     sp
-// 23c1  2865      jr      z,#2428         ; (101)
-// 23c3  288f      jr      z,#2354         ; (-113)
-// 23c5  28b9      jr      z,#2380         ; (-71)
-// 23c7  280d      jr      z,#23d6         ; (13)
+    tableCall (h<<8+l, a);
+// 23a8  ed23
+    { 
+        jumpClearScreen,
+// 23aa  d724
+// 23ac  1924 
+// 23ae  4824 
+// 23b0  3d25 
+// 23b2  8b26
+//       0d24        inc     h
+// 23b6  9826
+//       3027        daa     
+// 23ba  6c27 
+// 23bc  a927 
+// 23be  f127 
+// 23c0  3b28
+//       6528
+//       8f28
+//       b928
+//       0d      jr      z,#23d6         ; (13)
 // 23c9  00        nop     
 // 23ca  a2        and     d
 // 23cb  26c9      ld      h,#c9
@@ -5177,33 +5217,46 @@ memset (0x4c82, 0xff, 0x40);
 // 23ea  4e        ld      c,(hl)
 // 23eb  34        inc     (hl)
 // 23ec  c9        ret     
-// 
-// 	;; ?!?
+
 // 23ed  78        ld      a,b
 // 23ee  e7        rst     #20
-// 23ef  f3        di      
-// 23f0  23        inc     hl
-// 23f1  00        nop     
-// 23f2  24        inc     h
+// 23ef  f323
+// 23f1  0024
+
+void jumpClearScreen()
+{
+    /*  This redirect is called from #2373.  It has only one jump to clear the
+     *  screen */
+    clearScreen();
+}
+
+
 // 23f3  3e40      ld      a,#40
 // 23f5  010400    ld      bc,#0004
 // 23f8  210040    ld      hl,#4000
 // 23fb  cf        rst     #8
-    memset (memory.video, 0x40, 0x400);
-
 // 23fc  0d        dec     c
 // 23fd  20fc      jr      nz,#23fb        ; (-4)
 // 23ff  c9        ret     
-// 
+void clearScreen (void)
+{
+    memset (memory.video, 0x40, 0x400);
+}
+
 // 2400  3e40      ld      a,#40
 // 2402  214040    ld      hl,#4040
 // 2405  010480    ld      bc,#8004
 // 2408  cf        rst     #8
-    memset (memory.video+0x40, 0x40, 0x380);
 // 2409  0d        dec     c
 // 240a  20fc      jr      nz,#2408        ; (-4)
 // 240c  c9        ret     
-// 
+void clearMaze (void)
+{
+    /*  Only clear the maze part of the screen.  Leave the 2 lines at the top
+     *  and at the bottom intact */
+    memset (memory.video+0x40, 0x40, 0x380);
+}
+
 // 	;; Set Color ram to 0x00
 // 240d  af        xor     a
 // 240e  010400    ld      bc,#0004
@@ -5211,8 +5264,10 @@ memset (0x4c82, 0xff, 0x40);
 // 2414  cf        rst     #8
 // 2415  0d        dec     c
 // 2416  20fc      jr      nz,#2414        ; (-4)
-    memset (memory.colour, 0, 0x400);
 // 2418  c9        ret     
+void clearColour (void)
+{
+    memset (memory.colour, 0, 0x400);
 }
 
 // 2419  210040    ld      hl,#4000
@@ -5324,24 +5379,29 @@ memset (0x4040, 0x40, 0x80);
 // 24d5  cf        rst     #8
 memset (0x4040, 0x40, 0x80);
 // 24d6  c9        ret     
-// 
+ 
 // 24d7  58        ld      e,b
 // 24d8  78        ld      a,b
 // 24d9  fe02      cp      #02
 // 24db  3e1f      ld      a,#1f
 // 24dd  2802      jr      z,#24e1         ; (2)
 // 24df  3e10      ld      a,#10
+    if (b == 2)
+    {
+        a = 0x10;
+    }
 // 24e1  214044    ld      hl,#4440
 // 24e4  010480    ld      bc,#8004
 // 24e7  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
 // 24e8  0d        dec     c
 // 24e9  20fc      jr      nz,#24e7        ; (-4)
+    memset (0x4040, a, 0x480);
+
 // 24eb  3e0f      ld      a,#0f
 // 24ed  0640      ld      b,#40
 // 24ef  21c047    ld      hl,#47c0
 // 24f2  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
+    memset (0x4040, 0x40, 0x80);
 // 24f3  7b        ld      a,e
 // 24f4  fe01      cp      #01
 // 24f6  c0        ret     nz
@@ -5495,12 +5555,22 @@ memset (0x4040, 0x40, 0x80);
 // 2675  210000    ld      hl,#0000
 // 2678  22d24d    ld      (#4dd2),hl
 // 267b  22084d    ld      (#4d08),hl
+
+//-------------------------------
 // 267e  22004d    ld      (#4d00),hl
 // 2681  22024d    ld      (#4d02),hl
 // 2684  22044d    ld      (#4d04),hl
 // 2687  22064d    ld      (#4d06),hl
 // 268a  c9        ret     
-// 
+//-------------------------------
+void tbd (uint16_t hl)
+{
+    memory.data[0x4d00] = hl;
+    memory.data[0x4d02] = hl;
+    memory.data[0x4d04] = hl;
+    memory.data[0x4d06] = hl;
+}
+
 // 268b  3e55      ld      a,#55
 // 268d  32944d    ld      (#4d94),a
 // 2690  05        dec     b
@@ -7370,7 +7440,7 @@ kickWatchdog();
 // 32f5  b5        or      l
 // 32f6  20fb      jr      nz,#32f3        ; (-5)
 // 32f8  c9        ret     
-// 
+
 // 32f9  3031      jr      nc,#332c        ; (49)
 // 32fb  35        dec     (hl)
 // 32fc  313032    ld      sp,#3230
