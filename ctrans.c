@@ -7,45 +7,12 @@
 
 // Video : https://www.walkofmind.com/programming/pie/video_memory.htm
 
-union
-{
-    struct
-    {
-        uint8_t rom[0x4000]; // starts at 0x0000
-        uint8_t video[0x400]; // starts at 0x4000
-        uint8_t colour[0x400]; // starts at 0x4400
-        uint8_t ram[0x7f0];  // starts at 0x4800
-        uint8_t sprites[0x10];  // starts at 0x4ff0
-    };
-    uint8_t data[0x5000];
-}
-memory;
-
-struct
-{
-    uint8_t in0; // 0x5000-0x503f
-    uint8_t in1; // 0x5040-0x507f
-    uint8_t dipSwitches; // 0x5080-0x50bf
-}
-regsRead;
+#include "memmap.h"
 
 #define DIP_TEST_SWITCH (regsRead.in0 & 0x10)
 
-struct
-{
-    uint8_t intEnable;  // 0x5000
-    uint8_t soundEnable; // 0x5001
-    uint8_t auxEnable; // 0x5002
-    uint8_t flipScreen; // 0x5003
-    uint8_t player1Start; // 0x5004
-    uint8_t player2Start; // 0x5005
-    uint8_t coinLockout; // 0x5006
-    uint8_t coinCounter; // 0x5007
-    uint8_t soundRegs[0x40]; // 0x5040
-    uint8_t spriteCoords[0x10]; // 0x5060
-    uint8_t watchdog; // 0x50c0-0x50ff
-}
-regsWrite;
+//	;; 4dc5 counter for something
+uint16_t *tbdCounter = &MEM[0x4dc5];
 
 //	;; 4e66 last state coin inputs shifted left by 1
 //	;; 4e6b #coins per #credits
@@ -53,11 +20,11 @@ regsWrite;
 //	;; 4e6c #left over coins (partial credits)
 static int partialCredit;
 //	;; 4e6d	#credits per #coins
-#define CREDITS_PER_COIN 1
+#define CREDITS_PER_COIN MEM[0x4e6d]
 //	;; 4e6e #credits
-int credits;
+#define CREDITS MEM[0x4e6e]
 //	;; 4e6f #lives per game
-#define LIVES_PER_GAME 1
+#define LIVES_PER_GAME MEM[0x4e6f]
 
 //	;; 4e80-4e83 P1 score
 uint32_t p1Score;
@@ -68,9 +35,6 @@ uint32_t highScore;
 	
 //	;; 4370 #players (0=1, 1=2)
 uint8_t numPlayers;
-
-//	;; 4dc5 counter for something
-uint16_t tbdCounter;
 
 // 	Starting address: 0
 //   Ending address: 16383
@@ -108,7 +72,7 @@ void setMemory (int addr, int count, uint8_t value)
 uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
 {
     (*addr) += offset;
-    return memory.data[*addr];
+    return MEM[*addr];
 }
 
 //-------------------------------
@@ -128,7 +92,7 @@ uint16_t tableLookup (uint16_t *addr, uint8_t offset)
 {
     int e = fetchOffset(addr, offset*2) 
     (*addr)++;
-    int d = memory.data[*addr];
+    int d = MEM[*addr];
     return e+d<<8;
 }
 
@@ -146,7 +110,7 @@ tableCall (uint16_t *addr, uint8_t offset)
 {
     int e = fetchOffset (addr, offset*2);
     (*addr)++;
-    int d = memory.data[*addr];
+    int d = MEM[*addr];
 
     // Call function at de
 }
@@ -249,144 +213,215 @@ void isr()
     regsWrite.intEnable = 0;
     interruptDisable();
 
-//-------------------------------
-// 009d  218c4e    ld      hl,#4e8c	; Write freq/volume for sound regs 
-// 00a0  115050    ld      de,#5050
-// 00a3  011000    ld      bc,#0010
-// 00a6  edb0      ldir
-//-------------------------------
-    memcpy (regsWrite.&soundRegs[0x10], &memory.ram[0x68c], 0x10);
+    //-------------------------------
+    // 009d  218c4e    ld      hl,#4e8c	; Write freq/volume for sound regs 
+    // 00a0  115050    ld      de,#5050
+    // 00a3  011000    ld      bc,#0010
+    // 00a6  edb0      ldir
+    //-------------------------------
+    memcpy (&SOUND(0x10), &RAM(0x68c), 0x10);
 
-//-------------------------------
-// 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
-// 00ab  a7        and     a
-// 
-// 	;; Write sound waveforms
-// 00ac  3acf4e    ld      a,(#4ecf)
-// 00af  2003      jr      nz,#00b4        ; (3)
-// 00b1  3a9f4e    ld      a,(#4e9f)
-// 00b4  324550    ld      (#5045),a
-//-------------------------------
-    a = memory.data[0x4ecf];
+    //-------------------------------
+    // 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
+    // 00ab  a7        and     a
+    // 
+    // 	;; Write sound waveforms
+    // 00ac  3acf4e    ld      a,(#4ecf)
+    // 00af  2003      jr      nz,#00b4        ; (3)
+    // 00b1  3a9f4e    ld      a,(#4e9f)
+    // 00b4  324550    ld      (#5045),a
+    //-------------------------------
+    a = MEM[0x4ecf];
 
-    if (memory.data[0x4ecc] == 0)
+    if (MEM[0x4ecc] == 0)
     {
-        a = memory.data[0x4e9f];
+        a = MEM[0x4e9f];
     }
 
-    regsWrite.soundRegs[5] = a;
+    SOUND(5) = a;
 
-//-------------------------------
-// 00b7  3adc4e    ld      a,(#4edc)
-// 00ba  a7        and     a
-// 00bb  3adf4e    ld      a,(#4edf)
-// 00be  2003      jr      nz,#00c3        ; (3)
-// 00c0  3aaf4e    ld      a,(#4eaf)
-// 00c3  324a50    ld      (#504a),a
-//-------------------------------
-    a = memory.data[0x4edf];
+    //-------------------------------
+    // 00b7  3adc4e    ld      a,(#4edc)
+    // 00ba  a7        and     a
+    // 00bb  3adf4e    ld      a,(#4edf)
+    // 00be  2003      jr      nz,#00c3        ; (3)
+    // 00c0  3aaf4e    ld      a,(#4eaf)
+    // 00c3  324a50    ld      (#504a),a
+    //-------------------------------
+    a = MEM[0x4edf];
 
-    if ((a = memory.data[0x4edc]) == 0)
+    if ((a = MEM[0x4edc]) == 0)
     {
-        a = memory.data[0x4eaf];
+        a = MEM[0x4eaf];
     }
 
-    regsWrite.soundRegs[0xa] = a;
+    SOUND(0xa) = a;
 
-//-------------------------------
-// 00c6  3aec4e    ld      a,(#4eec)
-// 00c9  a7        and     a
-// 00ca  3aef4e    ld      a,(#4eef)
-// 00cd  2003      jr      nz,#00d2        ; (3)
-// 00cf  3abf4e    ld      a,(#4ebf)
-// 00d2  324f50    ld      (#504f),a
-//-------------------------------
-    a = memory.data[0x4eef];
+    //-------------------------------
+    // 00c6  3aec4e    ld      a,(#4eec)
+    // 00c9  a7        and     a
+    // 00ca  3aef4e    ld      a,(#4eef)
+    // 00cd  2003      jr      nz,#00d2        ; (3)
+    // 00cf  3abf4e    ld      a,(#4ebf)
+    // 00d2  324f50    ld      (#504f),a
+    //-------------------------------
+    a = MEM[0x4eef];
 
-    if ((a = memory.data[0x4eec]) == 0)
+    if ((a = MEM[0x4eec]) == 0)
     {
-        a = memory.data[0x4ebf];
+        a = MEM[0x4ebf];
     }
 
-    regsWrite.soundRegs[0xf] = a;
+    SOUND[0xf] = a;
 
-//-------------------------------
-// 00d5  21024c    ld      hl,#4c02
-// 00d8  11224c    ld      de,#4c22
-// 00db  011c00    ld      bc,#001c
-// 00de  edb0      ldir
-//-------------------------------
-    memcpy (memory.data+0x4c22, memory.data+0x4c02, 0x1c);
+    //-------------------------------
+    // 00d5  21024c    ld      hl,#4c02
+    // 00d8  11224c    ld      de,#4c22
+    // 00db  011c00    ld      bc,#001c
+    // 00de  edb0      ldir
+    //-------------------------------
+    memcpy (&MEM[0x4c22], &MEM[0x4c02], 0x1c);
 
-// 00e0  dd21204c  ld      ix,#4c20
-// 00e4  dd7e02    ld      a,(ix+#02)
-// 00e7  07        rlca    
-// 00e8  07        rlca    
-// 00e9  dd7702    ld      (ix+#02),a
-// 00ec  dd7e04    ld      a,(ix+#04)
-// 00ef  07        rlca    
-// 00f0  07        rlca    
-// 00f1  dd7704    ld      (ix+#04),a
-// 00f4  dd7e06    ld      a,(ix+#06)
-// 00f7  07        rlca    
-// 00f8  07        rlca    
-// 00f9  dd7706    ld      (ix+#06),a
-// 00fc  dd7e08    ld      a,(ix+#08)
-// 00ff  07        rlca    
-// 0100  07        rlca    
-// 0101  dd7708    ld      (ix+#08),a
-// 0104  dd7e0a    ld      a,(ix+#0a)
-// 0107  07        rlca    
-// 0108  07        rlca    
-// 0109  dd770a    ld      (ix+#0a),a
-// 010c  dd7e0c    ld      a,(ix+#0c)
-// 010f  07        rlca    
-// 0110  07        rlca    
-// 0111  dd770c    ld      (ix+#0c),a
-// 0114  3ad14d    ld      a,(#4dd1)
-// 0117  fe01      cp      #01
-// 0119  2038      jr      nz,#0153        ; (56)
-// 011b  dd21204c  ld      ix,#4c20
-// 011f  3aa44d    ld      a,(#4da4)
-// 0122  87        add     a,a
-// 0123  5f        ld      e,a
-// 0124  1600      ld      d,#00
-// 0126  dd19      add     ix,de
-// 0128  2a244c    ld      hl,(#4c24)
-// 012b  ed5b344c  ld      de,(#4c34)
-// 012f  dd7e00    ld      a,(ix+#00)
-// 0131  32244c    ld      (#4c24),a
-// 0135  dd7e01    ld      a,(ix+#01)
-// 0138  32254c    ld      (#4c25),a
-// 013b  dd7e10    ld      a,(ix+#10)
-// 013e  32344c    ld      (#4c34),a
-// 0141  dd7e11    ld      a,(ix+#11)
-// 0144  32354c    ld      (#4c35),a
-// 0147  dd7500    ld      (ix+#00),l
-// 014a  dd7401    ld      (ix+#01),h
-// 014d  dd7310    ld      (ix+#10),e
-// 0150  dd7211    ld      (ix+#11),d
-// 0153  3aa64d    ld      a,(#4da6)
-// 0156  a7        and     a
-// 0157  ca7601    jp      z,#0176
-// 015a  ed4b224c  ld      bc,(#4c22)
-// 015e  ed5b324c  ld      de,(#4c32)
-// 0162  2a2a4c    ld      hl,(#4c2a)
-// 0165  22224c    ld      (#4c22),hl
-// 0168  2a3a4c    ld      hl,(#4c3a)
-// 016b  22324c    ld      (#4c32),hl
-// 016e  ed432a4c  ld      (#4c2a),bc
-// 0172  ed533a4c  ld      (#4c3a),de
-// 0176  21224c    ld      hl,#4c22
-// 0179  11f24f    ld      de,#4ff2
-// 017c  010c00    ld      bc,#000c
-// 017f  edb0      ldir    
-    memcpy (memory.data+0x4ff2, memory.data+0x4c22, 0xc);
-// 0181  21324c    ld      hl,#4c32
-// 0184  116250    ld      de,#5062
-// 0187  010c00    ld      bc,#000c
-// 018a  edb0      ldir    
-    memcpy (regsWrite.spriteCoords+2, memory.data+0x4c32, 0xc);
+    //-------------------------------
+    // 00e0  dd21204c  ld      ix,#4c20
+    // 00e4  dd7e02    ld      a,(ix+#02)
+    // 00e7  07        rlca    
+    // 00e8  07        rlca    
+    // 00e9  dd7702    ld      (ix+#02),a
+    //-------------------------------
+    MEM[0x4c22] = (MEM[0x4c22] << 2) | (MEM[0x4c22]>>6);
+
+    //-------------------------------
+    // 00ec  dd7e04    ld      a,(ix+#04)
+    // 00ef  07        rlca    
+    // 00f0  07        rlca    
+    // 00f1  dd7704    ld      (ix+#04),a
+    //-------------------------------
+    MEM[0x4c24] = (MEM[0x4c24] << 2) | (MEM[0x4c24]>>6);
+
+    //-------------------------------
+    // 00f4  dd7e06    ld      a,(ix+#06)
+    // 00f7  07        rlca    
+    // 00f8  07        rlca    
+    // 00f9  dd7706    ld      (ix+#06),a
+    //-------------------------------
+    MEM[0x4c26] = (MEM[0x4c26] << 2) | (MEM[0x4c26]>>6);
+
+    //-------------------------------
+    // 00fc  dd7e08    ld      a,(ix+#08)
+    // 00ff  07        rlca    
+    // 0100  07        rlca    
+    // 0101  dd7708    ld      (ix+#08),a
+    //-------------------------------
+    MEM[0x4c28] = (MEM[0x4c28] << 2) | (MEM[0x4c28]>>6);
+
+    //-------------------------------
+    // 0104  dd7e0a    ld      a,(ix+#0a)
+    // 0107  07        rlca    
+    // 0108  07        rlca    
+    // 0109  dd770a    ld      (ix+#0a),a
+    //-------------------------------
+    MEM[0x4c2a] = (MEM[0x4c2a] << 2) | (MEM[0x4c2a]>>6);
+
+    //-------------------------------
+    // 010c  dd7e0c    ld      a,(ix+#0c)
+    // 010f  07        rlca    
+    // 0110  07        rlca    
+    // 0111  dd770c    ld      (ix+#0c),a
+    //-------------------------------
+    MEM[0x4c2c] = (MEM[0x4c2c] << 2) | (MEM[0x4c2c]>>6);
+
+    //-------------------------------
+    // 0114  3ad14d    ld      a,(#4dd1)
+    // 0117  fe01      cp      #01
+    // 0119  2038      jr      nz,#0153        ; (56)
+    //-------------------------------
+    if (MEM[0x4dd1] == 0)
+    {
+        //-------------------------------
+        // 011b  dd21204c  ld      ix,#4c20
+        // 011f  3aa44d    ld      a,(#4da4)
+        // 0122  87        add     a,a
+        // 0123  5f        ld      e,a
+        // 0124  1600      ld      d,#00
+        // 0126  dd19      add     ix,de
+        //-------------------------------
+        ix = 0x4c20 + MEM[0x4da4]*2;
+
+        //-------------------------------
+        // 0128  2a244c    ld      hl,(#4c24)
+        // 012b  ed5b344c  ld      de,(#4c34)
+        //-------------------------------
+        hl = MEM[0x4c24];
+        de = MEM[0x4c34];
+
+        //-------------------------------
+        // 012f  dd7e00    ld      a,(ix+#00)
+        // 0131  32244c    ld      (#4c24),a
+        // 0135  dd7e01    ld      a,(ix+#01)
+        // 0138  32254c    ld      (#4c25),a
+        // 013b  dd7e10    ld      a,(ix+#10)
+        // 013e  32344c    ld      (#4c34),a
+        // 0141  dd7e11    ld      a,(ix+#11)
+        // 0144  32354c    ld      (#4c35),a
+        // 0147  dd7500    ld      (ix+#00),l
+        // 014a  dd7401    ld      (ix+#01),h
+        // 014d  dd7310    ld      (ix+#10),e
+        // 0150  dd7211    ld      (ix+#11),d
+        //-------------------------------
+        MEM[0x4c24] = MEM[ix];
+        MEM[0x4c25] = MEM[ix+1];
+        MEM[0x4c34] = MEM[ix+0x10];
+        MEM[0x4c35] = MEM[ix+0x11];
+        MEM[ix] = l;
+        MEM[ix+1] = h;
+        MEM[ix+0x10] = e;
+        MEM[ix+0x11] = d;
+    }
+
+    //-------------------------------
+    // 0153  3aa64d    ld      a,(#4da6)
+    // 0156  a7        and     a
+    // 0157  ca7601    jp      z,#0176
+    //-------------------------------
+    if (MEM[0x4da6] != 0)
+    {
+        //-------------------------------
+        // 015a  ed4b224c  ld      bc,(#4c22)
+        // 015e  ed5b324c  ld      de,(#4c32)
+        // 0162  2a2a4c    ld      hl,(#4c2a)
+        // 0165  22224c    ld      (#4c22),hl
+        // 0168  2a3a4c    ld      hl,(#4c3a)
+        // 016b  22324c    ld      (#4c32),hl
+        // 016e  ed432a4c  ld      (#4c2a),bc
+        // 0172  ed533a4c  ld      (#4c3a),de
+        //-------------------------------
+        bc = MEM[0x4c22];
+        de = MEM[0x4c32];
+        hl = MEM[0x4c2a];
+        MEM[0x4c22] = hl;
+        hl = MEM[0x4c3a];
+        MEM[0x4c32] = hl;
+        MEM[0x4c2a] = bc;
+        MEM[0x4c3a] = de;
+    }
+
+    //-------------------------------
+    // 0176  21224c    ld      hl,#4c22
+    // 0179  11f24f    ld      de,#4ff2
+    // 017c  010c00    ld      bc,#000c
+    // 017f  edb0      ldir    
+    //-------------------------------
+    memcpy (&MEM[0x4ff2], &MEM[0x4c22], 0xc);
+
+    //-------------------------------
+    // 0181  21324c    ld      hl,#4c32
+    // 0184  116250    ld      de,#5062
+    // 0187  010c00    ld      bc,#000c
+    // 018a  edb0      ldir    
+    //-------------------------------
+    memcpy (regsWrite.spriteCoords+2, &MEM[0x4c32], 0xc);
+
 // 018c  cddc01    call    #01dc
 // 018f  cd2102    call    #0221
 // 0192  cdc803    call    #03c8
@@ -411,20 +446,21 @@ void isr()
 // 01c3  e1        pop     hl
 // 01c4  d1        pop     de
 // 01c5  c1        pop     bc
-//-------------------------------
-// 01c6  3a004e    ld      a,(#4e00)
-// 01c9  a7        and     a
-// 01ca  2808      jr      z,#01d4         ; (8)
-// 01cc  3a4050    ld      a,(#5040)	; Check test switch 
-// 01cf  e610      and     #10
-// 01d1  ca0000    jp      z,#0000		; Reset if test
-// 01d4  3e01      ld      a,#01		; Enable interrupts (hardware) 
-// 01d6  320050    ld      (#5000),a
-// 01d9  fb        ei			; Enable interrupts (CPU) 
-// 01da  f1        pop     af
-// 01db  c9        ret     
-//-------------------------------
-    if (memory.data[0x4e00] != 0 && DIP_TEST_SWITCH)
+
+    //-------------------------------
+    // 01c6  3a004e    ld      a,(#4e00)
+    // 01c9  a7        and     a
+    // 01ca  2808      jr      z,#01d4         ; (8)
+    // 01cc  3a4050    ld      a,(#5040)	; Check test switch 
+    // 01cf  e610      and     #10
+    // 01d1  ca0000    jp      z,#0000		; Reset if test
+    // 01d4  3e01      ld      a,#01		; Enable interrupts (hardware) 
+    // 01d6  320050    ld      (#5000),a
+    // 01d9  fb        ei			; Enable interrupts (CPU) 
+    // 01da  f1        pop     af
+    // 01db  c9        ret     
+    //-------------------------------
+    if (MEM[0x4e00] != 0 && DIP_TEST_SWITCH)
         reset();
 
     regsWrite.intEnable = 1;
@@ -436,6 +472,8 @@ void isr()
 // 01e0  23        inc     hl
 // 01e1  35        dec     (hl)
 // 01e2  23        inc     hl
+hl = 0x4c84;
+
 // 01e3  111902    ld      de,#0219
 // 01e6  010104    ld      bc,#0401
 // 01e9  34        inc     (hl)
@@ -486,17 +524,19 @@ void isr()
 // 021f  0a        ld      a,(bc)
 // 0220  a0        and     b
 
-// 0221  21904c    ld      hl,#4c90
-// 0224  3a8a4c    ld      a,(#4c8a)
-// 0227  4f        ld      c,a
-// 0228  0610      ld      b,#10
-// 022a  7e        ld      a,(hl)
-// 022b  a7        and     a
-// 022c  282f      jr      z,#025d         ; (47)
-    c = memory.data[0x4c8a];
-    b=10;
+    //-------------------------------
+    // 0221  21904c    ld      hl,#4c90
+    // 0224  3a8a4c    ld      a,(#4c8a)
+    // 0227  4f        ld      c,a
+    // 0228  0610      ld      b,#10
+    // 022a  7e        ld      a,(hl)
+    // 022b  a7        and     a
+    // 022c  282f      jr      z,#025d         ; (47)
+    //-------------------------------
+    c = MEM[0x4c8a];
+    b=0x10;
     hl = 0x4c90;
-    a = memory.data[hl];
+    a = MEM[hl];
     if (a != 0)
     {
         //-------------------------------
@@ -516,7 +556,7 @@ void isr()
             // 0237  e63f      and     #3f
             // 0239  2022      jr      nz,#025d        ; (34)
             //-------------------------------
-            a = (memory.data[--hl] & 0x3f);
+            a = (MEM[--hl] & 0x3f);
             if (a == 0)
             {
 
@@ -530,6 +570,7 @@ void isr()
 // 0242  215b02    ld      hl,#025b
 // 0245  e5        push    hl
 // 0246  e7        rst     #20
+
 // 0247  94        sub     h
 // 0248  08        ex      af,af'
 // 0249  a3        and     e
@@ -663,7 +704,7 @@ bool checkCoinCredit ()
 // 02fc  c9        ret     
 //-------------------------------
 
-    memory.data[0x4e9c] |= 1;
+    MEM[0x4e9c] |= 1;
 
 //-------------------------------
 // 02fd  21ce4d    ld      hl,#4dce
@@ -739,7 +780,7 @@ bool checkCoinCredit ()
 //-------------------------------
     ix = 0x43d8;
     iy = 0x43c5;
-    if (memory.data[0x4e00] != 3)
+    if (MEM[0x4e00] != 3)
     {
 
 //-------------------------------
@@ -747,7 +788,7 @@ bool checkCoinCredit ()
 // 0338  fe02      cp      #02
 // 033a  d24403    jp      nc,#0344
 //-------------------------------
-        a = memory.data[0x4e03];
+        a = MEM[0x4e03];
         if (a >= 2)
         {
 //-------------------------------
@@ -782,16 +823,16 @@ bool checkCoinCredit ()
 
 void playerUp ()
 {
-    if (memory.data[0x4e09] == 0)
+    if (MEM[0x4e09] == 0)
     {
-        if ((memory.data[0x4dce] & 0x10) == 0)
+        if ((MEM[0x4dce] & 0x10) == 0)
             oneUp();
         else
             oneBlank();
     }
     else
     {
-        if ((memory.data[0x4dce] & 0x10) == 0)
+        if ((MEM[0x4dce] & 0x10) == 0)
             twoUp();
         else
             twoBlank();
@@ -855,7 +896,7 @@ void twoBlank (uint8_t *iy)
 //-------------------------------
 bool tbd (void)
 {
-    return (memory.data[0x4e06] < 5);
+    return (MEM[0x4e06] < 5);
 }
 
 //-------------------------------
@@ -879,16 +920,16 @@ bool tbd (void)
 //-------------------------------
 void tbd ()
 {
-    uint8_t h = memory.data[0x4d09];
-    uint8_t l = memory.data[0x4d08];
-    memory.data[0x4d06] = l;
-    memory.data[0x4dd2] = l;
-    memory.data[0x4d02] = l-10;
-    memory.data[0x4d04] = l-10;
-    memory.data[0x4d03] = h+8;
-    memory.data[0x4d07] = h+8;
-    memory.data[0x4d05] = h-2;
-    memory.data[0x4dd3] = h-2;
+    uint8_t h = MEM[0x4d09];
+    uint8_t l = MEM[0x4d08];
+    MEM[0x4d06] = l;
+    MEM[0x4dd2] = l;
+    MEM[0x4d02] = l-10;
+    MEM[0x4d04] = l-10;
+    MEM[0x4d03] = h+8;
+    MEM[0x4d07] = h+8;
+    MEM[0x4d05] = h-2;
+    MEM[0x4dd3] = h-2;
 }
 
 // 03c8  3a004e    ld      a,(#4e00)
@@ -1557,12 +1598,12 @@ void tbd ()
 // 0834  010e00    ld      bc,#000e
 // 0837  edb0      ldir    
 // 0839  c9        ret     
-// 
+
 // 083a  11b84d    ld      de,#4db8
 // 083d  010300    ld      bc,#0003
 // 0840  edb0      ldir    
 // 0842  c9        ret     
-// 
+
 // 0843  14        inc     d
 // 0844  1e46      ld      e,#46
 // 0846  00        nop     
@@ -1618,14 +1659,22 @@ void tbd ()
 // 0880  cdc924    call    #24c9
 // 0883  2a734e    ld      hl,(#4e73)
 // 0886  220a4e    ld      (#4e0a),hl
-// 0889  210a4e    ld      hl,#4e0a
-// 088c  11384e    ld      de,#4e38
-// 088f  012e00    ld      bc,#002e
-// 0892  edb0      ldir    
 
-// 0894  21044e    ld      hl,#4e04
-// 0897  34        inc     (hl)
-// 0898  c9        ret     
+    //-------------------------------
+    // 0889  210a4e    ld      hl,#4e0a
+    // 088c  11384e    ld      de,#4e38
+    // 088f  012e00    ld      bc,#002e
+    // 0892  edb0      ldir    
+    //-------------------------------
+    memcpy (&MEM[0x4e38], &MEM[0x4e0a], 0x2e);
+
+    //-------------------------------
+    // 0894  21044e    ld      hl,#4e04
+    // 0897  34        inc     (hl)
+    // 0898  c9        ret     
+    //-------------------------------
+    MEM[0x4e04]++;
+}
 
     //-------------------------------
     // 0899  3a004e    ld      a,(#4e00)
@@ -1635,12 +1684,13 @@ void tbd ()
     // 08a1  32044e    ld      (#4e04),a
     // 08a4  c9        ret     
     //-------------------------------
-    a = memory.data[0x4e00] - 1;
+    a = MEM[0x4e00] - 1;
     if (a == 0)
     {
          a=0;
-         memory.data[0x4e04] = a;
+         MEM[0x4e04] = a;
     }
+
 // 08a5  ef        rst     #28
 // 08a6  1100ef    ld      de,#ef00
 // 08a9  1c        inc     e
@@ -1670,7 +1720,7 @@ void tbd ()
     // 08c3  3a094e    ld      a,(#4e09)
     // 08c6  a0        and     b
     //-------------------------------
-    b = (memory.data[0x4e72] & memory.data[4e09]);
+    b = (MEM[0x4e72] & MEM[4e09))]
 
 // 08c7  320350    ld      (#5003),a
 // 08ca  c39408    jp      #0894
@@ -1762,7 +1812,7 @@ void tbd ()
     // 0967  ee01      xor     #01
     // 0969  32094e    ld      (#4e09),a
     //-------------------------------
-    memory.data[0x4e09] ^= 1;
+    MEM[0x4e09] ^= 1;
 
 // 096c  3e09      ld      a,#09
 // 096e  32044e    ld      (#4e04),a
@@ -1832,7 +1882,7 @@ void tbd ()
     // 09cb  a0        and     b
     // 09cc  320350    ld      (#5003),a
     //-------------------------------
-    regsWrite.flipScreen = (memory.data[0x4e72] & memory.data[4e09]);
+    regsWrite.flipScreen = (MEM[0x4e72] & MEM[4e09))]
 
 // 09cf  c39408    jp      #0894
 // 09d2  3e03      ld      a,#03
@@ -2550,7 +2600,7 @@ memset (0x4e0c, 0, 7);
 //-------------------------------
 bool tbd()
 {
-    return (memory.data[0x4da5] == 0);
+    return (MEM[0x4da5] == 0);
 }
 
 // 101f  cd6610    call    #1066
@@ -2843,7 +2893,7 @@ bool tbd()
     // 125b  3a094e    ld      a,(#4e09)
     // 125e  a1        and     c
     //-------------------------------
-    b = (memory.data[0x4e72] & memory.data[4e09]);
+    b = (MEM[0x4e72] & MEM[4e09))]
 
 // 125f  2804      jr      z,#1265         ; (4)
 // 1261  cbf0      set     6,b
@@ -2875,7 +2925,7 @@ bool tbd()
 
 // 1291  3aa54d    ld      a,(#4da5)
 // 1294  e7        rst     #20
-tableCall (addr, memory.data[0x4da5]);
+tableCall (addr, MEM[0x4da5]);
 // 1295  0c        inc     c
 // 1296  00        nop     
 // 1297  b7        or      a
@@ -2924,7 +2974,7 @@ bool tbd()
 //-------------------------------
 bool tbd()
 {
-    memory.data[0x4da5] = 5;
+    MEM[0x4da5] = 5;
 }
 
     //-------------------------------
@@ -2945,7 +2995,7 @@ bool tbd()
     // 12de  a0        and     b
     // 12df  2804      jr      z,#12e5         ; (4)
     //-------------------------------
-    a = (memory.data[0x4e72] & memory.data[4e09]);
+    a = (MEM[0x4e72] & MEM[4e09))]
     if (a != 0)
     {
 
@@ -2961,7 +3011,7 @@ bool tbd()
     // 12e5  79        ld      a,c
     // 12e6  320a4c    ld      (#4c0a),a
     //-------------------------------
-    memory.data[0x4c0a] = c;
+    MEM[0x4c0a] = c;
 
     //-------------------------------
     // 12e9  2ac54d    ld      hl,(#4dc5)
@@ -3047,14 +3097,14 @@ void unknown()
     // 1388  ddb603    or      (ix+#03)
     // 138b  ca9813    jp      z,#1398
     //-------------------------------
-    if ((*(uint32_t*)&memory.data[0x4da7]) != 0)
+    if ((*(uint32_t*)&MEM[0x4da7]) != 0)
     {
         //-------------------------------
         // 138e  2acb4d    ld      hl,(#4dcb)
         // 1391  2b        dec     hl
         // 1392  22cb4d    ld      (#4dcb),hl
         //-------------------------------
-        hl = --(uint16_t) memory.data[0x4dcb];
+        hl = --(uint16_t) MEM[0x4dcb];
 
         //-------------------------------
         // 1395  7c        ld      a,h
@@ -3069,19 +3119,19 @@ void unknown()
     // 1398  210b4c    ld      hl,#4c0b
     // 139b  3609      ld      (hl),#09
     //-------------------------------
-    memory.data[0x4c0b] = 9;
+    MEM[0x4c0b] = 9;
 
     //-------------------------------
     // 139d  3aac4d    ld      a,(#4dac)
     // 13a0  a7        and     a
     // 13a1  c2a713    jp      nz,#13a7
     //-------------------------------
-    if (memory.data[0x4dac] == 0)
+    if (MEM[0x4dac] == 0)
     {
         //-------------------------------
         // 13a4  32a74d    ld      (#4da7),a
         //-------------------------------
-        memory.data[0x4da7] = 0;
+        MEM[0x4da7] = 0;
     }
 
     //-------------------------------
@@ -3089,13 +3139,13 @@ void unknown()
     // 13aa  a7        and     a
     // 13ab  c2b113    jp      nz,#13b1
     //-------------------------------
-    if (memory.data[0x4dad] == 0)
+    if (MEM[0x4dad] == 0)
     {
 
         //-------------------------------
         // 13ae  32a84d    ld      (#4da8),a
         //-------------------------------
-        memory.data[0x4da8] = 0;
+        MEM[0x4da8] = 0;
     }
 
     //-------------------------------
@@ -3103,12 +3153,12 @@ void unknown()
     // 13b4  a7        and     a
     // 13b5  c2bb13    jp      nz,#13bb
     //-------------------------------
-    if (memory.data[0x4dad] == 0)
+    if (MEM[0x4dad] == 0)
     {
         //-------------------------------
         // 13b8  32a94d    ld      (#4da9),a
         //-------------------------------
-        memory.data[0x4da9] = 0;
+        MEM[0x4da9] = 0;
     }
 
 
@@ -3174,7 +3224,7 @@ void unknown()
 //-------------------------------
 bool tbd (void)
 {
-    return ((memory.data[0x4e72] & memory.data[4e09]) == 0);
+    return ((MEM[0x4e72] & MEM[4e09))]== 0);
 }
 
 // 1428  47        ld      b,a
@@ -3233,7 +3283,7 @@ bool tbd (void)
     // 1497  a0        and     b
     // 1498  c0        ret     nz
     //-------------------------------
-    return ((memory.data[0x4e72] & memory.data[4e09]) == 0);
+    return ((MEM[0x4e72] & MEM[4e09))]== 0);
  
 // 1499  47        ld      b,a
 // 149a  1e09      ld      e,#09
@@ -3726,7 +3776,7 @@ bool tbd (void)
     // 184d  3a094e    ld      a,(#4e09)
     // 1850  a1        and     c
     //-------------------------------
-    c = (memory.data[0x4e72] & memory.data[4e09]);
+    c = (MEM[0x4e72] & MEM[4e09))]
 
 // 1851  4f        ld      c,a
 // 1852  213a4d    ld      hl,#4d3a
@@ -3976,7 +4026,8 @@ void unknown()
 
 // 1a70  2abd4d    ld      hl,(#4dbd)
 // 1a73  22cb4d    ld      (#4dcb),hl
-    memory.x4dcb = memory.x4dcb;
+    MEM[0x4dcb] = MEM[0x4dbd];
+    MEM[0x4dcc] = MEM[0x4dbe];
 // 1a76  3e01      ld      a,#01
 // 1a78  32a64d    ld      (#4da6),a
 // 1a7b  32a74d    ld      (#4da7),a
@@ -5047,7 +5098,7 @@ void selfTest ()
 // 2327  10f1      djnz    #231a           ; (-15)
 
     for (int i = 0; i <= 0x3ff; i++)
-        memory.video[i] = 0x40;
+        VIDEO(i) = 0x40;
 
 // 	;; Set 4400-47ff to 0x0f (color ram)
 // 2329  0604      ld      b,#04
@@ -5064,7 +5115,7 @@ void selfTest ()
 // 2339  10f0      djnz    #232b           ; (-16)
 
     for (int i = 0; i < 0x3ff; i++)
-        memory.colour[i] = 0x0f;
+        COLOUR(i) = 0x0f;
 
 // 233b  ed5e      im      2		; interrupt mode 2
     interruptMode (2);
@@ -5078,7 +5129,7 @@ void selfTest ()
     coinCounter = 0;
 // 2345  3c        inc     a		; a=1 
 // 2346  320050    ld      (#5000),a	; Enable interrupts
-    regsWrite.intEnable = 1;
+    INTENABLE = 1;
 // 2349  fb        ei			; Enable interrupts
 // 234a  76        halt			; Wait for interrupt
     while (!interrupt())
@@ -5094,7 +5145,7 @@ void selfTest ()
 // 2355  010808    ld      bc,#0808
 // 2358  cf        rst     #8		; Restart at 0x08 (disable all)
     /*  Clear all write registers */
-    memset (0x5000, 0, 8);
+    memset (&REGSWRITE, 0, 8);
 
 // 	;; Clear ram
 // 2359  21004c    ld      hl,#4c00
@@ -5103,13 +5154,13 @@ void selfTest ()
 // 235f  cf        rst     #8
 // 2360  cf        rst     #8
 // 2361  cf        rst     #8
-    memset (memory.data+0x4c00, 0, 0x4be);
+    memset (&MEM[0x4c00], 0, 0x4be);
 
 // 	;; Clear sound registers, sprite positions
 // 2362  214050    ld      hl,#5040
 // 2365  0640      ld      b,#40
 // 2367  cf        rst     #8
-    memset (regsWrite.soundRegs, 0, 0x40);
+    memset (&SOUND(0), 0, 0x40);
 
 // 2368  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
@@ -5129,7 +5180,7 @@ void selfTest ()
 // 2382  3eff      ld      a,#ff
 // 2384  0640      ld      b,#40
 // 2386  cf        rst     #8
-    memset (0x4c82, 0xff, 0x40);
+    memset (&MEM[0x4c82], 0xff, 0x40);
 
 // 2387  3e01      ld      a,#01
 // 2389  320050    ld      (#5000),a	; enable interrupts
@@ -5143,19 +5194,19 @@ void selfTest ()
     do
     {
         /*  Wait for redirection address in 0x4c82 to be non negative */
-        l = memory.data[0x4c82];
-        h = memory.data[0x4c83];
-        a = memory.data[h<<8|l];
+        l = MEM[0x4c82];
+        h = MEM[0x4c83];
+        a = MEM[h<<8|l];
     }
     while (a < 0);
 
 // 2395  36ff      ld      (hl),#ff
-    memory.data[hl] = 0xff;
+    MEM[hl] = 0xff;
 // 2397  2c        inc     l
 // 2398  46        ld      b,(hl)
-    b = memory.data[++hl];
+    b = MEM[++hl];
 // 2399  36ff      ld      (hl),#ff
-    memory.data[hl] = 0xff;
+    MEM[hl] = 0xff;
 // 239b  2c        inc     l
     l++;
 // 239c  2002      jr      nz,#23a0        ; (2)
@@ -5166,8 +5217,8 @@ void selfTest ()
     }
 // 23a0  22824c    ld      (#4c82),hl
 // 23a3  218d23    ld      hl,#238d
-    memory.data[0x4c82] = l;
-    memory.data[0x4c83] = h;
+    MEM[0x4c82] = l;
+    MEM[0x4c83] = h;
 // 23a6  e5        push    hl
 // 23a7  e7        rst     #20
     tableCall (h<<8+l, a);
@@ -5240,7 +5291,7 @@ void jumpClearScreen()
 // 23ff  c9        ret     
 void clearScreen (void)
 {
-    memset (memory.video, 0x40, 0x400);
+    memset (VIDEO, 0x40, 0x400);
 }
 
 // 2400  3e40      ld      a,#40
@@ -5254,7 +5305,7 @@ void clearMaze (void)
 {
     /*  Only clear the maze part of the screen.  Leave the 2 lines at the top
      *  and at the bottom intact */
-    memset (memory.video+0x40, 0x40, 0x380);
+    memset (VIDEO+0x40, 0x40, 0x380);
 }
 
 // 	;; Set Color ram to 0x00
@@ -5267,7 +5318,7 @@ void clearMaze (void)
 // 2418  c9        ret     
 void clearColour (void)
 {
-    memset (memory.colour, 0, 0x400);
+    memset (COLOUR, 0, 0x400);
 }
 
 // 2419  210040    ld      hl,#4000
@@ -5373,11 +5424,11 @@ bool testRomLoc (void)
 // 24cc  3eff      ld      a,#ff
 // 24ce  061e      ld      b,#1e
 // 24d0  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
+memset (MEM+0x4040, 0x40, 0x80);
 // 24d1  3e14      ld      a,#14
 // 24d3  0604      ld      b,#04
 // 24d5  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
+memset (MEM+0x4040, 0x40, 0x80);
 // 24d6  c9        ret     
  
 // 24d7  58        ld      e,b
@@ -5395,13 +5446,13 @@ memset (0x4040, 0x40, 0x80);
 // 24e7  cf        rst     #8
 // 24e8  0d        dec     c
 // 24e9  20fc      jr      nz,#24e7        ; (-4)
-    memset (0x4040, a, 0x480);
+    memset (MEM+0x4040, a, 0x480);
 
 // 24eb  3e0f      ld      a,#0f
 // 24ed  0640      ld      b,#40
 // 24ef  21c047    ld      hl,#47c0
 // 24f2  cf        rst     #8
-    memset (0x4040, 0x40, 0x80);
+    memset (MEM+0x4040, 0x40, 0x80);
 // 24f3  7b        ld      a,e
 // 24f4  fe01      cp      #01
 // 24f6  c0        ret     nz
@@ -5448,31 +5499,33 @@ memset (0x4040, 0x40, 0x80);
 // 2565  dd360907  ld      (ix+#09),#07
 // 2569  dd360b09  ld      (ix+#0b),#09
 // 256d  dd360d00  ld      (ix+#0d),#00
-    memory.ram[0x402] = { 0x20, 0x01, 0x20, 0x03, 0x20, 0x05, 0x02, 0x07, 0x2c,
-    0x09, 0x3f, 0x00 };
+    memset (MEM+0x4c02,
+            { 0x20, 0x01, 0x20, 0x03, 0x20, 0x05, 0x02, 0x07, 0x2c, 0x09, 0x3f,
+            0x00 },
+            12);
 // 2571  78        ld      a,b
 // 2572  a7        and     a
 // 2573  c20f26    jp      nz,#260f
 // 2576  216480    ld      hl,#8064
 // 2579  22004d    ld      (#4d00),hl
-    memory.data[0x4d00] = 0x8064; // 16bit
+    MEM[0x4d00] = 0x8064; // 16bit
 // 257c  217c80    ld      hl,#807c
 // 257f  22024d    ld      (#4d02),hl
-    memory.data[0x4d02] = 0x807c; // 16bit
+    MEM[0x4d02] = 0x807c; // 16bit
 // 2582  217c90    ld      hl,#907c
 // 2585  22044d    ld      (#4d04),hl
-    memory.data[0x4d04] = 0x907c; // 16bit
+    MEM[0x4d04] = 0x907c; // 16bit
 // 2588  217c70    ld      hl,#707c
 // 258b  22064d    ld      (#4d06),hl
-    memory.data[0x4d06] = 0x707c; // 16bit
+    MEM[0x4d06] = 0x707c; // 16bit
 // 258e  21c480    ld      hl,#80c4
 // 2591  22084d    ld      (#4d08),hl
-    memory.data[0x4d08] = 0x80c4; // 16bit
+    MEM[0x4d08] = 0x80c4; // 16bit
 // 2594  212c2e    ld      hl,#2e2c
 // 2597  220a4d    ld      (#4d0a),hl
 // 259a  22314d    ld      (#4d31),hl
-    memory.data[0x4d0a] = 0x2e2c; // 16bit
-    memory.data[0x4d31] = 0x2e2c; // 16bit
+    MEM[0x4d0a] = 0x2e2c; // 16bit
+    MEM[0x4d31] = 0x2e2c; // 16bit
 // 259d  212f2e    ld      hl,#2e2f
 // 25a0  220c4d    ld      (#4d0c),hl
 // 25a3  22334d    ld      (#4d33),hl
@@ -5565,10 +5618,10 @@ memset (0x4040, 0x40, 0x80);
 //-------------------------------
 void tbd (uint16_t hl)
 {
-    memory.data[0x4d00] = hl;
-    memory.data[0x4d02] = hl;
-    memory.data[0x4d04] = hl;
-    memory.data[0x4d06] = hl;
+    MEM[0x4d00] = hl;
+    MEM[0x4d02] = hl;
+    MEM[0x4d04] = hl;
+    MEM[0x4d06] = hl;
 }
 
 // 268b  3e55      ld      a,#55
