@@ -1,3 +1,8 @@
+/* Memory map table.  Starts at flat map but replace with specific locations as
+ * they are discovered */
+
+// Video : https://www.walkofmind.com/programming/pie/video_memory.htm
+
 struct
 {
     union
@@ -43,6 +48,16 @@ memmap;
 #define VIDEO memory.mem.block.video
 #define COLOUR memory.mem.block.colour
 #define SOUND memory.regs.write.soundRegs
-#define INTENABLE (memory.regs.write.intEnable)
-#define REGSWRITE (memory.regs.write)
+#define SPRITES memory.mem.block.sprites
+#define INTENABLE memory.regs.write.intEnable
+#define COINCOUNTER memory.regs.write.intEnable
+#define REGSWRITE memory.regs.write
+
+#define SWAP16(int addr1, int addr2)\
+{ \
+    uint8_t tmp1, tmp2; \
+    tmp1 = MEM(addr1); tmp2 = MEM(addr1+1); \
+    MEM(addr1) = MEM(addr2); MEM(addr1+1) = MEM(addr2+1); \
+    MEM(addr2) = tmp1; MEM(addr2+1) = tmp2; \
+}
 
