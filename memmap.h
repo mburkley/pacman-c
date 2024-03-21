@@ -50,8 +50,28 @@ memmap;
 #define SOUND memory.regs.write.soundRegs
 #define SPRITES memory.mem.block.sprites
 #define INTENABLE memory.regs.write.intEnable
-#define COINCOUNTER memory.regs.write.intEnable
+#define COINCOUNTER memory.regs.write.coinCounter
+#define COINLOCKOUT memory.regs.write.coinLockout
 #define REGSWRITE memory.regs.write
+#define SOUNDENABLE memory.regs.write.soundEnable
+
+#define IN0_UP          (memory.regs.read.in0 & 0x01)
+#define IN0_LEFT        (memory.regs.read.in0 & 0x02)
+#define IN0_RIGHT       (memory.regs.read.in0 & 0x04)
+#define IN0_DOWN        (memory.regs.read.in0 & 0x08)
+#define IN0_TEST        (memory.regs.read.in0 & 0x10)
+#define IN0_COIN1       (memory.regs.read.in0 & 0x20)
+#define IN0_COIN2       (memory.regs.read.in0 & 0x40)
+#define IN0_COIN3       (memory.regs.read.in0 & 0x80)
+
+#define IN1_UP          (memory.regs.read.in0 & 0x01)
+#define IN1_LEFT        (memory.regs.read.in0 & 0x02)
+#define IN1_RIGHT       (memory.regs.read.in0 & 0x04)
+#define IN1_DOWN        (memory.regs.read.in0 & 0x08)
+#define IN1_SERVICE     (memory.regs.read.in0 & 0x10)
+#define IN1_START1      (memory.regs.read.in0 & 0x20)
+#define IN1_START2      (memory.regs.read.in0 & 0x40)
+#define IN1_CABINET     (memory.regs.read.in0 & 0x80)
 
 #define SWAP16(int addr1, int addr2)\
 { \
