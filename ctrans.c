@@ -743,92 +743,126 @@ void checkCoinInput ()
     if (CREDITS >= 99)
         return;
 
-// 0272  3a0050    ld      a,(#5000)            ; read IN0
-// 0275  47        ld      b,a
-// 0276  cb00      rlc     b                    ; Move MSB (COIN3) to carry flag
-// 0278  3a664e    ld      a,(#4e66)
-// 027b  17        rla                          ; Rotate carry flag to LSB
-// 027c  e60f      and     #0f
-// 027e  32664e    ld      (#4e66),a
-COIN_LAST_STATE=((COIN_LAST_STATE<<1) & 0x0f) | (IN0_COIN3?1:0);
-// 0281  d60c      sub     #0c
-// 0283  ccdf02    call    z,#02df		; Add Coin
-if (COIN_LAST_STATE==12)
-    checkCoinCredit();
-// 0286  cb00      rlc     b                    ; Move MSB (COIN2) to carry flag
-// 0288  3a674e    ld      a,(#4e67)
-// 028b  17        rla     
-// 028c  e60f      and     #0f
-// 028e  32674e    ld      (#4e67),a
-COIN2_LAST_STATE=((COIN2_LAST_STATE<<1)&0x0f) | (IN0_COIN2?1:0);
-// 0291  d60c      sub     #0c
-// 0293  c29a02    jp      nz,#029a
-// 0296  21694e    ld      hl,#4e69
-// 0299  34        inc     (hl)
-if (COIN2_LAST_STATE == 0xc)
-{
-    4e69++;
+    //-------------------------------
+    // 0272  3a0050    ld      a,(#5000)            ; read IN0
+    // 0275  47        ld      b,a
+    // 0276  cb00      rlc     b                    ; Move MSB (COIN3) to carry flag
+    // 0278  3a664e    ld      a,(#4e66)
+    // 027b  17        rla                          ; Rotate carry flag to LSB
+    // 027c  e60f      and     #0f
+    // 027e  32664e    ld      (#4e66),a
+    //-------------------------------
+    COIN3_LAST_STATE=((COIN3_LAST_STATE<<1) & 0x0f) | (IN0_COIN3?1:0);
+    //-------------------------------
+    // 0281  d60c      sub     #0c
+    // 0283  ccdf02    call    z,#02df		; Add Coin
+    //-------------------------------
+    if (COIN_LAST_STATE==12)
+        checkCoinCredit();
+    //-------------------------------
+    // 0286  cb00      rlc     b                    ; Move MSB (COIN2) to carry flag
+    // 0288  3a674e    ld      a,(#4e67)
+    // 028b  17        rla     
+    // 028c  e60f      and     #0f
+    // 028e  32674e    ld      (#4e67),a
+    //-------------------------------
+    COIN2_LAST_STATE=((COIN2_LAST_STATE<<1)&0x0f) | (IN0_COIN2?1:0);
+    //-------------------------------
+    // 0291  d60c      sub     #0c
+    // 0293  c29a02    jp      nz,#029a
+    // 0296  21694e    ld      hl,#4e69
+    // 0299  34        inc     (hl)
+    //-------------------------------
+    if (COIN2_LAST_STATE == 0xc)
+        MEM[4e69]++;
+
+    //-------------------------------
+    // 029a  cb00      rlc     b                    ; Move MSB (COIN1) to carry flag
+    // 029c  3a684e    ld      a,(#4e68)
+    // 029f  17        rla     
+    // 02a0  e60f      and     #0f
+    //-------------------------------
+    COIN1_LAST_STATE=((COIN1_LAST_STATE>>1)&0x0f) | (IN0_COIN1?1:0);
+    //-------------------------------
+    // 02a2  32684e    ld      (#4e68),a
+    // 02a5  d60c      sub     #0c
+    // 02a7  c0        ret     nz
+    //-------------------------------
+    if (COIN1_LAST_STATE != 0xc)
+        return;
+    //-------------------------------
+    // 02a8  21694e    ld      hl,#4e69
+    // 02ab  34        inc     (hl)
+    // 02ac  c9        ret     
+    //-------------------------------
+    MEM[0x4e69]++;
 }
 
-// 029a  cb00      rlc     b                    ; Move MSB (COIN1) to carry flag
-// 029c  3a684e    ld      a,(#4e68)
-// 029f  17        rla     
-// 02a0  e60f      and     #0f
-COIN1_LAST_STATE=((COIN1_LAST_STATE>>1)&0x0f) | (IN0_COIN1?1:0);
-// 02a2  32684e    ld      (#4e68),a
-// 02a5  d60c      sub     #0c
-// 02a7  c0        ret     nz
-if (COIN1_LAST_STATE != 0c)
-    return;
-// 02a8  21694e    ld      hl,#4e69
-// 02ab  34        inc     (hl)
-// 02ac  c9        ret     
-    MEM[0x4e69]++;
-    return;
-// 02ad  3a694e    ld      a,(#4e69)
-// 02b0  a7        and     a
-// 02b1  c8        ret     z
+void func_2ad()
+{
+    //-------------------------------
+    // 02ad  3a694e    ld      a,(#4e69)
+    // 02b0  a7        and     a
+    // 02b1  c8        ret     z
+    //-------------------------------
     if (MEM[0x4e69] == 0)
         return;
 
-// 02b2  47        ld      b,a
-// 02b3  3a6a4e    ld      a,(#4e6a)
-// 02b6  5f        ld      e,a
-// 02b7  fe00      cp      #00
-// 02b9  c2c402    jp      nz,#02c4
-b=a;
-a=MEM[0x4e6a];
-if(a!=0)
-{
-    // 02bc  3e01      ld      a,#01
-    // 02be  320750    ld      (#5007),a
-    COINCOUNTER=a;
-    // 02c1  cddf02    call    #02df
-    func_2df();
-}
-// 02c4  7b        ld      a,e
-// 02c5  fe08      cp      #08
-// 02c7  c2ce02    jp      nz,#02ce
-if (MEM[0x4e6a] == 8)
-{
-    // 02ca  af        xor     a
-    // 02cb  320750    ld      (#5007),a
-    COINCOUNTER=a;
-}
-// 02ce  1c        inc     e
-// 02cf  7b        ld      a,e
-// 02d0  326a4e    ld      (#4e6a),a
-MEM[0x4e6a]++;
-// 02d3  d610      sub     #10
-// 02d5  c0        ret     nz
-if (MEM[0x4e6a] != 0x10)
-    return;
-// 02d6  326a4e    ld      (#4e6a),a
-// 02d9  05        dec     b
-// 02da  78        ld      a,b
-// 02db  32694e    ld      (#4e69),a
-// 02de  c9        ret     
-MEM[0x4e69]=MEM[0x4e6a]-1;
+    //-------------------------------
+    // 02b2  47        ld      b,a
+    // 02b3  3a6a4e    ld      a,(#4e6a)
+    // 02b6  5f        ld      e,a
+    // 02b7  fe00      cp      #00
+    // 02b9  c2c402    jp      nz,#02c4
+    //-------------------------------
+    if (MEM[0x4e6a] == 0)
+    {
+        //-------------------------------
+        // 02bc  3e01      ld      a,#01
+        // 02be  320750    ld      (#5007),a    ; coin counter = 1
+        // 02c1  cddf02    call    #02df
+        //-------------------------------
+        COINCOUNTER=1;
+        checkCoinCredit ();
+    }
+
+    //-------------------------------
+    // 02c4  7b        ld      a,e
+    // 02c5  fe08      cp      #08
+    // 02c7  c2ce02    jp      nz,#02ce
+    //-------------------------------
+    if (MEM[0x4e6a] == 8)
+    {
+        //-------------------------------
+        // 02ca  af        xor     a
+        // 02cb  320750    ld      (#5007),a    ; zero coin counter
+        //-------------------------------
+        COINCOUNTER=0;
+    }
+
+    //-------------------------------
+    // 02ce  1c        inc     e
+    // 02cf  7b        ld      a,e
+    // 02d0  326a4e    ld      (#4e6a),a
+    //-------------------------------
+    MEM[0x4e6a]++;
+
+    //-------------------------------
+    // 02d3  d610      sub     #10
+    // 02d5  c0        ret     nz
+    //-------------------------------
+    if (MEM[0x4e6a] != 0x10)
+        return;
+
+    //-------------------------------
+    // 02d6  326a4e    ld      (#4e6a),a
+    // 02d9  05        dec     b
+    // 02da  78        ld      a,b
+    // 02db  32694e    ld      (#4e69),a
+    // 02de  c9        ret     
+    //-------------------------------
+    MEM[0x4e6a] -= 0x10;
+    MEM[0x4e69]--;
 }
 
 //-------------------------------
@@ -1221,18 +1255,18 @@ void func_3fe()
     tableCall (MEM[0x4e02], func);
 }
 
-//-------------------------------
-// 045f  ef        rst     #28
-// 0460  0001
-//       ef        rst     #28
-//       0100
-// 0465  ef        rst     #28
-// 0466  0400
-// 0468  ef        rst     #28
-// 0469  1e00
-//-------------------------------
 void func_45f()
 {
+    //-------------------------------
+    // 045f  ef        rst     #28
+    // 0460  0001
+    //       ef        rst     #28
+    //       0100
+    // 0465  ef        rst     #28
+    // 0466  0400
+    // 0468  ef        rst     #28
+    // 0469  1e00
+    //-------------------------------
     storeRingIndirect (0x00, 0x01);
     storeRingIndirect (0x01, 0x00);
     storeRingIndirect (0x04, 0x00);
@@ -1398,6 +1432,7 @@ void func_4d8()
     //       0e12      ld      c,0x12
     // 04dd  c38505    jp      #0585
     func_585(0x12);
+    //-------------------------------
 }
 
 void func_4e0()
@@ -3140,19 +3175,19 @@ func_24c9();
 
 // 1016  c9        ret     
 
-//-------------------------------
-// 1017  cd9112    call    #1291
-// 101a  3aa54d    ld      a,(#4da5)
-// 101d  a7        and     a
-// 101e  c0        ret     nz
-//-------------------------------
-bool tbd()
+bool func_1017 ()
 {
-    return (MEM[0x4da5] == 0);
-}
+    //-------------------------------
+    // 1017  cd9112    call    #1291
+    // 101a  3aa54d    ld      a,(#4da5)
+    // 101d  a7        and     a
+    // 101e  c0        ret     nz
+    //-------------------------------
+    func_1291();
 
-func_101f()
-{
+    if (MEM[0x4da5] != 0)
+        return;
+
     //-------------------------------
     // 101f  cd6610    call    #1066
     // 1022  cd9410    call    #1094
@@ -3181,119 +3216,172 @@ func_101f()
         return;
     }
 
-// 1039  cd1d17    call    #171d
-// 103c  cd8917    call    #1789
-func_171d();
-func_1789();
-// 103f  3aa44d    ld      a,(#4da4)
-// 1042  a7        and     a
-// 1043  c0        ret     nz
-if (mem[0x4da4] != 0)
-    return;
+    //-------------------------------
+    // 1039  cd1d17    call    #171d
+    // 103c  cd8917    call    #1789
+    //-------------------------------
+    func_171d();
+    func_1789();
+    //-------------------------------
+    // 103f  3aa44d    ld      a,(#4da4)
+    // 1042  a7        and     a
+    // 1043  c0        ret     nz
+    //-------------------------------
+    if (mem[0x4da4] != 0)
+        return;
 
-// 1044  cd0618    call    #1806
-// 1047  cd361b    call    #1b36
-// 104a  cd4b1c    call    #1c4b
-// 104d  cd221d    call    #1d22
-// 1050  cdf91d    call    #1df9
+    //-------------------------------
+    // 1044  cd0618    call    #1806
+    // 1047  cd361b    call    #1b36
+    // 104a  cd4b1c    call    #1c4b
+    // 104d  cd221d    call    #1d22
+    // 1050  cdf91d    call    #1df9
+    //-------------------------------
+    func_1806();
+    func_1b36();
+    func_1c4b();
+    func_1d22();
+    func_1df9();
+    //-------------------------------
+    // 1053  3a044e    ld      a,(#4e04)
+    // 1056  fe03      cp      #03
+    // 1058  c0        ret     nz
+    //-------------------------------
+    if (mem[0x4e04] != 3)
+        return;
 
-func_1806();
-func_1b36();
-func_1c4b();
-func_1d22();
-func_1df9();
-// 1053  3a044e    ld      a,(#4e04)
-// 1056  fe03      cp      #03
-// 1058  c0        ret     nz
-if (mem[0x4e04] != 3)
-    return;
+    //-------------------------------
+    // 1059  cd7613    call    #1376
+    // 105c  cd6920    call    #2069
+    // 105f  cd8c20    call    #208c
+    // 1062  cdaf20    call    #20af
+    // 1065  c9        ret     
+    //-------------------------------
+    func_1376();
+    func_2069();
+    func_208c();
+    func_20af();
+}
 
-// 1059  cd7613    call    #1376
-// 105c  cd6920    call    #2069
-// 105f  cd8c20    call    #208c
-// 1062  cdaf20    call    #20af
+void func_1066()
+{
+    //-------------------------------
+    // 1066  3aab4d    ld      a,(#4dab)
+    // 1069  a7        and     a
+    // 106a  c8        ret     z
+    //-------------------------------
+    if (MEM[0x4dab] == 0)
+        return;
+    //-------------------------------
+    // 106b  3d        dec     a
+    // 106c  2008      jr      nz,#1076        ; (8)
+    //-------------------------------
+    if (MEM[0x4dab] == 1)
+    {
+        //-------------------------------
+        // 106e  32ab4d    ld      (#4dab),a
+        // 1071  3c        inc     a
+        // 1072  32ac4d    ld      (#4dac),a
+        // 1075  c9        ret     
+        //-------------------------------
+        MEM[0x4dab] = 0;
+        MEM[0x4dac] = 1;
+        return;
+    }
 
-func_1376();
-func_2069();
-func_208c();
-func_20af();
-// 1065  c9        ret     
-// 
-// 1066  3aab4d    ld      a,(#4dab)
-// 1069  a7        and     a
-// 106a  c8        ret     z
-// 
-// 106b  3d        dec     a
-// 106c  2008      jr      nz,#1076        ; (8)
-// 106e  32ab4d    ld      (#4dab),a
-// 1071  3c        inc     a
-// 1072  32ac4d    ld      (#4dac),a
-// 1075  c9        ret     
-// 
-// 1076  3d        dec     a
-// 1077  2008      jr      nz,#1081        ; (8)
-// 1079  32ab4d    ld      (#4dab),a
-// 107c  3c        inc     a
-// 107d  32ad4d    ld      (#4dad),a
-// 1080  c9        ret     
-// 
-// 1081  3d        dec     a
-// 1082  2008      jr      nz,#108c        ; (8)
-// 1084  32ab4d    ld      (#4dab),a
-// 1087  3c        inc     a
-// 1088  32ae4d    ld      (#4dae),a
-// 108b  c9        ret     
-// 
-// 108c  32af4d    ld      (#4daf),a
-// 108f  3d        dec     a
-// 1090  32ab4d    ld      (#4dab),a
-// 1093  c9        ret     
-// 
+    //-------------------------------
+    // 1076  3d        dec     a
+    // 1077  2008      jr      nz,#1081        ; (8)
+    //-------------------------------
+    if (MEM[0x4dab] == 2)
+    {
+
+        //-------------------------------
+        // 1079  32ab4d    ld      (#4dab),a
+        // 107c  3c        inc     a
+        // 107d  32ad4d    ld      (#4dad),a
+        // 1080  c9        ret     
+        //-------------------------------
+        MEM[0x4dab] = 0;
+        MEM[0x4dad] = 1;
+        return;
+    }
+
+    //-------------------------------
+    // 1081  3d        dec     a
+    // 1082  2008      jr      nz,#108c        ; (8)
+    //-------------------------------
+    if (MEM[0x4dab] == 3)
+    {
+        //-------------------------------
+        // 1084  32ab4d    ld      (#4dab),a
+        // 1087  3c        inc     a
+        // 1088  32ae4d    ld      (#4dae),a
+        // 108b  c9        ret     
+        //-------------------------------
+        MEM[0x4dab] = 0;
+        MEM[0x4dae] = 1;
+        return;
+    }
+
+    //-------------------------------
+    // 108c  32af4d    ld      (#4daf),a    ; assume a must be 1
+    // 108f  3d        dec     a
+    // 1090  32ab4d    ld      (#4dab),a    ; set to zero
+    // 1093  c9        ret     
+    //-------------------------------
+    MEM[0x4daf] = 1;
+    MEM[0x4dab] = 1;
+}
+
+void func_1094()
+{
 // 1094  3aac4d    ld      a,(#4dac)
 // 1097  e7        rst     #20
-// 1098  0c        inc     c
-// 1099  00        nop     
-// 109a  c0        ret     nz
-// 
-// 109b  10d2      djnz    #106f           ; (-46)
-// 109d  103a      djnz    #10d9           ; (58)
-// 109f  ad        xor     l
-// 10a0  4d        ld      c,l
+// 1098  0c00 c010 d210 
+}
+
+void func_109e()
+{
+// 109e  3aad4d    ld      a,(#4dad)
 // 10a1  e7        rst     #20
-// 10a2  0c        inc     c
-// 10a3  00        nop     
-// 10a4  1811      jr      #10b7           ; (17)
-// 10a6  2a113a    ld      hl,(#3a11)
-// 10a9  ae        xor     (hl)
-// 10aa  4d        ld      c,l
+// 10a2  0c00 1811 2a11
+}
+
+void func_10a8()
+{
+// 10a8  3aae4d    ld      a,(#4dae)
 // 10ab  e7        rst     #20
-// 10ac  0c        inc     c
-// 10ad  00        nop     
-// 10ae  5c        ld      e,h
-// 10af  116e11    ld      de,#116e
-// 10b2  8f        adc     a,a
-// 10b3  113aaf    ld      de,#af3a
-// 10b6  4d        ld      c,l
+// 10ac  0c00 5c11 6e11 8f11
+}
+
+void func_10b4()
+{
+// 10b4  3aaf4d    ld      a,(#4daf)
 // 10b7  e7        rst     #20
-// 10b8  0c        inc     c
-// 10b9  00        nop     
-// 10ba  c9        ret     
-// 
-// 10bb  11db11    ld      de,#11db
-// 10be  fc11cd    call    m,#cd11
-// 10c1  d8        ret     c
-// 
-// 10c2  1b        dec     de
+// 10b8  0c00 c911 db11 fc11
+}
+
+void func_10c0()
+{
+// 10c0  cdd81b    call    #1bd8
 // 10c3  2a004d    ld      hl,(#4d00)
 // 10c6  116480    ld      de,#8064
 // 10c9  a7        and     a
 // 10ca  ed52      sbc     hl,de
 // 10cc  c0        ret     nz
-// 
+func_1bd8();
+if (MEM[0x4d00] != 0x8064)
+    return;
+
 // 10cd  21ac4d    ld      hl,#4dac
 // 10d0  34        inc     (hl)
 // 10d1  c9        ret     
-// 
+MEM[0x4dac]++;
+}
+
+void func_10d2()
+{
 // 10d2  dd210133  ld      ix,#3301
 // 10d6  fd21004d  ld      iy,#4d00
 // 10da  cd0020    call    #2000
@@ -3323,7 +3411,10 @@ func_2000();
 // 1112  21ac4e    ld      hl,#4eac
 // 1115  cbb6      res     6,(hl)
 // 1117  c9        ret     
-// 
+}
+
+void func_1118()
+{
 // 1118  cdaf1c    call    #1caf
 func_1caf();
 // 111b  2a024d    ld      hl,(#4d02)
@@ -3335,7 +3426,10 @@ func_1caf();
 // 1125  21ad4d    ld      hl,#4dad
 // 1128  34        inc     (hl)
 // 1129  c9        ret     
-// 
+}
+
+void func_112a()
+{
 // 112a  dd210133  ld      ix,#3301
 // 112e  fd21024d  ld      iy,#4d02
 // 1132  cd0020    call    #2000
@@ -3367,7 +3461,10 @@ func_1d86();
 // 1169  21ae4d    ld      hl,#4dae
 // 116c  34        inc     (hl)
 // 116d  c9        ret     
-// 
+}
+
+void func_116e()
+{
 // 116e  dd210133  ld      ix,#3301
 // 1172  fd21044d  ld      iy,#4d04
 // 1176  cd0020    call    #2000
@@ -3383,7 +3480,10 @@ func_2000();
 // 118a  21ae4d    ld      hl,#4dae
 // 118d  34        inc     (hl)
 // 118e  c9        ret     
-// 
+}
+
+void func_118f()
+{
 // 118f  dd210333  ld      ix,#3303
 // 1193  fd21044d  ld      iy,#4d04
 // 1197  cd0020    call    #2000
@@ -3541,6 +3641,7 @@ func_2000();
                          func_132e, func_1336, func_133e, func_1346,
                          func_1353 };
     tableCall (addr, MEM[0x4da5]);
+}
 
 //-------------------------------
 // 12b7  2ac54d    ld      hl,(#4dc5)
@@ -3551,22 +3652,22 @@ func_2000();
 // 12c2  ed52      sbc     hl,de
 // 12c4  c0        ret     nz
 //-------------------------------
-bool tbd()
+bool func_12b7()
 {
-    tbdCounter++;
-    return (tbdCounter - 78) != 0;
-}
+    MEM[0x4dc5]++;
+    if (MEM[0x4dc5] != 0x78)
+        return;
 
 //-------------------------------
 // 12c5  3e05      ld      a,#05
 // 12c7  32a54d    ld      (#4da5),a
 // 12ca  c9        ret     
 //-------------------------------
-bool tbd()
-{
     MEM[0x4da5] = 5;
 }
 
+void func_12cb()
+{
     //-------------------------------
     // 12cb  210000    ld      hl,#0000
     // 12ce  cd7e26    call    #267e
@@ -3678,7 +3779,7 @@ func_2675();
 // 1379  a7        and     a
 // 137a  c8        ret     z
 
-void unknown()
+void func_137b()
 {
     //-------------------------------
     // 137b  dd21a74d  ld      ix,#4da7
@@ -3813,10 +3914,9 @@ void unknown()
 // 1426  a0        and     b
 // 1427  c8        ret     z
 //-------------------------------
-bool tbd (void)
+bool func_141f (void)
 {
-    return ((MEM[0x4e72] & MEM[4e09])== 0);
-}
+     ((MEM[0x4e72] & MEM[4e09])== 0);
 
 // 1428  47        ld      b,a
 // 1429  dd21004c  ld      ix,#4c00
@@ -5341,6 +5441,8 @@ func_065();
 // 2016  a7        and     a
 // 2017  c9        ret     
 
+void func_2018 ()
+{
 // 2018  7d        ld      a,l
 // 2019  cb3f      srl     a
 // 201b  cb3f      srl     a
@@ -5354,10 +5456,10 @@ func_065();
 // 2029  c61e      add     a,#1e
 // 202b  67        ld      h,a
 // 202c  c9        ret     
-void tbd ()
-{
 }
 
+void func_202d ()
+{
 // 202d  f5        push    af
 // 202e  c5        push    bc
 // 202f  7d        ld      a,l
@@ -5382,13 +5484,19 @@ void tbd ()
 // 204f  c1        pop     bc
 // 2050  f1        pop     af
 // 2051  c9        ret     
-// 
+}
+
+void func_2052()
+{
 // 2052  cd6500    call    #0065
 func_065();
 // 2055  110004    ld      de,#0400
 // 2058  19        add     hl,de
 // 2059  c9        ret     
-// 
+}
+
+void func_205a()
+{
 // 205a  cd5220    call    #2052
 func_2052();
 // 205d  7e        ld      a,(hl)
