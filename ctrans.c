@@ -118,27 +118,29 @@ tableCall (void (*func*)[], uint8_t index)
     func[index]();
 }
 
-//-------------------------------
-// 0028  e1        pop     hl              ; retrieve return addr
-// 0029  46        ld      b,(hl)          ; fetch byte following rst call
-// 002a  23        inc     hl              
-// 002b  4e        ld      c,(hl)          ; fetch next byte
-// 002c  23        inc     hl              ; inc again
-// 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
-// 002e  1812      jr      #0042           ; (18)
-//-------------------------------
-/*  The C implementation doesn't need to retrieve from stack, so is just a
- *  wrapper */
+/*  Fetches two bytes following caller return address and places in a ring.  The
+ *  C implementation doesn't need to retrieve from stack, so is just a wrapper
+ *  */
 void storeRingIndirect (int b, int c)
 {
+    //-------------------------------
+    // 0028  e1        pop     hl              ; retrieve return addr
+    // 0029  46        ld      b,(hl)          ; fetch byte following rst call
+    // 002a  23        inc     hl              
+    // 002b  4e        ld      c,(hl)          ; fetch next byte
+    // 002c  23        inc     hl              ; inc again
+    // 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
+    // 002e  1812      jr      #0042           ; (18)
+    //-------------------------------
     storeRingTBD (b, c);
 }
 
-// 0030  11904c    ld      de,#4c90
-// 0033  0610      ld      b,#10
-// 0035  c35100    jp      #0051
+/*  Fetches 3 bytes and stores them to a free location starting at 0x4c90 */
 void rst_30 ()
 {
+    // 0030  11904c    ld      de,#4c90
+    // 0033  0610      ld      b,#10
+    // 0035  c35100    jp      #0051
     func_51(0x4c90, 0x10);
 }
 
@@ -225,6 +227,7 @@ return;
 // 007d  01 03 04 06 07 08 09 0a
 // 0085  0b 0c 0d 0e 0f 10 11 14
 //-------------------------------
+uint8_t data_68[] = { 0 };
 
 //-------------------------------
 // 	;; Non-test mode interrupt routine
@@ -1233,15 +1236,11 @@ void func_3fe()
     // 0413  3a024e    ld      a,(#4e02)
     // 0416  e7        rst     #20
     //
-    // 0417  5f04 0c00 7104 0c00 
-    // 041f  7f04 0c00 8504 0c00 
-    // 0427  8b04 0c00 9904 0c00 
-    // 042f  9f04 0c00 a504 0c00 
-    // 0437  b304 0c00 b904 0c00 
-    // 043f  bf04 0c00 cd04 0c00
-    // 0447  d304 0c00 d804 0c00 
-    // 044f  e004 0c00 1c05 4b05 
-    // 0457  5605 6105 6c05 7c05 
+    // 0417                       5f  04 0c 00 71 04 0c 00 7f  |N4.:.N._...q....|
+    // 0420  04 0c 00 85 04 0c 00 8b  04 0c 00 99 04 0c 00 9f  |................|
+    // 0430  04 0c 00 a5 04 0c 00 b3  04 0c 00 b9 04 0c 00 bf  |................|
+    // 0440  04 0c 00 cd 04 0c 00 d3  04 0c 00 d8 04 0c 00 e0  |................|
+    // 0450  04 0c 00 1c 05 4b 05 56  05 61 05 6c 05 7c 05     |.....K.V.a.l.|..|
     //-------------------------------
     void (*func)()[] = { func_45f, nothing, func_471, nothing,
                          func_47f, nothing, func_485, nothing,
@@ -1442,15 +1441,12 @@ void func_4e0()
     // 04e2  cd8505    call    #0585
     //-------------------------------
     func_585(0x13);
-}
 
-void func_4e5()
-{
     //-------------------------------
     // 04e5  cd7908    call    #0879
     // 04e8  35        dec     (hl)
     func_879();
-    MEM[hl]--;
+    MEM[0x4e04]--;
     //-------------------------------
     // 04e9  ef        rst     #28
     // 04ea  1100
@@ -1574,31 +1570,34 @@ func_51c()
 // 057c  cdbe06    call    #06be
 // 057f  c9        ret     
 
-//-------------------------------
-// 0580  3a754e    ld      a,(#4e75)
-// 0583  81        add     a,c
-// 0584  4f        ld      c,a
-//-------------------------------
 void func_580(int c)
 {
+    //-------------------------------
+    // 0580  3a754e    ld      a,(#4e75)
+    // 0583  81        add     a,c
+    // 0584  4f        ld      c,a
+    //-------------------------------
     c+=MEM[0x4e75];
+
+    /*  Asm continues on but 585 is also called as a function, so we also define
+     *  as a function and call it */
     func_585(c);
 }
 
-//-------------------------------
-// 0585  061c      ld      b,#1c
-// 0587  cd4200    call    #0042
-//-------------------------------
 void func_585(int c)
 {
+    //-------------------------------
+    // 0585  061c      ld      b,#1c
+    // 0587  cd4200    call    #0042
+    //-------------------------------
     storeRingTBD (0x1c, c);
-}
 
-// 058a  f7        rst     #30
-// 058b  4a0200
+    //-------------------------------
+    // 058a  f7        rst     #30
+    // 058b  4a0200
+    //-------------------------------
+    rst_30 (0x4a, 0x02, 0x00);
 
-func_58e()
-{
     //-------------------------------
     // 058e  21024e    ld      hl,#4e02
     // 0591  34        inc     (hl)
@@ -1607,24 +1606,36 @@ func_58e()
     MEM[0x4e02]++;
 }
 
-//-------------------------------
-// 0593  3a754e    ld      a,(#4e75)
-// 0596  81        add     a,c
-// 0597  4f        ld      c,a
-// 0598  061c      ld      b,#1c
-// 059a  cd4200    call    #0042
-//-------------------------------
-storeRingTBD (0x1c, c+mem[0x4e75]);
+void func_593()
+{
+    //-------------------------------
+    // 0593  3a754e    ld      a,(#4e75)
+    // 0596  81        add     a,c
+    // 0597  4f        ld      c,a
+    // 0598  061c      ld      b,#1c
+    // 059a  cd4200    call    #0042
+    //-------------------------------
+    storeRingTBD (0x1c, c+mem[0x4e75]);
 
-// 059d  f7        rst     #30
-// 059e  450200
-// 05a1  cd8e05    call    #058e
-// 05a4  c9        ret     
-// 
+    //-------------------------------
+    // 059d  f7        rst     #30
+    // 059e  450200
+    // 05a1  cd8e05    call    #058e
+    // 05a4  c9        ret     
+    //-------------------------------
+    rst_30 (0x45, 0x02, 0x00);
+    func_58e();
+}
+
+void func_5a5 ()
+{
 // 05a5  3ab54d    ld      a,(#4db5)
 // 05a8  a7        and     a
 // 05a9  c8        ret     z
-// 
+}
+
+void func_5aa ()
+{
 // 05aa  af        xor     a
 // 05ab  32b54d    ld      (#4db5),a
 // 05ae  3a304d    ld      a,(#4d30)
@@ -1635,7 +1646,10 @@ storeRingTBD (0x1c, c+mem[0x4e75]);
 // 05ba  df        rst     #18
 // 05bb  22264d    ld      (#4d26),hl
 // 05be  c9        ret     
-// 
+}
+
+void func_5bf ()
+{
 // 05bf  36b1      ld      (hl),#b1
 // 05c1  2c        inc     l
 // 05c2  36b3      ld      (hl),#b3
@@ -1663,6 +1677,7 @@ storeRingTBD (0x1c, c+mem[0x4e75]);
 // 05e2  2d        dec     l
 // 05e3  77        ld      (hl),a
 // 05e4  c9        ret     
+}
 
 /*  4e00 == 2 */
 func_5e5()
@@ -1886,8 +1901,11 @@ func_674()
     //-------------------------------
     storeRingIndirect (0x1a, 0x00);
 
-// 069f  f7        rst     #30
-// 06a0  570100
+    //-------------------------------
+    // 069f  f7        rst     #30
+    // 06a0  570100
+    //-------------------------------
+    rst_30 (0x57, 0x01, 0x00);
 
     //-------------------------------
     // 06a3  21034e    ld      hl,#4e03
@@ -1920,18 +1938,19 @@ void func_6a8()
     GAME_STATE++;
 }
 
-// 06be  3a044e    ld      a,(#4e04)
-// 06c1  e7        rst     #20
-// 06c2  7908 9908 0c00 cd08
-//       0d09 0c00 4009 0c00 
-// 06d2  7209 8809 0c00 d209
-//       d809 0c00 e809 0c00 
-// 06e2  fe09 0c00 020a 0c00 
-// 06ea  040a 0c00 060a 0c00 
-// 06f2  080a 0c00 0a0a 0c00 
-// 06fa  0c0a 0c00 0e0a 0c00 
-// 0702  2c0a 0c00 7c0a a00a 
-// 070a  0c00 a30a
+/*  4e00 == 3 */
+void func_6be()
+{
+    //-------------------------------
+    // 06be  3a044e    ld      a,(#4e04)
+    // 06c1  e7        rst     #20
+    //
+    // 06c2        79 08 99 08 0c 00  cd 08 0d 09 0c 00 40 09  |N.y...........@.|
+    // 06d0  0c 00 72 09 88 09 0c 00  d2 09 d8 09 0c 00 e8 09  |..r.............|
+    // 06e0  0c 00 fe 09 0c 00 02 0a  0c 00 04 0a 0c 00 06 0a  |................|
+    // 06f0  0c 00 08 0a 0c 00 0a 0a  0c 00 0c 0a 0c 00 0e 0a  |................|
+    // 0700  0c 00 2c 0a 0c 00 7c 0a  a0 0a 0c 00 a3 0a        |..,...|.......x.|
+    //-------------------------------
     void (*func)()[] = { func_879, func_899, nothing, func_8cd,
                             func_90d, nothing, func_940, nothing, 
                             func_972, func_988, nothing, func_9d2,
@@ -1942,7 +1961,11 @@ void func_6a8()
                             func_a0c, nothing, func_a0e, nothing, 
                             func_a2c, nothing, func_a7c, func_aa0, 
                             nothing, func_aa3 };
+}
 
+/*  Jump from addr 0x000d which doesn't look reachable */
+void func_70e()
+{
     //-------------------------------
     // 070e  78        ld      a,b
     // 070f  a7        and     a
@@ -1997,6 +2020,7 @@ void func_6a8()
     hl=0x330f+0x21 * a;
 
 // 0737  cd1408    call    #0814
+func_814();
 // 073a  dd7e01    ld      a,(ix+#01)
 // 073d  32b04d    ld      (#4db0),a
 // 0740  dd7e02    ld      a,(ix+#02)
@@ -2052,110 +2076,20 @@ MEM[0x4d96]=MEM[iy+1];
 
     // 0792  cdea2b    call    #2bea
     // 0795  c9        ret     
-    compareOne_4e00 ();
+    func_2bea ();
 }
-// 0796  03        inc     bc
-// 0797  010100    ld      bc,#0001
-// 079a  02        ld      (bc),a
-// 079b  00        nop     
-// 079c  04        inc     b
-// 079d  010201    ld      bc,#0102
-// 07a0  03        inc     bc
-// 07a1  00        nop     
-// 07a2  04        inc     b
-// 07a3  010302    ld      bc,#0203
-// 07a6  04        inc     b
-// 07a7  010402    ld      bc,#0204
-// 07aa  03        inc     bc
-// 07ab  02        ld      (bc),a
-// 07ac  05        dec     b
-// 07ad  010500    ld      bc,#0005
-// 07b0  03        inc     bc
-// 07b1  02        ld      (bc),a
-// 07b2  0602      ld      b,#02
-// 07b4  05        dec     b
-// 07b5  010303    ld      bc,#0303
-// 07b8  03        inc     bc
-// 07b9  02        ld      (bc),a
-// 07ba  05        dec     b
-// 07bb  02        ld      (bc),a
-// 07bc  03        inc     bc
-// 07bd  03        inc     bc
-// 07be  0602      ld      b,#02
-// 07c0  05        dec     b
-// 07c1  02        ld      (bc),a
-// 07c2  03        inc     bc
-// 07c3  03        inc     bc
-// 07c4  0602      ld      b,#02
-// 07c6  05        dec     b
-// 07c7  00        nop     
-// 07c8  03        inc     bc
-// 07c9  04        inc     b
-// 07ca  07        rlca    
-// 07cb  02        ld      (bc),a
-// 07cc  05        dec     b
-// 07cd  010304    ld      bc,#0403
-// 07d0  03        inc     bc
-// 07d1  02        ld      (bc),a
-// 07d2  05        dec     b
-// 07d3  02        ld      (bc),a
-// 07d4  03        inc     bc
-// 07d5  04        inc     b
-// 07d6  0602      ld      b,#02
-// 07d8  05        dec     b
-// 07d9  02        ld      (bc),a
-// 07da  03        inc     bc
-// 07db  05        dec     b
-// 07dc  07        rlca    
-// 07dd  02        ld      (bc),a
-// 07de  05        dec     b
-// 07df  00        nop     
-// 07e0  03        inc     bc
-// 07e1  05        dec     b
-// 07e2  07        rlca    
-// 07e3  02        ld      (bc),a
-// 07e4  05        dec     b
-// 07e5  02        ld      (bc),a
-// 07e6  03        inc     bc
-// 07e7  05        dec     b
-// 07e8  05        dec     b
-// 07e9  02        ld      (bc),a
-// 07ea  05        dec     b
-// 07eb  010306    ld      bc,#0603
-// 07ee  07        rlca    
-// 07ef  02        ld      (bc),a
-// 07f0  05        dec     b
-// 07f1  02        ld      (bc),a
-// 07f2  03        inc     bc
-// 07f3  0607      ld      b,#07
-// 07f5  02        ld      (bc),a
-// 07f6  05        dec     b
-// 07f7  02        ld      (bc),a
-// 07f8  03        inc     bc
-// 07f9  0608      ld      b,#08
-// 07fb  02        ld      (bc),a
-// 07fc  05        dec     b
-// 07fd  02        ld      (bc),a
-// 07fe  03        inc     bc
-// 07ff  0607      ld      b,#07
-// 0801  02        ld      (bc),a
-// 0802  05        dec     b
-// 0803  02        ld      (bc),a
-// 0804  03        inc     bc
-// 0805  07        rlca    
-// 0806  08        ex      af,af'
-// 0807  02        ld      (bc),a
-// 0808  05        dec     b
-// 0809  02        ld      (bc),a
-// 080a  03        inc     bc
-// 080b  07        rlca    
-// 080c  08        ex      af,af'
-// 080d  02        ld      (bc),a
-// 080e  0602      ld      b,#02
-// 0810  03        inc     bc
-// 0811  07        rlca    
-// 0812  08        ex      af,af'
-// 0813  02        ld      (bc),a
+
+// 0796                    03 01  01 00 02 00 04 01 02 01  |.M..+...........|
+// 07a0  03 00 04 01 03 02 04 01  04 02 03 02 05 01 05 00  |................|
+// 07b0  03 02 06 02 05 01 03 03  03 02 05 02 03 03 06 02  |................|
+// 07c0  05 02 03 03 06 02 05 00  03 04 07 02 05 01 03 04  |................|
+// 07d0  03 02 05 02 03 04 06 02  05 02 03 05 07 02 05 00  |................|
+// 07e0  03 05 07 02 05 02 03 05  05 02 05 01 03 06 07 02  |................|
+// 07f0  05 02 03 06 07 02 05 02  03 06 08 02 05 02 03 06  |................|
+// 0800  07 02 05 02 03 07 08 02  05 02 03 07 08 02 06 02  |................|
+// 0810  03 07 08 02                                       |.....FM.........|
+
+
 // 0814  11464d    ld      de,#4d46
 // 0817  011c00    ld      bc,#001c
 // 081a  edb0      ldir    
@@ -2164,14 +2098,17 @@ MEM[0x4d96]=MEM[iy+1];
 // 081f  a7        and     a
 // 0820  ed42      sbc     hl,bc
 // 0822  edb0      ldir    
+
 // 0824  010c00    ld      bc,#000c
 // 0827  a7        and     a
 // 0828  ed42      sbc     hl,bc
 // 082a  edb0      ldir    
+
 // 082c  010c00    ld      bc,#000c
 // 082f  a7        and     a
 // 0830  ed42      sbc     hl,bc
 // 0832  edb0      ldir    
+
 // 0834  010e00    ld      bc,#000e
 // 0837  edb0      ldir    
 // 0839  c9        ret     
@@ -2181,50 +2118,14 @@ MEM[0x4d96]=MEM[iy+1];
 // 0840  edb0      ldir    
 // 0842  c9        ret     
 
-// 0843  14        inc     d
-// 0844  1e46      ld      e,#46
-// 0846  00        nop     
-// 0847  1e3c      ld      e,#3c
-// 0849  00        nop     
-// 084a  00        nop     
-// 084b  320000    ld      (#0000),a
-// 084e  00        nop     
-// 084f  14        inc     d
-// 0850  0a        ld      a,(bc)
-// 0851  1e0f      ld      e,#0f
-// 0853  2814      jr      z,#0869         ; (20)
-// 0855  32193c    ld      (#3c19),a
-// 0858  1e50      ld      e,#50
-// 085a  2864      jr      z,#08c0         ; (100)
-// 085c  32783c    ld      (#3c78),a
-// 085f  8c        adc     a,h
-// 0860  46        ld      b,(hl)
-// 0861  c0        ret     nz
-// 
-// 0862  03        inc     bc
-// 0863  48        ld      c,b
-// 0864  03        inc     bc
-// 0865  d0        ret     nc
-// 
-// 0866  02        ld      (bc),a
-// 0867  58        ld      e,b
-// 0868  02        ld      (bc),a
-// 0869  e0        ret     po
-// 
-// 086a  016801    ld      bc,#0168
-// 086d  f0        ret     p
-// 
-// 086e  00        nop     
-// 086f  78        ld      a,b
-// 0870  00        nop     
-// 0871  0100f0    ld      bc,#f000
-// 0874  00        nop     
-// 0875  f0        ret     p
-// 
-// 0876  00        nop     
-// 0877  b4        or      h
-// 0878  00        nop     
+// 0843           14 1e 46 00 1e  3c 00 00 32 00 00 00 14  |.....F..<..2....|
+// 0850  0a 1e 0f 28 14 32 19 3c  1e 50 28 64 32 78 3c 8c  |...(.2.<.P(d2x<.|
+// 0860  46 c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78  |F..H...X...h...x|
+// 0870  00 01 00 f0 00 f0 00 b4  00                       |.........!.N....|
 
+/*  side-effect: Sets HL to 0x4e04 */
+void func_879()
+{
     //-------------------------------
     // 0879  21094e    ld      hl,#4e09
     // 087c  af        xor     a
@@ -2233,10 +2134,14 @@ MEM[0x4d96]=MEM[iy+1];
     //-------------------------------
     memset (0x4e09, 0, 11);
 
-// 0880  cdc924    call    #24c9
+    //-------------------------------
+    // 0880  cdc924    call    #24c9
+    // 0883  2a734e    ld      hl,(#4e73)
+    // 0886  220a4e    ld      (#4e0a),hl
+    //-------------------------------
     func_24c9();
-// 0883  2a734e    ld      hl,(#4e73)
-// 0886  220a4e    ld      (#4e0a),hl
+    MEM[0x4e0a] = MEM[0x4e73];
+    MEM[0x4e0b] = MEM[0x4e74];
 
     //-------------------------------
     // 0889  210a4e    ld      hl,#4e0a
@@ -2245,7 +2150,11 @@ MEM[0x4d96]=MEM[iy+1];
     // 0892  edb0      ldir    
     //-------------------------------
     memcpy (&MEM[0x4e38], &MEM[0x4e0a], 0x2e);
+    func_894();
+}
 
+void func_894()
+{
     //-------------------------------
     // 0894  21044e    ld      hl,#4e04
     // 0897  34        inc     (hl)
@@ -2270,18 +2179,27 @@ func_899()
     }
 }
 
-// 08a5  ef        rst     #28
-// 08a6  1100
-ef    ld      de,#ef00
-// 08a9  1c83        add     a,e
-// 08ab  ef        rst     #28
-// 08ac  0400        nop     
-// 08ae  ef        rst     #28
-// 08af  0500        nop     
-// 08b1  ef        rst     #28
-// 08b2  1000      djnz    #08b4           ; (0)
-// 08b4  ef        rst     #28
-// 08b5  1a00        nop     
+    //-------------------------------
+    // 08a5  ef        rst     #28
+    // 08a6  1100
+    // 08a8  ef          rst     #28
+    // 08a9  1c83
+    // 08ab  ef        rst     #28
+    // 08ac  0400
+    // 08ae  ef        rst     #28
+    // 08af  0500
+    // 08b1  ef        rst     #28
+    // 08b2  1000
+    // 08b4  ef        rst     #28
+    // 08b5  1a00
+    //-------------------------------
+    storeRingIndirect (0x11, 0x00);
+    storeRingIndirect (0x1c, 0x83);
+    storeRingIndirect (0x04, 0x00);
+    storeRingIndirect (0x05, 0x00);
+    storeRingIndirect (0x10, 0x00);
+    storeRingIndirect (0x1a, 0x00);
+
 // 08b7  f7        rst     #30
 // 08b8  540000
 // 08bb  f7        rst     #30
@@ -2296,82 +2214,135 @@ ef    ld      de,#ef00
     b = (MEM[0x4e72] & MEM[4e09]);
 
 // 08c7  320350    ld      (#5003),a
+FLIPSCREEN=1;
 // 08ca  c39408    jp      #0894
+func_894();
+return;
+
 // 08cd  3a0050    ld      a,(#5000)
 // 08d0  cb67      bit     4,a
 // 08d2  c2de08    jp      nz,#08de
+if (IN0_TEST)
+{
 // 08d5  21044e    ld      hl,#4e04
 // 08d8  360e      ld      (hl),#0e
 // 08da  ef        rst     #28
-// 08db  1300        nop     
+// 08db  1300
 // 08dd  c9        ret     
-// 
+MEM[0x4e04]=0x0e;
+rst_28();
+}
+ 
 // 08de  3a0e4e    ld      a,(#4e0e)
 // 08e1  fef4      cp      #f4
 // 08e3  2006      jr      nz,#08eb        ; (6)
+if (MEM[0x4e0e] == 0xf4)
+{
 // 08e5  21044e    ld      hl,#4e04
 // 08e8  360c      ld      (hl),#0c
 // 08ea  c9        ret     
-// 
-// 08eb  cd1710    call    #1017
-// 08ee  cd1710    call    #1017
-// 08f1  cddd13    call    #13dd
-// 08f4  cd420c    call    #0c42
-// 08f7  cd230e    call    #0e23
-// 08fa  cd360e    call    #0e36
-// 08fd  cdc30a    call    #0ac3
-// 0900  cdd60b    call    #0bd6
-// 0903  cd0d0c    call    #0c0d
-// 0906  cd6c0e    call    #0e6c
-// 0909  cdad0e    call    #0ead
-// 090c  c9        ret     
-// 
-// 090d  3e01      ld      a,#01
-// 090f  32124e    ld      (#4e12),a
-// 0912  cd8724    call    #2487
-func_2487();
-// 0915  21044e    ld      hl,#4e04
-// 0918  34        inc     (hl)
-// 0919  3a144e    ld      a,(#4e14)
-// 091c  a7        and     a
-// 091d  201f      jr      nz,#093e        ; (31)
-// 091f  3a704e    ld      a,(#4e70)
-// 0922  a7        and     a
-// 0923  2819      jr      z,#093e         ; (25)
-if (TWO_PLAYERS)
-{
-// 0925  3a424e    ld      a,(#4e42)
-// 0928  a7        and     a
-// 0929  2813      jr      z,#093e         ; (19)
-if (MEM[0x4e42] != 0)
-{
-
-//-------------------------------
-// 092b  3a094e    ld      a,(#4e09)
-// 092e  c603      add     a,#03
-// 0930  4f        ld      c,a
-// 0931  061c      ld      b,#1c
-// 0933  cd4200    call    #0042
-//-------------------------------
-storeRingTBD (0x1c, mem[0x4e09]+3);
-
-// 0936  ef        rst     #28
-// 0937  1c05        dec     b
-// 0939  f7        rst     #30
-// 093a  540000
-// 093d  c9        ret     
-}
+MEM[0x4e04] = 0x0c;
+return;
 }
 
-// 093e  34        inc     (hl)
-// 093f  c9        ret     
-// 
+    //-------------------------------
+    // 08eb  cd1710    call    #1017
+    // 08ee  cd1710    call    #1017
+    // 08f1  cddd13    call    #13dd
+    // 08f4  cd420c    call    #0c42
+    // 08f7  cd230e    call    #0e23
+    // 08fa  cd360e    call    #0e36
+    // 08fd  cdc30a    call    #0ac3
+    // 0900  cdd60b    call    #0bd6
+    // 0903  cd0d0c    call    #0c0d
+    // 0906  cd6c0e    call    #0e6c
+    // 0909  cdad0e    call    #0ead
+    // 090c  c9        ret     
+    //-------------------------------
+    func_1017();
+    func_1017();
+    func_13dd();
+    func_0c42();
+    func_0e23();
+    func_0e36();
+    func_0ac3();
+    func_0bd6();
+    func_0c0d();
+    func_0e6c();
+    func_0ead();
+}
+
+void func_90d()
+{
+    //-------------------------------
+    // 090d  3e01      ld      a,#01
+    // 090f  32124e    ld      (#4e12),a
+    // 0912  cd8724    call    #2487
+    //-------------------------------
+    MEM[0x4e12]=1;
+    func_2487();
+    //-------------------------------
+    // 0915  21044e    ld      hl,#4e04
+    // 0918  34        inc     (hl)
+    //-------------------------------
+    MEM[0x4e04]++;
+    //-------------------------------
+    // 0919  3a144e    ld      a,(#4e14)
+    // 091c  a7        and     a
+    // 091d  201f      jr      nz,#093e        ; (31)
+    //-------------------------------
+    if (MEM[0x4e14] == 0)
+    {
+        //-------------------------------
+        // 091f  3a704e    ld      a,(#4e70)
+        // 0922  a7        and     a
+        // 0923  2819      jr      z,#093e         ; (25)
+        //-------------------------------
+        if (TWO_PLAYERS)
+        {
+            //-------------------------------
+            // 0925  3a424e    ld      a,(#4e42)
+            // 0928  a7        and     a
+            // 0929  2813      jr      z,#093e         ; (19)
+            //-------------------------------
+            if (MEM[0x4e42] != 0)
+            {
+                //-------------------------------
+                // 092b  3a094e    ld      a,(#4e09)
+                // 092e  c603      add     a,#03
+                // 0930  4f        ld      c,a
+                // 0931  061c      ld      b,#1c
+                // 0933  cd4200    call    #0042
+                //-------------------------------
+                storeRingTBD (0x1c, mem[0x4e09]+3);
+
+                // 0936  ef        rst     #28
+                // 0937  1c05
+                // 0939  f7        rst     #30
+                // 093a  540000
+                // 093d  c9        ret     
+                storeRingIndirect (0x1c, 0x05);
+                rst_30 (0x54, 0x00, 0x00);
+                return;
+            }
+        }
+    }
+
+    // 093e  34        inc     (hl)
+    // 093f  c9        ret     
+    MEM[0x4304]++;
+}
+
 // 0940  3a704e    ld      a,(#4e70)
 // 0943  a7        and     a
 // 0944  2806      jr      z,#094c         ; (6)
+if (MEM[0x4e70] != 0)
+{
 // 0946  3a424e    ld      a,(#4e42)
 // 0949  a7        and     a
 // 094a  2015      jr      nz,#0961        ; (21)
+if (MEM[0x4e42] == 0)
+{
 // 094c  3a144e    ld      a,(#4e14)
 // 094f  a7        and     a
 // 0950  201a      jr      nz,#096c        ; (26)
@@ -2385,6 +2356,7 @@ storeRingTBD (0x1c, mem[0x4e09]+3);
 // 095c  21044e    ld      hl,#4e04
 // 095f  34        inc     (hl)
 // 0960  c9        ret     
+MEM[0x4e04]++;
 
     // 0961  cda60a    call    #0aa6
     func_aa6();
@@ -2399,13 +2371,20 @@ storeRingTBD (0x1c, mem[0x4e09]+3);
 // 096c  3e09      ld      a,#09
 // 096e  32044e    ld      (#4e04),a
 // 0971  c9        ret     
-// 
+MEM[0x4e04] = 9;
+return;
+
 // 0972  af        xor     a
 // 0973  32024e    ld      (#4e02),a
 // 0976  32044e    ld      (#4e04),a
 // 0979  32704e    ld      (#4e70),a
 // 097c  32094e    ld      (#4e09),a
 // 097f  320350    ld      (#5003),a
+MEM[0x4e02] =
+MEM[0x4e04] =
+MEM[0x4e70] =
+MEM[0x4e09] = 0;
+FLIPSCREEN=0;
 
     // 0982  3e01      ld      a,#01
     // 0984  32004e    ld      (#4e00),a
@@ -2539,38 +2518,10 @@ storeRingTBD (0x01, 0x02);
 // 0a42  3e14      ld      a,#14
 // 0a44  e7        rst     #20
 
-// 0a45  6f        ld      l,a
-// 0a46  0a        ld      a,(bc)
-// 0a47  08        ex      af,af'
-// 0a48  216f0a    ld      hl,#0a6f
-// 0a4b  6f        ld      l,a
-// 0a4c  0a        ld      a,(bc)
-// 0a4d  9e        sbc     a,(hl)
-// 0a4e  216f0a    ld      hl,#0a6f
-// 0a51  6f        ld      l,a
-// 0a52  0a        ld      a,(bc)
-// 0a53  6f        ld      l,a
-// 0a54  0a        ld      a,(bc)
-// 0a55  97        sub     a
-// 0a56  226f0a    ld      (#0a6f),hl
-// 0a59  6f        ld      l,a
-// 0a5a  0a        ld      a,(bc)
-// 0a5b  6f        ld      l,a
-// 0a5c  0a        ld      a,(bc)
-// 0a5d  97        sub     a
-// 0a5e  226f0a    ld      (#0a6f),hl
-// 0a61  6f        ld      l,a
-// 0a62  0a        ld      a,(bc)
-// 0a63  6f        ld      l,a
-// 0a64  0a        ld      a,(bc)
-// 0a65  97        sub     a
-// 0a66  226f0a    ld      (#0a6f),hl
-// 0a69  6f        ld      l,a
-// 0a6a  0a        ld      a,(bc)
-// 0a6b  6f        ld      l,a
-// 0a6c  0a        ld      a,(bc)
-// 0a6d  6f        ld      l,a
-// 0a6e  0a        ld      a,(bc)
+// 0a45                 6f 0a 08  21 6f 0a 6f 0a 9e 21 6f  |8.>..o..!o.o..!o|
+// 0a50  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 97 22 6f  |.o.o.."o.o.o.."o|
+// 0a60  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 6f 0a     |.o.o.."o.o.o.o.!|
+
 // 0a6f  21044e    ld      hl,#4e04
 // 0a72  34        inc     (hl)
 // 0a73  34        inc     (hl)
@@ -2578,7 +2529,10 @@ storeRingTBD (0x01, 0x02);
 // 0a75  32cc4e    ld      (#4ecc),a
 // 0a78  32dc4e    ld      (#4edc),a
 // 0a7b  c9        ret     
-// 
+MEM[0x4e04]+=2;
+MEM[0x4ecc] = MEM[0xedc] = 0;
+return;
+
 // 0a7c  af        xor     a
 // 0a7d  32cc4e    ld      (#4ecc),a
 // 0a80  32dc4e    ld      (#4edc),a
@@ -2600,13 +2554,19 @@ func_24c9();
 // 0a97  7e        ld      a,(hl)
 // 0a98  fe14      cp      #14
 // 0a9a  c8        ret     z
-// 
+MEM[0x4e04]++;
+MEM[0x4e13]++;
+hl=MEM[0x4e0a];
+if (MEM[hl] == 0x14)
+    return;
+
 // 0a9b  23        inc     hl
 // 0a9c  220a4e    ld      (#4e0a),hl
 // 0a9f  c9        ret     
 // 
 // 0aa0  c38809    jp      #0988
 // 0aa3  c3d209    jp      #09d2
+
 // 0aa6  062e      ld      b,#2e
 // 0aa8  dd210a4e  ld      ix,#4e0a
 // 0aac  fd21384e  ld      iy,#4e38
@@ -2618,7 +2578,20 @@ func_24c9();
 // 0abe  fd23      inc     iy
 // 0ac0  10ee      djnz    #0ab0           ; (-18)
 // 0ac2  c9        ret     
-// 
+int ix=0x4e0a;
+int iy=0x4e38;
+for (int b = 0; b < 0x2e; b++)
+{
+    uint8_t tmp;
+    tmp = MEM[ix];
+    MEM[ix] = MEM[iy];
+    MEM[iy]=tmp;
+    ix++;
+    iy++;
+}
+return;
+}
+
 // 0ac3  3aa44d    ld      a,(#4da4)
 // 0ac6  a7        and     a
 // 0ac7  c0        ret     nz
@@ -6183,51 +6156,94 @@ func_2448()
 // 2484  eda0      ldi     
 // 2486  c9        ret     
 
+/*  Build bytes in 0x4e16-0x4e34 1 bit at a time by reading screen offsets from a ROM
+ *  table and checking if the byte on the screen at that offset == 0x10 */
 func_2487()
 {
-// 2487  210040    ld      hl,#4000
-// 248a  dd21164e  ld      ix,#4e16
-// 248e  fd21b535  ld      iy,#35b5
-// 2492  1600      ld      d,#00
-// 2494  061e      ld      b,#1e
-// 2496  0e08      ld      c,#08
-// 2498  fd5e00    ld      e,(iy+#00)
-// 249b  19        add     hl,de
-// 249c  7e        ld      a,(hl)
-// 249d  fe10      cp      #10
-// 249f  37        scf     
-// 24a0  2801      jr      z,#24a3         ; (1)
-// 24a2  3f        ccf     
-// 24a3  ddcb0016  rl      (ix+#00)
-// 24a7  fd23      inc     iy
-// 24a9  0d        dec     c
-// 24aa  20ec      jr      nz,#2498        ; (-20)
-// 24ac  dd23      inc     ix
-// 24ae  05        dec     b
-// 24af  20e5      jr      nz,#2496        ; (-27)
-// 24b1  216440    ld      hl,#4064
-// 24b4  11344e    ld      de,#4e34
-// 24b7  eda0      ldi     
-// 24b9  217840    ld      hl,#4078
-// 24bc  eda0      ldi     
-// 24be  218443    ld      hl,#4384
-// 24c1  eda0      ldi     
-// 24c3  219843    ld      hl,#4398
-// 24c6  eda0      ldi     
-// 24c8  c9        ret     
+    //-------------------------------
+    // 2487  210040    ld      hl,#4000
+    // 248a  dd21164e  ld      ix,#4e16
+    // 248e  fd21b535  ld      iy,#35b5
+    // 2492  1600      ld      d,#00
+    // 2494  061e      ld      b,#1e
+    //-------------------------------
+    uint8_t *video = VIDEO;
+    int ix=0x4e16;
+    int iy=data_35b5;
+
+    for (int b = 0; b < 0x1e; b++)
+    {
+        //-------------------------------
+        // 2496  0e08      ld      c,#08
+        //-------------------------------
+
+        for (int c = 0; c < 8; c++)
+        {
+            //-------------------------------
+            // 2498  fd5e00    ld      e,(iy+#00)
+            // 249b  19        add     hl,de
+            // 249c  7e        ld      a,(hl)
+            // 249d  fe10      cp      #10
+            // 249f  37        scf     
+            // 24a0  2801      jr      z,#24a3         ; (1)
+            // 24a2  3f        ccf     
+            // 24a3  ddcb0016  rl      (ix+#00)
+            //-------------------------------
+            hl+=MEM[iy];
+            MEM[ix]<<=1;
+
+            if (MEM[hl] == 0x10)
+                MEM[ix] |= 1;
+
+            //-------------------------------
+            // 24a7  fd23      inc     iy
+            // 24a9  0d        dec     c
+            // 24aa  20ec      jr      nz,#2498        ; (-20)
+            //-------------------------------
+            iy++
+        }
+
+        //-------------------------------
+        // 24ac  dd23      inc     ix
+        // 24ae  05        dec     b
+        // 24af  20e5      jr      nz,#2496        ; (-27)
+        //-------------------------------
+        ix++;
+    }
+
+    //-------------------------------
+    // 24b1  216440    ld      hl,#4064
+    // 24b4  11344e    ld      de,#4e34
+    // 24b7  eda0      ldi     
+    // 24b9  217840    ld      hl,#4078
+    // 24bc  eda0      ldi     
+    // 24be  218443    ld      hl,#4384
+    // 24c1  eda0      ldi     
+    // 24c3  219843    ld      hl,#4398
+    // 24c6  eda0      ldi     
+    // 24c8  c9        ret     
+    //-------------------------------
+    MEM[0x4e34] = VIDEO[0x64];
+    MEM[0x4e35] = VIDEO[0x78];
+    MEM[0x4e36] = MEM[0x4384];
+    MEM[0x4e37] = MEM[0x4398];
+}
 
 void func_24c9()
 {
-// 24c9  21164e    ld      hl,#4e16
-// 24cc  3eff      ld      a,#ff
-// 24ce  061e      ld      b,#1e
-// 24d0  cf        rst     #8
-memset (MEM+0x4040, 0x40, 0x80);
-// 24d1  3e14      ld      a,#14
-// 24d3  0604      ld      b,#04
-// 24d5  cf        rst     #8
-memset (MEM+0x4040, 0x40, 0x80);
-// 24d6  c9        ret     
+    //-------------------------------
+    // 24c9  21164e    ld      hl,#4e16
+    // 24cc  3eff      ld      a,#ff
+    // 24ce  061e      ld      b,#1e
+    // 24d0  cf        rst     #8
+    // 24d1  3e14      ld      a,#14
+    // 24d3  0604      ld      b,#04
+    // 24d5  cf        rst     #8
+    // 24d6  c9        ret     
+    //-------------------------------
+    memset (MEM+0x4e16, 0xff, 0x10);
+    memset (MEM+0x4e26, 0x14, 0x4);
+}
  
 func_24d7()
 {
@@ -6488,6 +6504,8 @@ void func_2b62()
 // 26b9  e60f      and     #0f
 // 26bb  c630      add     a,#30
 // 26bd  dd7700    ld      (ix+#00),a
+int digit = MEM[0x4e71];
+VIDEO[0x136] = (digit & 0xf) + 0x30
 // 26c0  3a714e    ld      a,(#4e71)
 // 26c3  0f        rrca    
 // 26c4  0f        rrca    
@@ -6495,10 +6513,15 @@ void func_2b62()
 // 26c6  0f        rrca    
 // 26c7  e60f      and     #0f
 // 26c9  c8        ret     z
-// 
+digit >>= 4;
+if (digit & 0xf == 0)
+    return;
+
 // 26ca  c630      add     a,#30
 // 26cc  dd7720    ld      (ix+#20),a
 // 26cf  c9        ret     
+VIDEO[0x156] = digit + 0x30;
+}
 
 void func_26d0()
 {
@@ -6553,7 +6576,8 @@ void func_26d0()
 // 2722  e601      and     #01
 // 2724  32724e    ld      (#4e72),a
 // 2727  c9        ret     
-// 
+}
+
 // 2728  1015      djnz    #273f           ; (21)
 // 272a  20ff      jr      nz,#272b        ; (-1)
 // 272c  68        ld      l,b
@@ -6589,8 +6613,9 @@ func_2966();
 // 2765  221e4d    ld      (#4d1e),hl
 // 2768  322c4d    ld      (#4d2c),a
 // 276b  c9        ret     
+}
 
-func_276c()
+void func_276c()
 {
 // 276c  3ac14d    ld      a,(#4dc1)
 // 276f  cb47      bit     0,a
@@ -6620,6 +6645,7 @@ func_2966();
 // 27a2  22204d    ld      (#4d20),hl
 // 27a5  322d4d    ld      (#4d2d),a
 // 27a8  c9        ret     
+}
 
 void func_27a9()
 {
@@ -6659,6 +6685,7 @@ func_2966();
 // 27ea  22224d    ld      (#4d22),hl
 // 27ed  322e4d    ld      (#4d2e),a
 // 27f0  c9        ret     
+}
 
 void func_27f1()
 {
@@ -6715,6 +6742,7 @@ func_291e();
 // 285e  221e4d    ld      (#4d1e),hl
 // 2861  322c4d    ld      (#4d2c),a
 // 2864  c9        ret     
+}
 
 void func_2865()
 {
@@ -6759,6 +6787,7 @@ func_291e();
 // 28b2  22224d    ld      (#4d22),hl
 // 28b5  322e4d    ld      (#4d2e),a
 // 28b8  c9        ret     
+}
 
 void func_28b9()
 {
@@ -6955,6 +6984,7 @@ func_2a12();
 // 2a30  7e        ld      a,(hl)
 // 2a31  22c94d    ld      (#4dc9),hl
 // 2a34  c9        ret     
+}
 
 void func_2a35()
 {
@@ -7081,11 +7111,14 @@ func_2ace();
 // 2add  77        ld      (hl),a
 // 2ade  2b        dec     hl
 // 2adf  c9        ret     
+}
 
 void func_2ae0()
 {
+    //-------------------------------
     // 2ae0  0600      ld      b,#00		; Draw 'High Score' 
     // 2ae2  cd5e2c    call    #2c5e
+    //-------------------------------
     displayMsg(0);
 
 // 2ae5  af        xor     a		; Clear P1 score 
@@ -7391,7 +7424,7 @@ void fillScreenArea (int addr, int ch, int cols, int rows)
 // 2bed  fe01      cp      #01
 // 2bef  c8        ret     z
 //-------------------------------
-bool compareOne_4e00 ()
+bool func_2bea ()
 {
     if (GAME_STATE == 1)
         return;
@@ -7565,7 +7598,7 @@ void displayMsg (int msg)
 // 2cc4  dd21cc4e  ld      ix,#4ecc
 // 2cc8  fd218c4e  ld      iy,#4e8c
 // 2ccc  cd442d    call    #2d44
-func_2d44();
+func_2d44(0x4ecc, 0x4e8c);
 // 2ccf  47        ld      b,a
 // 2cd0  3acc4e    ld      a,(#4ecc)
 // 2cd3  a7        and     a
@@ -7576,7 +7609,7 @@ func_2d44();
 // 2cdd  dd21dc4e  ld      ix,#4edc
 // 2ce1  fd21924e  ld      iy,#4e92
 // 2ce5  cd442d    call    #2d44
-func_2d44();
+func_2d44(0x4edc, 0x4e92);
 // 2ce8  47        ld      b,a
 // 2ce9  3adc4e    ld      a,(#4edc)
 // 2cec  a7        and     a
@@ -7587,7 +7620,7 @@ func_2d44();
 // 2cf6  dd21ec4e  ld      ix,#4eec
 // 2cfa  fd21974e  ld      iy,#4e97
 // 2cfe  cd442d    call    #2d44
-func_2d44();
+func_2d44(0x4eec, 0x4e97);
 // 2d01  47        ld      b,a
 // 2d02  3aec4e    ld      a,(#4eec)
 // 2d05  a7        and     a
@@ -7601,44 +7634,64 @@ func_2d44();
 // 2d0f  dd219c4e  ld      ix,#4e9c
 // 2d13  fd218c4e  ld      iy,#4e8c
 // 2d17  cdee2d    call    #2dee
-func_2dee();
+func_2dee(0x4e9c);
 // 2d1a  32914e    ld      (#4e91),a
 // 2d1d  21403b    ld      hl,#3b40
 // 2d20  dd21ac4e  ld      ix,#4eac
 // 2d24  fd21924e  ld      iy,#4e92
 // 2d28  cdee2d    call    #2dee
-func_2dee();
+func_2dee(0x4eac);
 // 2d2b  32964e    ld      (#4e96),a
 // 2d2e  21803b    ld      hl,#3b80
 // 2d31  dd21bc4e  ld      ix,#4ebc
 // 2d35  fd21974e  ld      iy,#4e97
 // 2d39  cdee2d    call    #2dee
-func_2dee();
+func_2dee(0x4ebc);
 // 2d3c  329b4e    ld      (#4e9b),a
 // 2d3f  af        xor     a
 // 2d40  32904e    ld      (#4e90),a
 // 2d43  c9        ret     
-// 
+}
+
+void func_2d44(int ix, int iy)
+{
 // 2d44  dd7e00    ld      a,(ix+#00)
 // 2d47  a7        and     a
 // 2d48  caf42d    jp      z,#2df4
+if (MEM[ix] == 0)
+{
+    func_2df4 (ix, iy);
+    return;
+}
 // 2d4b  4f        ld      c,a
 // 2d4c  0608      ld      b,#08
 // 2d4e  1e80      ld      e,#80
+
+for (int i = 0; i < 8; i++)
+{
 // 2d50  7b        ld      a,e
 // 2d51  a1        and     c
 // 2d52  2005      jr      nz,#2d59        ; (5)
 // 2d54  cb3b      srl     e
 // 2d56  10f8      djnz    #2d50           ; (-8)
 // 2d58  c9        ret     
-// 
+if ((MEM[ix] & (0x80>>i) != 0)
+    break;
+}
+if (i == 8)
+    return;
+
 // 2d59  dd7e02    ld      a,(ix+#02)
 // 2d5c  a3        and     e
 // 2d5d  2007      jr      nz,#2d66        ; (7)
+if (MEM[ix+2] & (0x80>>i) == 0)
+{
 // 2d5f  dd7302    ld      (ix+#02),e
 // 2d62  05        dec     b
 // 2d63  df        rst     #18
-// 2d64  180c      jr      #2d72           ; (12)
+// 2d64  180c
+}
+
 // 2d66  dd350c    dec     (ix+#0c)
 // 2d69  c2d72d    jp      nz,#2dd7
 // 2d6c  dd6e06    ld      l,(ix+#06)
@@ -7687,6 +7740,8 @@ func_2dee();
 // 2da3  ad        xor     l
 // 2da4  2f        cpl     
 
+void func_2da5()
+{
 // 2da5  47        ld      b,a
 // 2da6  e61f      and     #1f
 // 2da8  2803      jr      z,#2dad         ; (3)
@@ -7725,20 +7780,38 @@ func_2dee();
 // 2dee  dd7e00    ld      a,(ix+#00)
 // 2df1  a7        and     a
 // 2df2  2027      jr      nz,#2e1b        ; (39)
-// 2df4  dd7e02    ld      a,(ix+#02)
-// 2df7  a7        and     a
-// 2df8  c8        ret     z
-// 
-// 2df9  dd360200  ld      (ix+#02),#00
-// 2dfd  dd360d00  ld      (ix+#0d),#00
-// 2e01  dd360e00  ld      (ix+#0e),#00
-// 2e05  dd360f00  ld      (ix+#0f),#00
-// 2e09  fd360000  ld      (iy+#00),#00
-// 2e0d  fd360100  ld      (iy+#01),#00
-// 2e11  fd360200  ld      (iy+#02),#00
-// 2e15  fd360300  ld      (iy+#03),#00
-// 2e19  af        xor     a
-// 2e1a  c9        ret     
+
+void func_2df4(int ix, int iy)
+{
+    //-------------------------------
+    // 2df4  dd7e02    ld      a,(ix+#02)
+    // 2df7  a7        and     a
+    // 2df8  c8        ret     z
+    //-------------------------------
+    if (MEM[ix+2] == 0)
+        return;
+
+    //-------------------------------
+    // 2df9  dd360200  ld      (ix+#02),#00
+    // 2dfd  dd360d00  ld      (ix+#0d),#00
+    // 2e01  dd360e00  ld      (ix+#0e),#00
+    // 2e05  dd360f00  ld      (ix+#0f),#00
+    // 2e09  fd360000  ld      (iy+#00),#00
+    // 2e0d  fd360100  ld      (iy+#01),#00
+    // 2e11  fd360200  ld      (iy+#02),#00
+    // 2e15  fd360300  ld      (iy+#03),#00
+    // 2e19  af        xor     a
+    // 2e1a  c9        ret     
+    //-------------------------------
+    MEM[ix+2]=
+    MEM[ix+0xd]=
+    MEM[ix+0xe]=
+    MEM[ix+0xf]=
+    MEM[ix]=
+    MEM[ix+1]=
+    MEM[ix+2]=
+    MEM[ix+3]=0;
+}
 
 void func_2e1b(int c)
 {
@@ -7747,7 +7820,7 @@ void func_2e1b(int c)
     // 2e1c  0608      ld      b,#08
     // 2e1e  1e80      ld      e,#80
     //-------------------------------
-    e=0x80;
+    int e = 0x80;
     for (int b = 0; b < 8; b++)
     {
         //-------------------------------
@@ -7763,66 +7836,82 @@ void func_2e1b(int c)
 
         e>>=1;
     }
+
+    if (b==8)
+        return;
  
-// 2e29  dd7e02    ld      a,(ix+#02)
-// 2e2c  a3        and     e
-// 2e2d  203f      jr      nz,#2e6e        ; (63)
-if ((MEM[ix+2] & e) == 0)
-{
-// 2e2f  dd7302    ld      (ix+#02),e
-// 2e32  05        dec     b
-// 2e33  78        ld      a,b
-// 2e34  07        rlca    
-// 2e35  07        rlca    
-// 2e36  07        rlca    
-// 2e37  4f        ld      c,a
-// 2e38  0600      ld      b,#00
-// 2e3a  e5        push    hl
-// 2e3b  09        add     hl,bc
-// 2e3c  dde5      push    ix
-// 2e3e  d1        pop     de
+    // 2e29  dd7e02    ld      a,(ix+#02)
+    // 2e2c  a3        and     e
+    // 2e2d  203f      jr      nz,#2e6e        ; (63)
+    if ((MEM[ix+2] & e) == 0)
+    {
+        // 2e2f  dd7302    ld      (ix+#02),e
+        // 2e32  05        dec     b
+        // 2e33  78        ld      a,b
+        // 2e34  07        rlca    
+        // 2e35  07        rlca    
+        // 2e36  07        rlca    
+        // 2e37  4f        ld      c,a
+        // 2e38  0600      ld      b,#00
+        // 2e3a  e5        push    hl
+        // 2e3b  09        add     hl,bc
+        MEM[ix+2] = e;
+        hl+=(b-1)*8;
+        // 2e3c  dde5      push    ix
+        // 2e3e  d1        pop     de
+        // 2e3f  13        inc     de
+        // 2e40  13        inc     de
+        // 2e41  13        inc     de
+        // 2e42  010800    ld      bc,#0008
+        // 2e45  edb0      ldir    
+        de=ix+3;
+        memcpy (&MEM[de], &MEM[hl], 8);
+        // 2e47  e1        pop     hl
+        // 2e48  dd7e06    ld      a,(ix+#06)
+        // 2e4b  e67f      and     #7f
+        // 2e4d  dd770c    ld      (ix+#0c),a
+        // 2e50  dd7e04    ld      a,(ix+#04)
+        // 2e53  dd770e    ld      (ix+#0e),a
+        MEM[ix+0xc] = MEM[ix+6] & 0x7f;
+        MEM[ix+0xe] = MEM[ix+4];
+        // 2e56  dd7e09    ld      a,(ix+#09)
+        // 2e59  47        ld      b,a
+        // 2e5a  0f        rrca    
+        // 2e5b  0f        rrca    
+        // 2e5c  0f        rrca    
+        // 2e5d  0f        rrca    
+        // 2e5e  e60f      and     #0f
+        // 2e60  dd770b    ld      (ix+#0b),a
+        MEM[ix+0xb] = MEM[ix+9] >> 4;
+        // 2e63  e608      and     #08
+        // 2e65  2007      jr      nz,#2e6e        ; (7)
+        if ((MEM[ix+0xb] & 8) == 0)
+        {
 
-// 2e3f  13        inc     de
-// 2e40  13        inc     de
-// 2e41  13        inc     de
-de=ix+3;
-// 2e42  010800    ld      bc,#0008
-// 2e45  edb0      ldir    
-memcpy (,,8);
-// 2e47  e1        pop     hl
-// 2e48  dd7e06    ld      a,(ix+#06)
-// 2e4b  e67f      and     #7f
-// 2e4d  dd770c    ld      (ix+#0c),a
-// 2e50  dd7e04    ld      a,(ix+#04)
-// 2e53  dd770e    ld      (ix+#0e),a
-// 2e56  dd7e09    ld      a,(ix+#09)
-// 2e59  47        ld      b,a
-
-    // 2e5a  0f        rrca    
-    // 2e5b  0f        rrca    
-    // 2e5c  0f        rrca    
-    // 2e5d  0f        rrca    
-    // 2e5e  e60f      and     #0f
-    a>>=4;
-
-// 2e60  dd770b    ld      (ix+#0b),a
-// 2e63  e608      and     #08
-// 2e65  2007      jr      nz,#2e6e        ; (7)
-// 2e67  dd700f    ld      (ix+#0f),b
-// 2e6a  dd360d00  ld      (ix+#0d),#00
-
+            // 2e67  dd700f    ld      (ix+#0f),b
+            // 2e6a  dd360d00  ld      (ix+#0d),#00
+            MEM[ix+0xf] = b;
+            MEM[ix+0xd] = 0;
+        }
 // 2e6e  dd350c    dec     (ix+#0c)
 // 2e71  205a      jr      nz,#2ecd        ; (90)
+if (--MEM[ix+0xc] == 0)
+{
 // 2e73  dd7e08    ld      a,(ix+#08)
 // 2e76  a7        and     a
 // 2e77  2810      jr      z,#2e89         ; (16)
+if (MEM[ix+8] != 0)
+{
 // 2e79  dd3508    dec     (ix+#08)
 // 2e7c  200b      jr      nz,#2e89        ; (11)
+if (--MEM[ix+8] == 0)
+{
 // 2e7e  7b        ld      a,e
 // 2e7f  2f        cpl     
 // 2e80  dda600    and     (ix+#00)
 // 2e83  dd7700    ld      (ix+#00),a
 // 2e86  c3ee2d    jp      #2dee
+
 // 2e89  dd7e06    ld      a,(ix+#06)
 // 2e8c  e67f      and     #7f
 // 2e8e  dd770c    ld      (ix+#0c),a
@@ -7847,6 +7936,7 @@ memcpy (,,8);
 // 2ec6  e608      and     #08
 // 2ec8  2003      jr      nz,#2ecd        ; (3)
 // 2eca  dd700f    ld      (ix+#0f),b
+
 // 2ecd  dd7e0e    ld      a,(ix+#0e)
 // 2ed0  dd8605    add     a,(ix+#05)
 // 2ed3  dd770e    ld      (ix+#0e),a
@@ -7915,14 +8005,14 @@ void func_2f26()
     func_2f34();
 }
 
-//-------------------------------
-// 2f2b  3a844c    ld      a,(#4c84)
-// 2f2e  e601      and     #01
-// 2f30  dd7e0f    ld      a,(ix+#0f)
-// 2f33  c0        ret     nz
-//-------------------------------
 void func_2f2b()
 {
+    //-------------------------------
+    // 2f2b  3a844c    ld      a,(#4c84)
+    // 2f2e  e601      and     #01
+    // 2f30  dd7e0f    ld      a,(ix+#0f)
+    // 2f33  c0        ret     nz
+    //-------------------------------
     if (MEM[0x4c84] & 1)
         return;
 
@@ -8014,6 +8104,9 @@ void func_2f3c()
 // 2fb1  dda600    and     (ix+#00)
 // 2fb4  dd7700    ld      (ix+#00),a
 // 2fb7  c3f42d    jp      #2df4
+func_2df4();
+return;
+}
 
 // 2fba-2ffd 00 
 // 2ffe  834c      ; checksum?
@@ -8514,6 +8607,7 @@ kickWatchdog();
 // 32fc  313032    ld      sp,#3230
 '0','1','5','1','0','2'
 // 32ff  00        nop     
+
 // 3300  ff        rst     #38
 // 3301  010000    ld      bc,#0000
 // 3304  01ff00    ld      bc,#00ff
@@ -8522,598 +8616,24 @@ kickWatchdog();
 // 3309  010000    ld      bc,#0000
 // 330c  01ff00    ld      bc,#00ff
 
-// 330f  55        ld      d,l
-// 3310  2a552a    ld      hl,(#2a55)
-// 3313  55        ld      d,l
-// 3314  55        ld      d,l
-// 3315  55        ld      d,l
-// 3316  55        ld      d,l
-// 3317  55        ld      d,l
-// 3318  2a552a    ld      hl,(#2a55)
-// 331b  52        ld      d,d
-// 331c  4a        ld      c,d
-// 331d  a5        and     l
-// 331e  94        sub     h
-// 331f  25        dec     h
-// 3320  25        dec     h
-// 3321  25        dec     h
-// 3322  25        dec     h
-// 3323  222222    ld      (#2222),hl
-// 3326  220101    ld      (#0101),hl
-// 3329  010158    ld      bc,#5801
-// 332c  02        ld      (bc),a
-// 332d  08        ex      af,af'
-// 332e  07        rlca    
-// 332f  60        ld      h,b
-// 3330  09        add     hl,bc
-// 3331  100e      djnz    #3341           ; (14)
-// 3333  68        ld      l,b
-// 3334  1070      djnz    #33a6           ; (112)
-// 3336  17        rla     
-// 3337  14        inc     d
-// 3338  19        add     hl,de
-// 3339  52        ld      d,d
-// 333a  4a        ld      c,d
-// 333b  a5        and     l
-// 333c  94        sub     h
-// 333d  aa        xor     d
-// 333e  2a5555    ld      hl,(#5555)
-// 3341  55        ld      d,l
-// 3342  2a552a    ld      hl,(#2a55)
-// 3345  52        ld      d,d
-// 3346  4a        ld      c,d
-// 3347  a5        and     l
-// 3348  94        sub     h
-// 3349  92        sub     d
-// 334a  24        inc     h
-// 334b  25        dec     h
-// 334c  49        ld      c,c
-// 334d  48        ld      c,b
-// 334e  24        inc     h
-// 334f  229101    ld      (#0191),hl
-// 3352  010101    ld      bc,#0101
-// 3355  00        nop     
-// 3356  00        nop     
-// 3357  00        nop     
-// 3358  00        nop     
-// 3359  00        nop     
-// 335a  00        nop     
-// 335b  00        nop     
-// 335c  00        nop     
-// 335d  00        nop     
-// 335e  00        nop     
-// 335f  00        nop     
-// 3360  00        nop     
-// 3361  00        nop     
-// 3362  00        nop     
-// 3363  55        ld      d,l
-// 3364  2a552a    ld      hl,(#2a55)
-// 3367  55        ld      d,l
-// 3368  55        ld      d,l
-// 3369  55        ld      d,l
-// 336a  55        ld      d,l
-// 336b  aa        xor     d
-// 336c  2a5555    ld      hl,(#5555)
-// 336f  55        ld      d,l
-// 3370  2a552a    ld      hl,(#2a55)
-// 3373  52        ld      d,d
-// 3374  4a        ld      c,d
-// 3375  a5        and     l
-// 3376  94        sub     h
-// 3377  48        ld      c,b
-// 3378  24        inc     h
-// 3379  229121    ld      (#2191),hl
-// 337c  44        ld      b,h
-// 337d  44        ld      b,h
-// 337e  08        ex      af,af'
-// 337f  58        ld      e,b
-// 3380  02        ld      (bc),a
-// 3381  34        inc     (hl)
-// 3382  08        ex      af,af'
-// 3383  d8        ret     c
-// 
-// 3384  09        add     hl,bc
-// 3385  b4        or      h
-// 3386  0f        rrca    
-// 3387  58        ld      e,b
-// 3388  110816    ld      de,#1608
-// 338b  34        inc     (hl)
-// 338c  17        rla     
-// 338d  55        ld      d,l
-// 338e  55        ld      d,l
-// 338f  55        ld      d,l
-// 3390  55        ld      d,l
-// 3391  d5        push    de
-// 3392  6a        ld      l,d
-// 3393  d5        push    de
-// 3394  6a        ld      l,d
-// 3395  aa        xor     d
-// 3396  6a        ld      l,d
-// 3397  55        ld      d,l
-// 3398  d5        push    de
-// 3399  55        ld      d,l
-// 339a  55        ld      d,l
-// 339b  55        ld      d,l
-// 339c  55        ld      d,l
-// 339d  aa        xor     d
-// 339e  2a5555    ld      hl,(#5555)
-// 33a1  92        sub     d
-// 33a2  24        inc     h
-// 33a3  92        sub     d
-// 33a4  24        inc     h
-// 33a5  222222    ld      (#2222),hl
-// 33a8  22a401    ld      (#01a4),hl
-// 33ab  54        ld      d,h
-// 33ac  06f8      ld      b,#f8
-// 33ae  07        rlca    
-// 33af  a8        xor     b
-// 33b0  0c        inc     c
-// 33b1  d40d84    call    nc,#840d
-// 33b4  12        ld      (de),a
-// 33b5  b0        or      b
-// 33b6  13        inc     de
-// 33b7  d5        push    de
-// 33b8  6a        ld      l,d
-// 33b9  d5        push    de
-// 33ba  6a        ld      l,d
-// 33bb  d65a      sub     #5a
-// 33bd  ad        xor     l
-// 33be  b5        or      l
-// 33bf  d65a      sub     #5a
-// 33c1  ad        xor     l
-// 33c2  b5        or      l
-// 33c3  d5        push    de
-// 33c4  6a        ld      l,d
-// 33c5  d5        push    de
-// 33c6  6a        ld      l,d
-// 33c7  aa        xor     d
-// 33c8  6a        ld      l,d
-// 33c9  55        ld      d,l
-// 33ca  d5        push    de
-// 33cb  92        sub     d
-// 33cc  24        inc     h
-// 33cd  25        dec     h
-// 33ce  49        ld      c,c
-// 33cf  48        ld      c,b
-// 33d0  24        inc     h
-// 33d1  2291a4    ld      (#a491),hl
-// 33d4  015406    ld      bc,#0654
-// 33d7  f8        ret     m
-// 
-// 33d8  07        rlca    
-// 33d9  a8        xor     b
-// 33da  0c        inc     c
-// 33db  d40dfe    call    nc,#fe0d
-// 33de  ff        rst     #38
-// 33df  ff        rst     #38
-// 33e0  ff        rst     #38
-// 33e1  6d        ld      l,l
-// 33e2  6d        ld      l,l
-// 33e3  6d        ld      l,l
-// 33e4  6d        ld      l,l
-// 33e5  6d        ld      l,l
-// 33e6  6d        ld      l,l
-// 33e7  6d        ld      l,l
-// 33e8  6d        ld      l,l
-// 33e9  b6        or      (hl)
-// 33ea  6d        ld      l,l
-// 33eb  6d        ld      l,l
-// 33ec  db6d      in      a,(#6d)
-// 33ee  6d        ld      l,l
-// 33ef  6d        ld      l,l
-// 33f0  6d        ld      l,l
-// 33f1  d65a      sub     #5a
-// 33f3  ad        xor     l
-// 33f4  b5        or      l
-// 33f5  25        dec     h
-// 33f6  25        dec     h
-// 33f7  25        dec     h
-// 33f8  25        dec     h
-// 33f9  92        sub     d
-// 33fa  24        inc     h
-// 33fb  92        sub     d
-// 33fc  24        inc     h
-// 33fd  2c        inc     l
-// 33fe  01dc05    ld      bc,#05dc
-// 3401  08        ex      af,af'
-// 3402  07        rlca    
-// 3403  b8        cp      b
-// 3404  0b        dec     bc
-// 3405  e40cfe    call    po,#fe0c
-// 3408  ff        rst     #38
-// 3409  ff        rst     #38
-// 340a  ff        rst     #38
-// 340b  d5        push    de
-// 340c  6a        ld      l,d
-// 340d  d5        push    de
-// 340e  6a        ld      l,d
-// 340f  d5        push    de
-// 3410  6a        ld      l,d
-// 3411  d5        push    de
-// 3412  6a        ld      l,d
-// 3413  b6        or      (hl)
-// 3414  6d        ld      l,l
-// 3415  6d        ld      l,l
-// 3416  db6d      in      a,(#6d)
-// 3418  6d        ld      l,l
-// 3419  6d        ld      l,l
-// 341a  6d        ld      l,l
-// 341b  d65a      sub     #5a
-// 341d  ad        xor     l
-// 341e  b5        or      l
-// 341f  48        ld      c,b
-// 3420  24        inc     h
-// 3421  229192    ld      (#9291),hl
-// 3424  24        inc     h
-// 3425  92        sub     d
-// 3426  24        inc     h
-// 3427  2c        inc     l
-// 3428  01dc05    ld      bc,#05dc
-// 342b  08        ex      af,af'
-// 342c  07        rlca    
-// 342d  b8        cp      b
-// 342e  0b        dec     bc
-// 342f  e40cfe    call    po,#fe0c
-// 3432  ff        rst     #38
-// 3433  ff        rst     #38
-// 3434  ff        rst     #38
-// 3435  40        ld      b,b
-// 3436  fcd0d2    call    m,#d2d0
-// 3439  d2d2d2    jp      nc,#d2d2
-// 343c  d2d2d2    jp      nc,#d2d2
-// 343f  d2d4fc    jp      nc,#fcd4
-// 3442  fcfcda    call    m,#dafc
-// 3445  02        ld      (bc),a
-// 3446  dcfcfc    call    c,#fcfc
-// 3449  fcd0d2    call    m,#d2d0
-// 344c  d2d2d2    jp      nc,#d2d2
-// 344f  d6d8      sub     #d8
-// 3451  d2d2d2    jp      nc,#d2d2
-// 3454  d2d4fc    jp      nc,#fcd4
-// 3457  da09dc    jp      c,#dc09
-// 345a  fcfcfc    call    m,#fcfc
-// 345d  da02dc    jp      c,#dc02
-// 3460  fcfcfc    call    m,#fcfc
-// 3463  da05de    jp      c,#de05
-// 3466  e405dc    call    po,#dc05
-// 3469  fcda02    call    m,#02da
-// 346c  e6e8      and     #e8
-// 346e  ea02e6    jp      pe,#e602
-// 3471  ea02dc    jp      pe,#dc02
-// 3474  fcfcfc    call    m,#fcfc
-// 3477  da02dc    jp      c,#dc02
-// 347a  fcfcfc    call    m,#fcfc
-// 347d  da02e6    jp      c,#e602
-// 3480  ea02e7    jp      pe,#e702
-// 3483  eb        ex      de,hl
-// 3484  02        ld      (bc),a
-// 3485  e6ea      and     #ea
-// 3487  02        ld      (bc),a
-// 3488  dcfcda    call    c,#dafc
-// 348b  02        ld      (bc),a
-// 348c  defc      sbc     a,#fc
-// 348e  e402de    call    po,#de02
-// 3491  e402dc    call    po,#dc02
-// 3494  fcfcfc    call    m,#fcfc
-// 3497  da02dc    jp      c,#dc02
-// 349a  fcfcfc    call    m,#fcfc
-// 349d  da02de    jp      c,#de02
-// 34a0  e405de    call    po,#de05
-// 34a3  e402dc    call    po,#dc02
-// 34a6  fcda02    call    m,#02da
-// 34a9  defc      sbc     a,#fc
-// 34ab  e402de    call    po,#de02
-// 34ae  e402dc    call    po,#dc02
-// 34b1  fcfcfc    call    m,#fcfc
-// 34b4  da02dc    jp      c,#dc02
-// 34b7  fcfcfc    call    m,#fcfc
-// 34ba  da02de    jp      c,#de02
-// 34bd  f2e8e8    jp      p,#e8e8
-// 34c0  ea02de    jp      pe,#de02
-// 34c3  e402dc    call    po,#dc02
-// 34c6  fcda02    call    m,#02da
-// 34c9  e7        rst     #20
-// 34ca  e9        jp      (hl)
-// 34cb  eb        ex      de,hl
-// 34cc  02        ld      (bc),a
-// 34cd  e7        rst     #20
-// 34ce  eb        ex      de,hl
-// 34cf  02        ld      (bc),a
-// 34d0  e7        rst     #20
-// 34d1  d2d2d2    jp      nc,#d2d2
-// 34d4  eb        ex      de,hl
-// 34d5  02        ld      (bc),a
-// 34d6  e7        rst     #20
-// 34d7  d2d2d2    jp      nc,#d2d2
-// 34da  eb        ex      de,hl
-// 34db  02        ld      (bc),a
-// 34dc  e7        rst     #20
-// 34dd  e9        jp      (hl)
-// 34de  e9        jp      (hl)
-// 34df  e9        jp      (hl)
-// 34e0  eb        ex      de,hl
-// 34e1  02        ld      (bc),a
-// 34e2  dee4      sbc     a,#e4
-// 34e4  02        ld      (bc),a
-// 34e5  dcfcda    call    c,#dafc
-// 34e8  1b        dec     de
-// 34e9  dee4      sbc     a,#e4
-// 34eb  02        ld      (bc),a
-// 34ec  dcfcda    call    c,#dafc
-// 34ef  02        ld      (bc),a
-// 34f0  e6e8      and     #e8
-// 34f2  f8        ret     m
-// 
-// 34f3  02        ld      (bc),a
-// 34f4  f6e8      or      #e8
-// 34f6  e8        ret     pe
-// 
-// 34f7  e8        ret     pe
-// 
-// 34f8  e8        ret     pe
-// 
-// 34f9  e8        ret     pe
-// 
-// 34fa  e8        ret     pe
-// 
-// 34fb  f8        ret     m
-// 
-// 34fc  02        ld      (bc),a
-// 34fd  f6e8      or      #e8
-// 34ff  e8        ret     pe
-// 
-// 3500  e8        ret     pe
-// 
-// 3501  ea02e6    jp      pe,#e602
-// 3504  f8        ret     m
-// 
-// 3505  02        ld      (bc),a
-// 3506  f6e8      or      #e8
-// 3508  e8        ret     pe
-// 
-// 3509  f4e402    call    p,#02e4
-// 350c  dcfcda    call    c,#dafc
-// 350f  02        ld      (bc),a
-// 3510  defc      sbc     a,#fc
-// 3512  e402f7    call    po,#f702
-// 3515  e9        jp      (hl)
-// 3516  e9        jp      (hl)
-// 3517  f5        push    af
-// 3518  f3        di      
-// 3519  e9        jp      (hl)
-// 351a  e9        jp      (hl)
-// 351b  f9        ld      sp,hl
-// 351c  02        ld      (bc),a
-// 351d  f7        rst     #30
-// 351e  e9e9e9
-// 3521  eb        ex      de,hl
-// 3522  02        ld      (bc),a
-// 3523  dee4      sbc     a,#e4
-// 3525  02        ld      (bc),a
-// 3526  f7        rst     #30
-// 3527  e9e9f5
-// 352a  e402dc    call    po,#dc02
-// 352d  fcda02    call    m,#02da
-// 3530  defc      sbc     a,#fc
-// 3532  e405de    call    po,#de05
-// 3535  e40bde    call    po,#de0b
-// 3538  e405de    call    po,#de05
-// 353b  e402dc    call    po,#dc02
-// 353e  fcda02    call    m,#02da
-// 3541  defc      sbc     a,#fc
-// 3543  e402e6    call    po,#e602
-// 3546  ea02de    jp      pe,#de02
-// 3549  e402ec    call    po,#ec02
-// 354c  d3d3      out     (#d3),a
-// 354e  d3ee      out     (#ee),a
-// 3550  02        ld      (bc),a
-// 3551  e6ea      and     #ea
-// 3553  02        ld      (bc),a
-// 3554  dee4      sbc     a,#e4
-// 3556  02        ld      (bc),a
-// 3557  e6ea      and     #ea
-// 3559  02        ld      (bc),a
-// 355a  dee4      sbc     a,#e4
-// 355c  02        ld      (bc),a
-// 355d  dcfcda    call    c,#dafc
-// 3560  02        ld      (bc),a
-// 3561  e7        rst     #20
-// 3562  e9        jp      (hl)
-// 3563  eb        ex      de,hl
-// 3564  02        ld      (bc),a
-// 3565  dee4      sbc     a,#e4
-// 3567  02        ld      (bc),a
-// 3568  e7        rst     #20
-// 3569  eb        ex      de,hl
-// 356a  02        ld      (bc),a
-// 356b  dcfcfc    call    c,#fcfc
-// 356e  fcda02    call    m,#02da
-// 3571  dee4      sbc     a,#e4
-// 3573  02        ld      (bc),a
-// 3574  e7        rst     #20
-// 3575  eb        ex      de,hl
-// 3576  02        ld      (bc),a
-// 3577  dee4      sbc     a,#e4
-// 3579  02        ld      (bc),a
-// 357a  e7        rst     #20
-// 357b  eb        ex      de,hl
-// 357c  02        ld      (bc),a
-// 357d  dcfcda    call    c,#dafc
-// 3580  06de      ld      b,#de
-// 3582  e405f0    call    po,#f005
-// 3585  fcfcfc    call    m,#fcfc
-// 3588  da02de    jp      c,#de02
-// 358b  e405de    call    po,#de05
-// 358e  e405dc    call    po,#dc05
-// 3591  fcfae8    call    m,#e8fa
-// 3594  e8        ret     pe
-// 
-// 3595  e8        ret     pe
-// 
-// 3596  ea02de    jp      pe,#de02
-// 3599  f2e8e8    jp      p,#e8e8
-// 359c  ea02ce    jp      pe,#ce02
-// 359f  fcfcfc    call    m,#fcfc
-// 35a2  da02de    jp      c,#de02
-// 35a5  f2e8e8    jp      p,#e8e8
-// 35a8  ea02de    jp      pe,#de02
-// 35ab  f2e8e8    jp      p,#e8e8
-// 35ae  ea02dc    jp      pe,#dc02
-// 35b1  00        nop     
-// 35b2  00        nop     
-// 35b3  00        nop     
-// 35b4  00        nop     
-// 35b5  62        ld      h,d
-// 35b6  010201    ld      bc,#0102
-// 35b9  010101    ld      bc,#0101
-// 35bc  0c        inc     c
-// 35bd  010104    ld      bc,#0401
-// 35c0  010101    ld      bc,#0101
-// 35c3  04        inc     b
-// 35c4  04        inc     b
-// 35c5  03        inc     bc
-// 35c6  0c        inc     c
-// 35c7  03        inc     bc
-// 35c8  03        inc     bc
-// 35c9  03        inc     bc
-// 35ca  04        inc     b
-// 35cb  04        inc     b
-// 35cc  03        inc     bc
-// 35cd  0c        inc     c
-// 35ce  03        inc     bc
-// 35cf  010101    ld      bc,#0101
-// 35d2  03        inc     bc
-// 35d3  04        inc     b
-// 35d4  04        inc     b
-// 35d5  03        inc     bc
-// 35d6  0c        inc     c
-// 35d7  0603      ld      b,#03
-// 35d9  04        inc     b
-// 35da  04        inc     b
-// 35db  03        inc     bc
-// 35dc  0c        inc     c
-// 35dd  0603      ld      b,#03
-// 35df  04        inc     b
-// 35e0  010101    ld      bc,#0101
-// 35e3  010101    ld      bc,#0101
-// 35e6  010101    ld      bc,#0101
-// 35e9  010101    ld      bc,#0101
-// 35ec  010101    ld      bc,#0101
-// 35ef  010101    ld      bc,#0101
-// 35f2  010101    ld      bc,#0101
-// 35f5  010101    ld      bc,#0101
-// 35f8  010304    ld      bc,#0403
-// 35fb  04        inc     b
-// 35fc  0f        rrca    
-// 35fd  03        inc     bc
-// 35fe  0604      ld      b,#04
-// 3600  04        inc     b
-// 3601  0f        rrca    
-// 3602  03        inc     bc
-// 3603  0604      ld      b,#04
-// 3605  04        inc     b
-// 3606  010101    ld      bc,#0101
-// 3609  0c        inc     c
-// 360a  03        inc     bc
-// 360b  010101    ld      bc,#0101
-// 360e  03        inc     bc
-// 360f  04        inc     b
-// 3610  04        inc     b
-// 3611  03        inc     bc
-// 3612  0c        inc     c
-// 3613  03        inc     bc
-// 3614  03        inc     bc
-// 3615  03        inc     bc
-// 3616  04        inc     b
-// 3617  04        inc     b
-// 3618  03        inc     bc
-// 3619  0c        inc     c
-// 361a  03        inc     bc
-// 361b  03        inc     bc
-// 361c  03        inc     bc
-// 361d  04        inc     b
-// 361e  010101    ld      bc,#0101
-// 3621  01030c    ld      bc,#0c03
-// 3624  010101    ld      bc,#0101
-// 3627  03        inc     bc
-// 3628  010101    ld      bc,#0101
-// 362b  08        ex      af,af'
-// 362c  1808      jr      #3636           ; (8)
-// 362e  1804      jr      #3634           ; (4)
-// 3630  010101    ld      bc,#0101
-// 3633  01030c    ld      bc,#0c03
-// 3636  010101    ld      bc,#0101
-// 3639  03        inc     bc
-// 363a  010101    ld      bc,#0101
-// 363d  04        inc     b
-// 363e  04        inc     b
-// 363f  03        inc     bc
-// 3640  0c        inc     c
-// 3641  03        inc     bc
-// 3642  03        inc     bc
-// 3643  03        inc     bc
-// 3644  04        inc     b
-// 3645  04        inc     b
-// 3646  03        inc     bc
-// 3647  0c        inc     c
-// 3648  03        inc     bc
-// 3649  03        inc     bc
-// 364a  03        inc     bc
-// 364b  04        inc     b
-// 364c  04        inc     b
-// 364d  010101    ld      bc,#0101
-// 3650  0c        inc     c
-// 3651  03        inc     bc
-// 3652  010101    ld      bc,#0101
-// 3655  03        inc     bc
-// 3656  04        inc     b
-// 3657  04        inc     b
-// 3658  0f        rrca    
-// 3659  03        inc     bc
-// 365a  0604      ld      b,#04
-// 365c  04        inc     b
-// 365d  0f        rrca    
-// 365e  03        inc     bc
-// 365f  0604      ld      b,#04
-// 3661  010101    ld      bc,#0101
-// 3664  010101    ld      bc,#0101
-// 3667  010101    ld      bc,#0101
-// 366a  010101    ld      bc,#0101
-// 366d  010101    ld      bc,#0101
-// 3670  010101    ld      bc,#0101
-// 3673  010101    ld      bc,#0101
-// 3676  010101    ld      bc,#0101
-// 3679  010304    ld      bc,#0403
-// 367c  04        inc     b
-// 367d  03        inc     bc
-// 367e  0c        inc     c
-// 367f  0603      ld      b,#03
-// 3681  04        inc     b
-// 3682  04        inc     b
-// 3683  03        inc     bc
-// 3684  0c        inc     c
-// 3685  0603      ld      b,#03
-// 3687  04        inc     b
-// 3688  04        inc     b
-// 3689  03        inc     bc
-// 368a  0c        inc     c
-// 368b  03        inc     bc
-// 368c  010101    ld      bc,#0101
-// 368f  03        inc     bc
-// 3690  04        inc     b
-// 3691  04        inc     b
-// 3692  03        inc     bc
-// 3693  0c        inc     c
-// 3694  03        inc     bc
-// 3695  03        inc     bc
-// 3696  03        inc     bc
-// 3697  04        inc     b
-// 3698  010201    ld      bc,#0102
-// 369b  010101    ld      bc,#0101
-// 369e  0c        inc     c
-// 369f  010104    ld      bc,#0401
-// 36a2  010101    ld      bc,#0101
-// 
+
+// 35b5  62 01 02 01 01 01 01 0c   01 01 04 01 01 01 04 04
+// 35c5  03 0c 03 03 03 04 04 03   0c 03 01 01 01 03 04 04
+// 35d5  03 0c 06 03 04 04 03 0c   06 03 04 01 01 01 01 01
+// 35e5  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
+// 35f5  01 01 01 01 03 04 04 0f   03 06 04 04 0f 03 06 04
+// 3605  04 01 01 01 0c 03 01 01   01 03 04 04 03 0c 03 03
+// 3615  03 04 04 03 0c 03 03 03   04 01 01 01 01 03 0c 01
+// 3625  01 01 03 01 01 01 08 18   08 18 04 01 01 01 01 03
+// 3635  0c 01 01 01 03 01 01 01   04 04 03 0c 03 03 03 04
+// 3645  04 03 0c 03 03 03 04 04   01 01 01 0c 03 01 01 01
+// 3655  03 04 04 0f 03 06 04 04   0f 03 06 04 01 01 01 01
+// 3665  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
+// 3675  01 01 01 01 01 03 04 04   03 0c 06 03 04 04 03 0c
+// 3685  06 03 04 04 03 0c 03 01   01 01 03 04 04 03 0c 03
+// 3695  03 03 04 01 02 01 01 01   01 0c 01 01 04 01 01 01
+data_35b5[] = { 0 };
+
 // 	;; Indirect Lookup table for 2c5e routine  (0x48 entries) 
 // 36a5  1337			; 0         HIGH SCORE
 // 36a7  2337			; 1	    CREDIT   
@@ -9430,97 +8950,93 @@ kickWatchdog();
 // 3a47  3b 3b 3b 3b 
 // 3a4b  2f 87 2f 80 
 
-// 3a4f  010103    ld      bc,#0301
-// 3a52  010101    ld      bc,#0101
-// 3a55  03        inc     bc
-// 3a56  02        ld      (bc),a
-// 3a57  02        ld      (bc),a
-// 3a58  02        ld      (bc),a
-// 3a59  010101    ld      bc,#0101
-// 3a5c  010204    ld      bc,#0402
-// 3a5f  04        inc     b
-// 3a60  04        inc     b
-// 3a61  0602      ld      b,#02
-// 3a63  02        ld      (bc),a
-// 3a64  02        ld      (bc),a
-// 3a65  02        ld      (bc),a
-// 3a66  04        inc     b
-// 3a67  02        ld      (bc),a
-// 3a68  04        inc     b
-// 3a69  04        inc     b
-// 3a6a  04        inc     b
-// 3a6b  0602      ld      b,#02
-// 3a6d  02        ld      (bc),a
-// 3a6e  02        ld      (bc),a
-// 3a6f  02        ld      (bc),a
-// 3a70  010101    ld      bc,#0101
-// 3a73  010204    ld      bc,#0402
-// 3a76  04        inc     b
-// 3a77  04        inc     b
-// 3a78  0602      ld      b,#02
-// 3a7a  02        ld      (bc),a
-// 3a7b  02        ld      (bc),a
-// 3a7c  02        ld      (bc),a
-// 3a7d  0604      ld      b,#04
-// 3a7f  05        dec     b
-// 3a80  010103    ld      bc,#0301
-// 3a83  010101    ld      bc,#0101
-// 3a86  04        inc     b
-// 3a87  010101    ld      bc,#0101
-// 3a8a  03        inc     bc
-// 3a8b  010104    ld      bc,#0401
-// 3a8e  010101    ld      bc,#0101
-// 3a91  6c        ld      l,h
-// 3a92  05        dec     b
-// 3a93  010101    ld      bc,#0101
-// 3a96  1804      jr      #3a9c           ; (4)
-// 3a98  04        inc     b
-// 3a99  1805      jr      #3aa0           ; (5)
-// 3a9b  010101    ld      bc,#0101
-// 3a9e  17        rla     
-// 3a9f  02        ld      (bc),a
-// 3aa0  03        inc     bc
-// 3aa1  04        inc     b
-// 3aa2  1604      ld      d,#04
-// 3aa4  03        inc     bc
-// 3aa5  010101    ld      bc,#0101
-// 3aa8  76        halt    
-// 3aa9  010101    ld      bc,#0101
-// 3aac  010301    ld      bc,#0103
-// 3aaf  010102    ld      bc,#0201
-// 3ab2  04        inc     b
-// 3ab3  02        ld      (bc),a
-// 3ab4  04        inc     b
-// 3ab5  0e02      ld      c,#02
-// 3ab7  04        inc     b
-// 3ab8  02        ld      (bc),a
-// 3ab9  04        inc     b
-// 3aba  02        ld      (bc),a
-// 3abb  04        inc     b
-// 3abc  0b        dec     bc
-// 3abd  010101    ld      bc,#0101
-// 3ac0  02        ld      (bc),a
-// 3ac1  04        inc     b
-// 3ac2  02        ld      (bc),a
-// 3ac3  010101    ld      bc,#0101
-// 3ac6  010202    ld      bc,#0202
-// 3ac9  02        ld      (bc),a
-// 3aca  0e02      ld      c,#02
-// 3acc  04        inc     b
-// 3acd  02        ld      (bc),a
-// 3ace  04        inc     b
-// 3acf  02        ld      (bc),a
-// 3ad0  010201    ld      bc,#0102
-// 3ad3  0a        ld      a,(bc)
-// 3ad4  010101    ld      bc,#0101
-// 3ad7  010301    ld      bc,#0103
-// 3ada  010103    ld      bc,#0301
-// 3add  010103    ld      bc,#0301
-// 3ae0  04        inc     b
-// 3ae1  00        nop     
-// 3ae2  02        ld      (bc),a
-// 3ae3  40        ld      b,b
+// 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04  |.....b..........|
+// 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01  |................|
+// 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04  |................|
+// 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
+// 35f0  01 01 01 01 01 01 01 01  01 03 04 04 0f 03 06 04  |................|
+// 3600  04 0f 03 06 04 04 01 01  01 0c 03 01 01 01 03 04  |................|
+// 3610  04 03 0c 03 03 03 04 04  03 0c 03 03 03 04 01 01  |................|
+// 3620  01 01 03 0c 01 01 01 03  01 01 01 08 18 08 18 04  |................|
+// 3630  01 01 01 01 03 0c 01 01  01 03 01 01 01 04 04 03  |................|
+// 3640  0c 03 03 03 04 04 03 0c  03 03 03 04 04 01 01 01  |................|
+// 3650  0c 03 01 01 01 03 04 04  0f 03 06 04 04 0f 03 06  |................|
+// 3660  04 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
+// 3670  01 01 01 01 01 01 01 01  01 01 03 04 04 03 0c 06  |................|
+// 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03  |................|
+// 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01  |................|
+// 36a0  01 04 01 01 01 13 37 23  37 32 37 41 37 5a 37 6a  |......7#727A7Z7j|
+// 36b0  37 7a 37 86 37 9d 37 b1  37 00 3d 21 3d fd 37 67  |7z7.7.7.7.=!=.7g|
+// 36c0  3d e3 3d 86 3d 02 3e 4c  38 5a 38 3c 3d 57 3d d3  |=.=.=.>L8Z8<=W=.|
+// 36d0  3d 76 3d f2 3d 01 00 02  00 03 00 bc 38 c4 38 ce  |=v=.=.......8.8.|
+// 36e0  38 d8 38 e2 38 ec 38 f6  38 00 39 0a 39 1a 39 6f  |8.8.8.8.8.9.9.9o|
+// 36f0  39 2a 39 58 39 41 39 4f  3e 86 39 97 39 b0 39 bd  |9*9X9A9O>.9.9.9.|
+// 3700  39 ca 39 a5 3d 21 3e c4  3d 40 3e 95 3d 11 3e b4  |9.9.=!>.=@>.=.>.|
+// 3710  3d 30 3e d4 83 48 49 47  48 40 53 43 4f 52 45 2f  |=0>..HIGH@SCORE/|
+// 3720  8f 2f 80 3b 80 43 52 45  44 49 54 40 40 40 2f 8f  |./.;.CREDIT@@@/.|
+// 3730  2f 80 3b 80 46 52 45 45  40 50 4c 41 59 2f 8f 2f  |/.;.FREE@PLAY/./|
+// 3740  80 8c 02 50 4c 41 59 45  52 40 4f 4e 45 2f 85 2f  |...PLAYER@ONE/./|
+// 3750  10 10 1a 1a 1a 1a 1a 1a  10 10 8c 02 50 4c 41 59  |............PLAY|
+// 3760  45 52 40 54 57 4f 2f 85  2f 80 92 02 47 41 4d 45  |ER@TWO/./...GAME|
+// 3770  40 40 4f 56 45 52 2f 81  2f 80 52 02 52 45 41 44  |@@OVER/./.R.READ|
+// 3780  59 5b 2f 89 2f 90 ee 02  50 55 53 48 40 53 54 41  |Y[/./...PUSH@STA|
+// 3790  52 54 40 42 55 54 54 4f  4e 2f 87 2f 80 b2 02 31  |RT@BUTTON/./...1|
+// 37a0  40 50 4c 41 59 45 52 40  4f 4e 4c 59 40 2f 85 2f  |@PLAYER@ONLY@/./|
+// 37b0  80 b2 02 31 40 4f 52 40  32 40 50 4c 41 59 45 52  |...1@OR@2@PLAYER|
+// 37c0  53 2f 85 00 2f 00 80 00  96 03 42 4f 4e 55 53 40  |S/../.....BONUS@|
+// 37d0  50 55 43 4b 4d 41 4e 40  46 4f 52 40 40 40 30 30  |PUCKMAN@FOR@@@00|
+// 37e0  30 40 5d 5e 5f 2f 8e 2f  80 ba 02 5c 40 28 29 2a  |0@]^_/./...\@()*|
+// 37f0  2b 2c 2d 2e 40 31 39 38  30 2f 83 2f 80 c3 02 43  |+,-.@1980/./...C|
+// 3800  48 41 52 41 43 54 45 52  40 3a 40 4e 49 43 4b 4e  |HARACTER@:@NICKN|
+// 3810  41 4d 45 2f 8f 2f 80 65  01 26 41 4b 41 42 45 49  |AME/./.e.&AKABEI|
+// 3820  26 2f 81 2f 80 45 01 26  4d 41 43 4b 59 26 2f 81  |&/./.E.&MACKY&/.|
+// 3830  2f 80 48 01 26 50 49 4e  4b 59 26 2f 83 2f 80 48  |/.H.&PINKY&/./.H|
+// 3840  01 26 4d 49 43 4b 59 26  2f 83 2f 80 76 02 10 40  |.&MICKY&/./.v..@|
+// 3850  31 30 40 5d 5e 5f 2f 9f  2f 80 78 02 14 40 35 30  |10@]^_/./.x..@50|
+// 3860  40 5d 5e 5f 2f 9f 2f 80  5d 02 28 29 2a 2b 2c 2d  |@]^_/./.].()*+,-|
+// 3870  2e 2f 83 2f 80 c5 02 40  4f 49 4b 41 4b 45 3b 3b  |././...@OIKAKE;;|
+// 3880  3b 3b 2f 81 2f 80 c5 02  40 55 52 43 48 49 4e 3b  |;;/./...@URCHIN;|
+// 3890  3b 3b 3b 3b 2f 81 2f 80  c8 02 40 4d 41 43 48 49  |;;;;/./...@MACHI|
+// 38a0  42 55 53 45 3b 3b 2f 83  2f 80 c8 02 40 52 4f 4d  |BUSE;;/./...@ROM|
+// 38b0  50 3b 3b 3b 3b 3b 3b 3b  2f 83 2f 80 12 02 81 85  |P;;;;;;;/./.....|
+// 38c0  2f 83 2f 90 32 02 40 82  85 40 2f 83 2f 90 32 02  |/./.2.@..@/./.2.|
+// 38d0  40 83 85 40 2f 83 2f 90  32 02 40 84 85 40 2f 83  |@..@/./.2.@..@/.|
+// 38e0  2f 90 32 02 40 86 8d 8e  2f 83 2f 90 32 02 87 88  |/.2.@..././.2...|
+// 38f0  8d 8e 2f 83 2f 90 32 02  89 8a 8d 8e 2f 83 2f 90  |.././.2....././.|
+// 3900  32 02 8b 8c 8d 8e 2f 83  2f 90 04 03 4d 45 4d 4f  |2....././...MEMO|
+// 3910  52 59 40 40 4f 4b 2f 8f  2f 80 04 03 42 41 44 40  |RY@@OK/./...BAD@|
+// 3920  40 40 40 52 40 4d 2f 8f  2f 80 08 03 31 40 43 4f  |@@@R@M/./...1@CO|
+// 3930  49 4e 40 40 31 40 43 52  45 44 49 54 40 2f 8f 2f  |IN@@1@CREDIT@/./|
+// 3940  80 08 03 32 40 43 4f 49  4e 53 40 31 40 43 52 45  |...2@COINS@1@CRE|
+// 3950  44 49 54 40 2f 8f 2f 80  08 03 31 40 43 4f 49 4e  |DIT@/./...1@COIN|
+// 3960  40 40 32 40 43 52 45 44  49 54 53 2f 8f 2f 80 08  |@@2@CREDITS/./..|
+// 3970  03 46 52 45 45 40 40 50  4c 41 59 40 40 40 40 40  |.FREE@@PLAY@@@@@|
+// 3980  40 40 2f 8f 2f 80 0a 03  42 4f 4e 55 53 40 40 4e  |@@/./...BONUS@@N|
+// 3990  4f 4e 45 2f 8f 2f 80 0a  03 42 4f 4e 55 53 40 2f  |ONE/./...BONUS@/|
+// 39a0  8f 2f 80 0c 03 50 55 43  4b 4d 41 4e 2f 8f 2f 80  |./...PUCKMAN/./.|
+// 39b0  0e 03 54 41 42 4c 45 40  40 2f 8f 2f 80 0e 03 55  |..TABLE@@/./...U|
+// 39c0  50 52 49 47 48 54 2f 8f  2f 80 0a 02 30 30 30 2f  |PRIGHT/./...000/|
+// 39d0  8f 2f 80 6b 01 26 41 4f  53 55 4b 45 26 2f 85 2f  |./.k.&AOSUKE&/./|
+// 39e0  80 4b 01 26 4d 55 43 4b  59 26 2f 85 2f 80 6e 01  |.K.&MUCKY&/./.n.|
+// 39f0  26 47 55 5a 55 54 41 26  2f 87 2f 80 4e 01 26 4d  |&GUZUTA&/./.N.&M|
+// 3a00  4f 43 4b 59 26 2f 87 2f  80 cb 02 40 4b 49 4d 41  |OCKY&/./...@KIMA|
+// 3a10  47 55 52 45 3b 3b 2f 85  2f 80 cb 02 40 53 54 59  |GURE;;/./...@STY|
+// 3a20  4c 49 53 54 3b 3b 3b 3b  2f 85 2f 80 ce 02 40 4f  |LIST;;;;/./...@O|
+// 3a30  54 4f 42 4f 4b 45 3b 3b  3b 2f 87 2f 80 ce 02 40  |TOBOKE;;;/./...@|
+// 3a40  43 52 59 42 41 42 59 3b  3b 3b 3b 2f 87 2f 80 01  |CRYBABY;;;;/./..|
+// 3a50  01 03 01 01 01 03 02 02  02 01 01 01 01 02 04 04  |................|
+// 3a60  04 06 02 02 02 02 04 02  04 04 04 06 02 02 02 02  |................|
+// 3a70  01 01 01 01 02 04 04 04  06 02 02 02 02 06 04 05  |................|
+// 3a80  01 01 03 01 01 01 04 01  01 01 03 01 01 04 01 01  |................|
+// 3a90  01 6c 05 01 01 01 18 04  04 18 05 01 01 01 17 02  |.l..............|
+// 3aa0  03 04 16 04 03 01 01 01  76 01 01 01 01 03 01 01  |........v.......|
+// 3ab0  01 02 04 02 04 0e 02 04  02 04 02 04 0b 01 01 01  |................|
+// 3ac0  02 04 02 01 01 01 01 02  02 02 0e 02 04 02 04 02  |................|
+// 3ad0  01 02 01 0a 01 01 01 01  03 01 01 01 03 01 01 03  |................|
+// 3ae0  04 00 02 40 01 3e 3d 10  40 40 0e 3d 3e 10 c2 43  |...@.>=.@@.=>..C|
+
 // 3ae4  013e3d    ld      bc,#3d3e
+
 // 3ae7  1040      djnz    #3b29           ; (64)
 // 3ae9  40        ld      b,b
 // 3aea  0e3d      ld      c,#3d
@@ -9530,372 +9046,62 @@ kickWatchdog();
 // 3af3  1021      djnz    #3b16           ; (33)
 // 3af5  a2        and     d
 // 3af6  40        ld      b,b
+
 // 3af7  114f3a    ld      de,#3a4f
+
+while (1)
+{
 // 3afa  3614      ld      (hl),#14
 // 3afc  1a        ld      a,(de)
 // 3afd  a7        and     a
 // 3afe  c8        ret     z
-// 
+MEM[hl]=0x14;
+if (MEM[de] == 0)
+    return;
 // 3aff  13        inc     de
 // 3b00  85        add     a,l
 // 3b01  6f        ld      l,a
 // 3b02  d2fa3a    jp      nc,#3afa
 // 3b05  24        inc     h
 // 3b06  18f2      jr      #3afa           ; (-14)
+}
 
-// 3b08  90        sub     b
-// 3b09  14        inc     d
-// 3b0a  94        sub     h
-// 3b0b  0f        rrca    
+// 3b08                           90 14 94 0f 98 15 98 15  |.o..:$..........|
+// 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16  |................|
+// 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16  |................|
+// 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00  |s ......r ......|
+// 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00  |6 ......6(......|
+// 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00  |60......6<......|
+// 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00  |6H......$.......|
+// 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00  |@p......p.......|
+// 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00  |B.......B.......|
+// 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00  |V.......... ....|
+// 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00  |A ......p.......|
+// 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b  |..... @..W\agmt{|
+// 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c  |.........;.;X<.<|
+// 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82  |.<.<.........pi.|
+// 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b  |pi.pj.pj.pi.pi..|
+// 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30  |...........gP0G0|
+// 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10  |gP0G0gP0G0K.L.M.|
+// 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47  |N.gP0G0gP0G0gP0G|
+// 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50  |0K.L.M.N.gP0G0gP|
+// 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10  |0G0gP0G0K.L.M.N.|
+// 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30  |w N.M.L.J.G.F.e0|
+// 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00  |f0g@p..;........|
+// 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f  |BPNPIPFPNIpfpCPO|
+// 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50  |PJPGPOJpgpBPNPIP|
+// 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49  |FPNIpfpEFGPGHIPI|
+// 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26  |JKPn.........&g&|
+// 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67  |g&g#DBG0g*.p&g&g|
+// 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26  |&g#DBG0g#.p&g&g&|
+// 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b  |g#DBG0g)j+l0,m@+|
+// 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00  |l)jg )j@&.p..<..|
+// 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 
-// 3b0c  98        sbc     a,b
-// 3b0d  15        dec     d
-// 3b0e  98        sbc     a,b
-// 3b0f  15        dec     d
-
-// 3b10  a0        and     b
-// 3b11  14        inc     d
-// 3b12  a0        and     b
-// 3b13  14        inc     d
-
-// 3b14  a4        and     h
-// 3b15  17        rla     
-// 3b16  a4        and     h
-// 3b17  17        rla     
-
-// 3b18  a8        xor     b
-// 3b19  09        add     hl,bc
-// 3b1a  a8        xor     b
-// 3b1b  09        add     hl,bc
-
-// 3b1c  9c        sbc     a,h
-// 3b1d  169c      ld      d,#9c
-// 3b1f  16ac      ld      d,#ac
-// 3b21  16ac      ld      d,#ac
-// 3b23  16ac      ld      d,#ac
-// 3b25  16ac      ld      d,#ac
-// 3b27  16ac      ld      d,#ac
-// 3b29  16ac      ld      d,#ac
-// 3b2b  16ac      ld      d,#ac
-// 3b2d  16ac      ld      d,#ac
-// 3b2f  1673      ld      d,#73
-// 3b31  2000      jr      nz,#3b33        ; (0)
-// 3b33  0c        inc     c
-// 3b34  00        nop     
-// 3b35  0a        ld      a,(bc)
-// 3b36  1f        rra     
-// 3b37  00        nop     
-// 3b38  72        ld      (hl),d
-// 3b39  20fb      jr      nz,#3b36        ; (-5)
-// 3b3b  87        add     a,a
-// 3b3c  00        nop     
-// 3b3d  02        ld      (bc),a
-// 3b3e  0f        rrca    
-// 3b3f  00        nop     
-// 3b40  3620      ld      (hl),#20
-// 3b42  04        inc     b
-// 3b43  8c        adc     a,h
-// 3b44  00        nop     
-// 3b45  00        nop     
-// 3b46  0600      ld      b,#00
-// 3b48  3628      ld      (hl),#28
-// 3b4a  05        dec     b
-// 3b4b  8b        adc     a,e
-// 3b4c  00        nop     
-// 3b4d  00        nop     
-// 3b4e  0600      ld      b,#00
-// 3b50  3630      ld      (hl),#30
-// 3b52  068a      ld      b,#8a
-// 3b54  00        nop     
-// 3b55  00        nop     
-// 3b56  0600      ld      b,#00
-// 3b58  363c      ld      (hl),#3c
-// 3b5a  07        rlca    
-// 3b5b  89        adc     a,c
-// 3b5c  00        nop     
-// 3b5d  00        nop     
-// 3b5e  0600      ld      b,#00
-// 3b60  3648      ld      (hl),#48
-// 3b62  08        ex      af,af'
-// 3b63  88        adc     a,b
-// 3b64  00        nop     
-// 3b65  00        nop     
-// 3b66  0600      ld      b,#00
-// 3b68  24        inc     h
-// 3b69  00        nop     
-// 3b6a  0608      ld      b,#08
-// 3b6c  00        nop     
-// 3b6d  00        nop     
-// 3b6e  0a        ld      a,(bc)
-// 3b6f  00        nop     
-// 3b70  40        ld      b,b
-// 3b71  70        ld      (hl),b
-// 3b72  fa1000    jp      m,#0010
-// 3b75  00        nop     
-// 3b76  0a        ld      a,(bc)
-// 3b77  00        nop     
-// 3b78  70        ld      (hl),b
-// 3b79  04        inc     b
-// 3b7a  00        nop     
-// 3b7b  00        nop     
-// 3b7c  00        nop     
-// 3b7d  00        nop     
-// 3b7e  08        ex      af,af'
-// 3b7f  00        nop     
-// 3b80  42        ld      b,d
-// 3b81  18fd      jr      #3b80           ; (-3)
-// 3b83  0600      ld      b,#00
-// 3b85  010c00    ld      bc,#000c
-// 3b88  42        ld      b,d
-// 3b89  04        inc     b
-// 3b8a  03        inc     bc
-// 3b8b  0600      ld      b,#00
-// 3b8d  010c00    ld      bc,#000c
-// 3b90  56        ld      d,(hl)
-// 3b91  0c        inc     c
-// 3b92  ff        rst     #38
-// 3b93  8c        adc     a,h
-// 3b94  00        nop     
-// 3b95  02        ld      (bc),a
-// 3b96  0f        rrca    
-// 3b97  00        nop     
-// 3b98  05        dec     b
-// 3b99  00        nop     
-// 3b9a  02        ld      (bc),a
-// 3b9b  2000      jr      nz,#3b9d        ; (0)
-// 3b9d  010c00    ld      bc,#000c
-// 3ba0  41        ld      b,c
-// 3ba1  20ff      jr      nz,#3ba2        ; (-1)
-// 3ba3  86        add     a,(hl)
-// 3ba4  fe1c      cp      #1c
-// 3ba6  0f        rrca    
-// 3ba7  ff        rst     #38
-// 3ba8  70        ld      (hl),b
-// 3ba9  00        nop     
-// 3baa  010c00    ld      bc,#000c
-// 3bad  010800    ld      bc,#0008
-// 3bb0  010204    ld      bc,#0402
-// 3bb3  08        ex      af,af'
-// 3bb4  1020      djnz    #3bd6           ; (32)
-// 3bb6  40        ld      b,b
-// 3bb7  80        add     a,b
-// 3bb8  00        nop     
-// 3bb9  57        ld      d,a
-// 3bba  5c        ld      e,h
-// 3bbb  61        ld      h,c
-// 3bbc  67        ld      h,a
-// 3bbd  6d        ld      l,l
-// 3bbe  74        ld      (hl),h
-// 3bbf  7b        ld      a,e
-// 3bc0  82        add     a,d
-// 3bc1  8a        adc     a,d
-// 3bc2  92        sub     d
-// 3bc3  9a        sbc     a,d
-// 3bc4  a3        and     e
-// 3bc5  ad        xor     l
-// 3bc6  b8        cp      b
-// 3bc7  c3d43b    jp      #3bd4
-// 3bca  f3        di      
-// 3bcb  3b        dec     sp
-// 3bcc  58        ld      e,b
-// 3bcd  3c        inc     a
-// 3bce  95        sub     l
-// 3bcf  3c        inc     a
-// 3bd0  de3c      sbc     a,#3c
-// 3bd2  df        rst     #18
-// 3bd3  3c        inc     a
-// 3bd4  f1        pop     af
-// 3bd5  02        ld      (bc),a
-// 3bd6  f203f3    jp      p,#f303
-// 3bd9  0f        rrca    
-// 3bda  f40182    call    p,#8201
-// 3bdd  70        ld      (hl),b
-// 3bde  69        ld      l,c
-// 3bdf  82        add     a,d
-// 3be0  70        ld      (hl),b
-// 3be1  69        ld      l,c
-// 3be2  83        add     a,e
-// 3be3  70        ld      (hl),b
-// 3be4  6a        ld      l,d
-// 3be5  83        add     a,e
-// 3be6  70        ld      (hl),b
-// 3be7  6a        ld      l,d
-// 3be8  82        add     a,d
-// 3be9  70        ld      (hl),b
-// 3bea  69        ld      l,c
-// 3beb  82        add     a,d
-// 3bec  70        ld      (hl),b
-// 3bed  69        ld      l,c
-// 3bee  89        adc     a,c
-// 3bef  8b        adc     a,e
-// 3bf0  8d        adc     a,l
-// 3bf1  8e        adc     a,(hl)
-// 3bf2  ff        rst     #38
-// 3bf3  f1        pop     af
-// 3bf4  02        ld      (bc),a
-// 3bf5  f203f3    jp      p,#f303
-// 3bf8  0f        rrca    
-// 3bf9  f40167    call    p,#6701
-// 3bfc  50        ld      d,b
-// 3bfd  3047      jr      nc,#3c46        ; (71)
-// 3bff  3067      jr      nc,#3c68        ; (103)
-// 3c01  50        ld      d,b
-// 3c02  3047      jr      nc,#3c4b        ; (71)
-// 3c04  3067      jr      nc,#3c6d        ; (103)
-// 3c06  50        ld      d,b
-// 3c07  3047      jr      nc,#3c50        ; (71)
-// 3c09  304b      jr      nc,#3c56        ; (75)
-// 3c0b  104c      djnz    #3c59           ; (76)
-// 3c0d  104d      djnz    #3c5c           ; (77)
-// 3c0f  104e      djnz    #3c5f           ; (78)
-// 3c11  1067      djnz    #3c7a           ; (103)
-// 3c13  50        ld      d,b
-// 3c14  3047      jr      nc,#3c5d        ; (71)
-// 3c16  3067      jr      nc,#3c7f        ; (103)
-// 3c18  50        ld      d,b
-// 3c19  3047      jr      nc,#3c62        ; (71)
-// 3c1b  3067      jr      nc,#3c84        ; (103)
-// 3c1d  50        ld      d,b
-// 3c1e  3047      jr      nc,#3c67        ; (71)
-// 3c20  304b      jr      nc,#3c6d        ; (75)
-// 3c22  104c      djnz    #3c70           ; (76)
-// 3c24  104d      djnz    #3c73           ; (77)
-// 3c26  104e      djnz    #3c76           ; (78)
-// 3c28  1067      djnz    #3c91           ; (103)
-// 3c2a  50        ld      d,b
-// 3c2b  3047      jr      nc,#3c74        ; (71)
-// 3c2d  3067      jr      nc,#3c96        ; (103)
-// 3c2f  50        ld      d,b
-// 3c30  3047      jr      nc,#3c79        ; (71)
-// 3c32  3067      jr      nc,#3c9b        ; (103)
-// 3c34  50        ld      d,b
-// 3c35  3047      jr      nc,#3c7e        ; (71)
-// 3c37  304b      jr      nc,#3c84        ; (75)
-// 3c39  104c      djnz    #3c87           ; (76)
-// 3c3b  104d      djnz    #3c8a           ; (77)
-// 3c3d  104e      djnz    #3c8d           ; (78)
-// 3c3f  1077      djnz    #3cb8           ; (119)
-// 3c41  204e      jr      nz,#3c91        ; (78)
-// 3c43  104d      djnz    #3c92           ; (77)
-// 3c45  104c      djnz    #3c93           ; (76)
-// 3c47  104a      djnz    #3c93           ; (74)
-// 3c49  1047      djnz    #3c92           ; (71)
-// 3c4b  1046      djnz    #3c93           ; (70)
-// 3c4d  1065      djnz    #3cb4           ; (101)
-// 3c4f  3066      jr      nc,#3cb7        ; (102)
-// 3c51  3067      jr      nc,#3cba        ; (103)
-// 3c53  40        ld      b,b
-// 3c54  70        ld      (hl),b
-// 3c55  f0        ret     p
-// 
-// 3c56  fb        ei      
-// 3c57  3b        dec     sp
-// 3c58  f1        pop     af
-// 3c59  00        nop     
-// 3c5a  f202f3    jp      p,#f302
-// 3c5d  0f        rrca    
-// 3c5e  f40042    call    p,#4200
-"POPIPFPOI"
-// 3c6a  70        ld      (hl),b
-// 3c6b  66        ld      h,(hl)
-// 3c6c  70        ld      (hl),b
-"CPOPJPGPOJ"
-// 3c77  70        ld      (hl),b
-// 3c78  67        ld      h,a
-// 3c79  70        ld      (hl),b
-"BPNPIPFPNI"
-// 3c84  70        ld      (hl),b
-// 3c85  66        ld      h,(hl)
-// 3c86  70        ld      (hl),b
-"EFGPGHIPIJKP"
-// 3c93  6e        ld      l,(hl)
-// 3c94  ff        rst     #38
-// 3c95  f1        pop     af
-// 3c96  01f201    ld      bc,#01f2
-// 3c99  f3        di      
-// 3c9a  0f        rrca    
-// 3c9b  f40026    call    p,#2600
-// 3c9e  67        ld      h,a
-// 3c9f  2667      ld      h,#67
-// 3ca1  2667      ld      h,#67
-// 3ca3  23        inc     hl
-// 3ca4  44        ld      b,h
-// 3ca5  42        ld      b,d
-// 3ca6  47        ld      b,a
-// 3ca7  3067      jr      nc,#3d10        ; (103)
-// 3ca9  2a8b70    ld      hl,(#708b)
-// 3cac  2667      ld      h,#67
-// 3cae  2667      ld      h,#67
-// 3cb0  2667      ld      h,#67
-// 3cb2  23        inc     hl
-// 3cb3  44        ld      b,h
-// 3cb4  42        ld      b,d
-// 3cb5  47        ld      b,a
-// 3cb6  3067      jr      nc,#3d1f        ; (103)
-// 3cb8  23        inc     hl
-// 3cb9  84        add     a,h
-// 3cba  70        ld      (hl),b
-// 3cbb  2667      ld      h,#67
-// 3cbd  2667      ld      h,#67
-// 3cbf  2667      ld      h,#67
-// 3cc1  23        inc     hl
-// 3cc2  44        ld      b,h
-// 3cc3  42        ld      b,d
-// 3cc4  47        ld      b,a
-// 3cc5  3067      jr      nc,#3d2e        ; (103)
-// 3cc7  29        add     hl,hl
-// 3cc8  6a        ld      l,d
-// 3cc9  2b        dec     hl
-// 3cca  6c        ld      l,h
-// 3ccb  302c      jr      nc,#3cf9        ; (44)
-// 3ccd  6d        ld      l,l
-// 3cce  40        ld      b,b
-// 3ccf  2b        dec     hl
-// 3cd0  6c        ld      l,h
-// 3cd1  29        add     hl,hl
-// 3cd2  6a        ld      l,d
-// 3cd3  67        ld      h,a
-// 3cd4  2029      jr      nz,#3cff        ; (41)
-// 3cd6  6a        ld      l,d
-// 3cd7  40        ld      b,b
-// 3cd8  2687      ld      h,#87
-// 3cda  70        ld      (hl),b
-// 3cdb  f0        ret     p
-// 
-// 3cdc  9d        sbc     a,l
-// 3cdd  3c        inc     a
-// 3cde  00        nop     
-// ........
-// 3cff  00        nop     
-// 
 // 	;; 36a5 Table Entry a
 // 3d00  96        sub     (hl)		
 // 3d01  03        inc     bc
-// 3d02  42        ld      b,d
-// 3d03  4f        ld      c,a
-// 3d04  4e        ld      c,(hl)
-// 3d05  55        ld      d,l
-// 3d06  53        ld      d,e
-// 3d07  40        ld      b,b
-// 3d08  50        ld      d,b
-// 3d09  41        ld      b,c
-// 3d0a  43        ld      b,e
-// 3d0b  3b        dec     sp
-// 3d0c  4d        ld      c,l
-// 3d0d  41        ld      b,c
-// 3d0e  4e        ld      c,(hl)
-// 3d0f  40        ld      b,b
-// 3d10  46        ld      b,(hl)
-// 3d11  4f        ld      c,a
-// 3d12  52        ld      d,d
-// 3d13  40        ld      b,b
-// 3d14  40        ld      b,b
-// 3d15  40        ld      b,b
-// 3d16  3030      jr      nc,#3d48        ; (48)
-// 3d18  3040      jr      nc,#3d5a        ; (64)
-// 3d1a  5d        ld      e,l
-// 3d1b  5e        ld      e,(hl)
-// 3d1c  5f        ld      e,a
+"BONUS@PAC;MAN@FOR@@@000@]^_"
 // 3d1d  2f        cpl     
 // 3d1e  8e        adc     a,(hl)
 // 3d1f  2f        cpl     
@@ -9903,23 +9109,7 @@ kickWatchdog();
 // 
 // 	;; 36a5 Table Entry b
 // 3d21  3a035c    ld      a,(#5c03)
-// 3d24  40        ld      b,b
-// 3d25  313938    ld      sp,#3839
-// 3d28  3040      jr      nc,#3d6a        ; (64)
-// 3d2a  4d        ld      c,l
-// 3d2b  49        ld      c,c
-// 3d2c  44        ld      b,h
-// 3d2d  57        ld      d,a
-// 3d2e  41        ld      b,c
-// 3d2f  59        ld      e,c
-// 3d30  40        ld      b,b
-// 3d31  4d        ld      c,l
-// 3d32  46        ld      b,(hl)
-// 3d33  47        ld      b,a
-// 3d34  25        dec     h
-// 3d35  43        ld      b,e
-// 3d36  4f        ld      c,a
-// 3d37  25        dec     h
+"@1980@MIDWAY@MFG%CO%"
 // 3d38  2f        cpl     
 // 3d39  83        add     a,e
 // 3d3a  2f        cpl     
@@ -9929,23 +9119,7 @@ kickWatchdog();
 // 3d3c  3d        dec     a
 // 3d3d  03        inc     bc
 // 3d3e  5c        ld      e,h
-// 3d3f  40        ld      b,b
-// 3d40  313938    ld      sp,#3839
-// 3d43  3040      jr      nc,#3d85        ; (64)
-// 3d45  4d        ld      c,l
-// 3d46  49        ld      c,c
-// 3d47  44        ld      b,h
-// 3d48  57        ld      d,a
-// 3d49  41        ld      b,c
-// 3d4a  59        ld      e,c
-// 3d4b  40        ld      b,b
-// 3d4c  4d        ld      c,l
-// 3d4d  46        ld      b,(hl)
-// 3d4e  47        ld      b,a
-// 3d4f  25        dec     h
-// 3d50  43        ld      b,e
-// 3d51  4f        ld      c,a
-// 3d52  25        dec     h
+"@1980@MIDWAY@MFG%CO%"
 // 3d53  2f        cpl     
 // 3d54  83        add     a,e
 // 3d55  2f        cpl     
@@ -9955,29 +9129,15 @@ kickWatchdog();
 // 3d57  c5        push    bc
 // 3d58  02        ld      (bc),a
 // 3d59  3b        dec     sp
-// 3d5a  53        ld      d,e
-// 3d5b  48        ld      c,b
-// 3d5c  41        ld      b,c
-// 3d5d  44        ld      b,h
-// 3d5e  4f        ld      c,a
-// 3d5f  57        ld      d,a
-// 3d60  40        ld      b,b
-// 3d61  40        ld      b,b
-// 3d62  40        ld      b,b
+"SHADOW@@@"
 // 3d63  2f        cpl     
 // 3d64  81        add     a,c
 // 3d65  2f        cpl     
 // 3d66  80        add     a,b
 // 
 // 	;; 36a5 Table Entry d
-// 3d67  65        ld      h,l
-// 3d68  012642    ld      bc,#4226
-// 3d6b  4c        ld      c,h
-// 3d6c  49        ld      c,c
-// 3d6d  4e        ld      c,(hl)
-// 3d6e  4b        ld      c,e
-// 3d6f  59        ld      e,c
-// 3d70  2640      ld      h,#40
+// 3d67  65 01 26
+"BLINKY&@"
 // 3d72  2f        cpl     
 // 3d73  81        add     a,c
 // 3d74  2f        cpl     
@@ -9987,79 +9147,41 @@ kickWatchdog();
 // 3d76  c8        ret     z
 // 3d77  02        ld      (bc),a
 // 3d78  3b        dec     sp
-// 3d79  53        ld      d,e
-// 3d7a  50        ld      d,b
-// 3d7b  45        ld      b,l
-// 3d7c  45        ld      b,l
-// 3d7d  44        ld      b,h
-// 3d7e  59        ld      e,c
-// 3d7f  40        ld      b,b
-// 3d80  40        ld      b,b
-// 3d81  40        ld      b,b
+"SPEEDY@@@"
 // 3d82  2f        cpl     
 // 3d83  83        add     a,e
 // 3d84  2f        cpl     
 // 3d85  80        add     a,b
 // 
 // 	;; 36a5 Table Entry f
-// 3d86  68        ld      l,b
-// 3d87  012650    ld      bc,#5026
-// 3d8a  49        ld      c,c
-// 3d8b  4e        ld      c,(hl)
-// 3d8c  4b        ld      c,e
-// 3d8d  59        ld      e,c
-// 3d8e  2640      ld      h,#40
-// 3d90  40        ld      b,b
-// 3d91  2f        cpl     
-// 3d92  83        add     a,e
-// 3d93  2f        cpl     
-// 3d94  80        add     a,b
+// 3d86  68 01 26
+"PINKY&@@"
+// 3d91  2f 83 2f 80
 // 
 // 	;; 36a5 Table Entry 33
-// 3d95  cb02      rlc     d
-// 3d97  3b        dec     sp
-// 3d98  42        ld      b,d
-// 3d99  41        ld      b,c
-// 3d9a  53        ld      d,e
-// 3d9b  48        ld      c,b
-// 3d9c  46        ld      b,(hl)
-// 3d9d  55        ld      d,l
-// 3d9e  4c        ld      c,h
-// 3d9f  40        ld      b,b
-// 3da0  40        ld      b,b
-// 3da1  2f        cpl     
-// 3da2  85        add     a,l
-// 3da3  2f        cpl     
-// 3da4  80        add     a,b
+// 3d95  cb 02 3b
+"BASHFUL@@"
+// 3da1  2f 85 2f 80
 // 
 // 	;; 36a5 Table Entry 2f
-// 3da5  6b        ld      l,e
-// 3da6  012649    ld      bc,#4926
-// 3da9  4e        ld      c,(hl)
-// 3daa  4b        ld      c,e
-// 3dab  59        ld      e,c
-// 3dac  2640      ld      h,#40
-// 3dae  40        ld      b,b
-// 3daf  40        ld      b,b
-// 3db0  2f        cpl     
-// 3db1  85        add     a,l
-// 3db2  2f        cpl     
-// 3db3  80        add     a,b
+// 3da5  6b 01 26
+"INKY&@@@"
+// 3db0  2f 85 2f 80
 // 
 // 	;; 36a5 Table Entry 35
 // 3db4  ce023b
-"POKEY    "
+"POKEY@@@@"
 // 3dc0  2f 87 2f 80
 // 
 // 	;; 36a5 Table Entry 31
 // 3dc4  6e0126
-"CLYDE"
-// 3dcc  264040 2f872f80
+"CLYDE&@@"
+// 3dcf  2f 87 2f 80
 // 
 // 	;; 36a5 Table Entry 15
 // 3dd3  c5023b
-"AAAAAAAA"
-// 3dde  3b2f812f80
+"AAAAAAAA;"
+// 3ddf  2f 81 2f 80
 // 
 // 	;; 36a5 Table Entry e
 // 3de3  650126
@@ -10070,25 +9192,19 @@ kickWatchdog();
 // 3df2  c8        ret     z
 // 3df3  02        ld      (bc),a
 // 3df4  3b        dec     sp
-"CCCCCCCC"
-// 3dfd  3b        dec     sp
+"CCCCCCCC;"
 // 3dfe  2f        cpl     
 // 3dff  83        add     a,e
 // 3e00  2f        cpl     
 // 3e01  80        add     a,b
 // 
 // 	;; 36a5 Table Entry 10
-// 3e02  68        ld      l,b
-// 3e03  012644    ld      bc,#4426
-"DDDDDD"
-// 3e0c  262f      ld      h,#2f
-// 3e0e  83        add     a,e
-// 3e0f  2f        cpl     
-// 3e10  80        add     a,b
+// 3e02  68 01 26
+"DDDDDDD&"
+// 3e0d  2f 83 2f 80
 // 
 // 	;; 36a5 Table Entry 34
-// 3e11  cb02      rlc     d
-// 3e13  3b        dec     sp
+// 3e11  cb 02 3b
 "EEEEEEEE"
 // 3e1c  3b        dec     sp
 // 3e1d  2f        cpl     
@@ -10099,8 +9215,8 @@ kickWatchdog();
 // 	;; 36a5 Table Entry 30
 // 3e21  6b        ld      l,e
 // 3e22  012646    ld      bc,#4626
-"FFFFFF"
-// 3e2b  262f      ld      h,#2f
+"FFFFFF&"
+// 3e2c  2f      ld      h,#2f
 // 3e2d  85        add     a,l
 // 3e2e  2f        cpl     
 // 3e2f  80        add     a,b
@@ -10108,8 +9224,7 @@ kickWatchdog();
 // 	;; 36a5 Table Entry 36
 // 3e30  ce02      adc     a,#02
 // 3e32  3b        dec     sp
-"GGGGGGGG"
-// 3e3b  3b        dec     sp
+"GGGGGGGG;"
 // 3e3c  2f        cpl     
 // 3e3d  87        add     a,a
 // 3e3e  2f        cpl     
@@ -10118,8 +9233,8 @@ kickWatchdog();
 // 	;; 36a5 Table Entry 32
 // 3e40  6e        ld      l,(hl)
 // 3e41  0126
-"HHHHHHH"
-// 3e4a  262f      ld      h,#2f
+"HHHHHHH&"
+// 3e4a  2f      ld      h,#2f
 // 3e4c  87        add     a,a
 // 3e4d  2f        cpl     
 // 3e4e  80        add     a,b
@@ -10127,7 +9242,7 @@ kickWatchdog();
 // 	;; 36a5 Table Entry 29
 // 3e4f  0c        inc     c
 // 3e50  03        inc     bc
-"PAC-MAN"
+"PAC;MAN"
 // 3e58  2f        cpl     
 // 3e59  8f        adc     a,a
 // 3e5a  2f        cpl     
@@ -10136,10 +9251,8 @@ kickWatchdog();
 // 3e5c  00        nop     
 // .......
 // 3ff9  00        nop     
+
 // 3ffa  0030				; Interrupt Vector 3000 
 // 3ffc  8d00				; Interrupt Vector 008d 
-// 
-// 3ffe  75        ld      (hl),l		; Checksum data 
-// 3fff  73        ld      (hl),e
-// 
-// Disassembled 9289 instructions.
+
+// 3ffe  75 73 ; Checksum data 
