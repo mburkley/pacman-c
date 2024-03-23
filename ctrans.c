@@ -47,7 +47,6 @@ uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
 }
 
 //-------------------------------
-// 	;; Some sort of table lookup
 // 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
 // 	;; (Used to add up scores!)
 // 0018  78        ld      a,b		; b -> a 
@@ -2160,7 +2159,7 @@ void func_879()
     // 0883  2a734e    ld      hl,(#4e73)
     // 0886  220a4e    ld      (#4e0a),hl
     //-------------------------------
-    func_24c9();
+    clearPills();
     MEM[0x4e0a] = MEM[0x4e73];
     MEM[0x4e0b] = MEM[0x4e74];
 
@@ -2301,7 +2300,7 @@ void func_90d()
     // 0912  cd8724    call    #2487
     //-------------------------------
     MEM[0x4e12]=1;
-    func_2487();
+    updatePillsFromScreen();
     //-------------------------------
     // 0915  21044e    ld      hl,#4e04
     // 0918  34        inc     (hl)
@@ -2493,7 +2492,7 @@ storeRingTBD (0x01, 0x02);
     // 09f3  210000    ld      hl,#0000
     // 09f6  cd7e26    call    #267e
     //-------------------------------
-    tbd (0);
+    setGhostPosition_267e (0, 0);
 // 09f9  21044e    ld      hl,#4e04
 // 09fc  34        inc     (hl)
 // 09fd  c9        ret     
@@ -2566,7 +2565,7 @@ return;
 memset (0x4e0c, 0, 7);
 
 // 0a89  cdc924    call    #24c9
-func_24c9();
+clearPills();
 // 0a8c  21044e    ld      hl,#4e04
 // 0a8f  34        inc     (hl)
 // 0a90  21134e    ld      hl,#4e13
@@ -3674,7 +3673,7 @@ void func_12cb()
     // 12d3  11b400    ld      de,#00b4
     // 12d6  4f        ld      c,a
     //-------------------------------
-    func_267e(0);
+    setGhostPosition_267e(0, 0);
     c=0x34;
     de=0xb4;
 
@@ -5962,9 +5961,12 @@ clearColour();
     jumpClearScreen ();
 // 2376  32c050    ld      (#50c0),a	; Kick the dog 
     kickWatchdog();
-// 2379  21c04c    ld      hl,#4cc0
-// 237c  22804c    ld      (#4c80),hl
-// 237f  22824c    ld      (#4c82),hl
+
+    // 2379  21c04c    ld      hl,#4cc0
+    // 237c  22804c    ld      (#4c80),hl
+    // 237f  22824c    ld      (#4c82),hl
+    TASK_LIST_BEGIN = TASK_LIST_END = 0x4cc0;
+
 // 	;; 0xff -> 4cc0-4cff
 // 2382  3eff      ld      a,#ff
 // 2384  0640      ld      b,#40
@@ -6022,12 +6024,12 @@ clearColour();
     // 23e2  a12b 7526 b226
     //-------------------------------
     void (*func)()[] = { jumpClearScreen,
-                        func_24d7, testRomLoc, func_2448, func_253d, 
+                        func_24d7, testRomLoc, drawPills, initialisePositions_25d3, 
                         func_268b, clearColour, func_2698, func_2730,
                         func_276c, func_27a9, func_27f1, func_283b,
                         func_2865, func_288f, func_28b9, func_000d,
-                        func_26a2, func_24c9, func_2a35, func_26d0,
-                        func_2487, func_23e8, func_28e3, func_2ae0,
+                        func_26a2, clearPills, func_2a35, func_26d0,
+                        updatePillsFromScreen, func_23e8, func_28e3, func_2ae0,
                         func_2a5a, func_2b6a, func_2bea, displayMsg,
                         displayCredits, func_2675, func_26b2 };
     tableCall (func, a);
@@ -6129,7 +6131,13 @@ func_2422()
 // 2429  2b        dec     hl
 // 242a  03        inc     bc
 // 242b  0a        ld      a,(bc)
-
+if (a>=0)
+{
+    hl+=a;
+    hl--;
+    bc++
+    a=MEM[bc];
+}
 // 242c  23        inc     hl
 // 242d  77        ld      (hl),a
 // 242e  f5        push    af
@@ -6151,40 +6159,78 @@ func_2422()
 // 2444  03        inc     bc
 // 2445  c31f24    jp      #241f
 
-func_2448()
+void drawPills(void)
 {
-// 2448  210040    ld      hl,#4000
-// 244b  dd21164e  ld      ix,#4e16
-// 244f  fd21b535  ld      iy,#35b5
-// 2453  1600      ld      d,#00
-// 2455  061e      ld      b,#1e
-// 2457  0e08      ld      c,#08
-// 2459  dd7e00    ld      a,(ix+#00)
-// 245c  fd5e00    ld      e,(iy+#00)
-// 245f  19        add     hl,de
-// 2460  07        rlca    
-// 2461  3002      jr      nc,#2465        ; (2)
-// 2463  3610      ld      (hl),#10
-// 2465  fd23      inc     iy
-// 2467  0d        dec     c
-// 2468  20f2      jr      nz,#245c        ; (-14)
-// 246a  dd23      inc     ix
-// 246c  05        dec     b
-// 246d  20e8      jr      nz,#2457        ; (-24)
-// 246f  21344e    ld      hl,#4e34
-// 2472  116440    ld      de,#4064
-// 2475  eda0      ldi     
-// 2477  117840    ld      de,#4078
-// 247a  eda0      ldi     
-// 247c  118443    ld      de,#4384
-// 247f  eda0      ldi     
-// 2481  119843    ld      de,#4398
-// 2484  eda0      ldi     
-// 2486  c9        ret     
+    //-------------------------------
+    // 2448  210040    ld      hl,#4000
+    // 244b  dd21164e  ld      ix,#4e16
+    // 244f  fd21b535  ld      iy,#35b5
+    //-------------------------------
+    uint8_t *hl = VIDEO;
+    uint8_t *pill = PILL_ARRAY;
+    uint8_t *iy=data_35b5;
+    //-------------------------------
+    // 2453  1600      ld      d,#00
+    // 2455  061e      ld      b,#1e
+    //-------------------------------
+    for (int b = 0; b < 0x1e; b++)
+    {
+        //-------------------------------
+        // 2457  0e08      ld      c,#08
+        // 2459  dd7e00    ld      a,(ix+#00)
+        //-------------------------------
 
-/*  Build bytes in 0x4e16-0x4e34 1 bit at a time by reading screen offsets from a ROM
+        for (int c = 0; c < 8; c++)
+        {
+            //-------------------------------
+            // 245c  fd5e00    ld      e,(iy+#00)
+            // 245f  19        add     hl,de
+            //-------------------------------
+            hl += *iy;
+
+            //-------------------------------
+            // 2460  07        rlca    
+            // 2461  3002      jr      nc,#2465        ; (2)
+            // 2463  3610      ld      (hl),#10
+            //-------------------------------
+            if (*pill & (0x80>>c))
+                *hl = 0x10;
+
+            //-------------------------------
+            // 2465  fd23      inc     iy
+            // 2467  0d        dec     c
+            // 2468  20f2      jr      nz,#245c        ; (-14)
+            //-------------------------------
+            iy++;
+        }
+        //-------------------------------
+        // 246a  dd23      inc     ix
+        // 246c  05        dec     b
+        // 246d  20e8      jr      nz,#2457        ; (-24)
+        //-------------------------------
+        ix++;
+    }
+    //-------------------------------
+    // 246f  21344e    ld      hl,#4e34
+    // 2472  116440    ld      de,#4064
+    // 2475  eda0      ldi     
+    // 2477  117840    ld      de,#4078
+    // 247a  eda0      ldi     
+    // 247c  118443    ld      de,#4384
+    // 247f  eda0      ldi     
+    // 2481  119843    ld      de,#4398
+    // 2484  eda0      ldi     
+    // 2486  c9        ret    
+    //-------------------------------
+    VIDEO[0x64] = BIG_PILL_ARRAY[0];
+    VIDEO[0x78] = BIG_PILL_ARRAY[1];
+    VIDEO[0x384] = BIG_PILL_ARRAY[2];
+    VIDEO[0x398] = BIG_PILL_ARRAY[3];
+}
+
+/*  Build bytes in pill array 0x4e16-0x4e34 1 bit at a time by reading screen offsets from a ROM
  *  table and checking if the byte on the screen at that offset == 0x10 */
-func_2487()
+void updatePillsFromScreen(void)
 {
     //-------------------------------
     // 2487  210040    ld      hl,#4000
@@ -6249,13 +6295,13 @@ func_2487()
     // 24c6  eda0      ldi     
     // 24c8  c9        ret     
     //-------------------------------
-    MEM[0x4e34] = VIDEO[0x64];
-    MEM[0x4e35] = VIDEO[0x78];
-    MEM[0x4e36] = MEM[0x4384];
-    MEM[0x4e37] = MEM[0x4398];
+    BIG_PILL_ARRAY[0] = VIDEO[0x64];
+    BIG_PILL_ARRAY[1] = VIDEO[0x78];
+    BIG_PILL_ARRAY[2] = VIDEO[0x384];
+    BIG_PILL_ARRAY[3] = VIDEO[0x398];
 }
 
-void func_24c9()
+void clearPills()
 {
     //-------------------------------
     // 24c9  21164e    ld      hl,#4e16
@@ -6267,187 +6313,372 @@ void func_24c9()
     // 24d5  cf        rst     #8
     // 24d6  c9        ret     
     //-------------------------------
-    memset (MEM+0x4e16, 0xff, 0x10);
-    memset (MEM+0x4e26, 0x14, 0x4);
+    memset (PILL_ARRAY, 0xff, 0x10);
+    memset (BIG_PILL_ARRAY, 0x14, 0x4);
 }
  
-func_24d7()
+func_24d7(int b)
 {
-// 24d7  58        ld      e,b
-// 24d8  78        ld      a,b
-// 24d9  fe02      cp      #02
-// 24db  3e1f      ld      a,#1f
-// 24dd  2802      jr      z,#24e1         ; (2)
-// 24df  3e10      ld      a,#10
+    //-------------------------------
+    // 24d7  58        ld      e,b
+    // 24d8  78        ld      a,b
+    // 24d9  fe02      cp      #02
+    // 24db  3e1f      ld      a,#1f
+    // 24dd  2802      jr      z,#24e1         ; (2)
+    // 24df  3e10      ld      a,#10
+    //-------------------------------
     if (b == 2)
     {
         a = 0x10;
     }
-// 24e1  214044    ld      hl,#4440
-// 24e4  010480    ld      bc,#8004
-// 24e7  cf        rst     #8
-// 24e8  0d        dec     c
-// 24e9  20fc      jr      nz,#24e7        ; (-4)
-    memset (MEM+0x4040, a, 0x480);
+    //-------------------------------
+    // 24e1  214044    ld      hl,#4440
+    // 24e4  010480    ld      bc,#8004
+    //-------------------------------
+    for (int c = 0; c < 4; c++)
+    {
+        //-------------------------------
+        // 24e7  cf        rst     #8
+        //-------------------------------
+        memset (COLOUR+0x40, a, 0x80);
+        //-------------------------------
+        // 24e8  0d        dec     c
+        // 24e9  20fc      jr      nz,#24e7        ; (-4)
+        //-------------------------------
+    }
 
-// 24eb  3e0f      ld      a,#0f
-// 24ed  0640      ld      b,#40
-// 24ef  21c047    ld      hl,#47c0
-// 24f2  cf        rst     #8
-    memset (MEM+0x4040, 0x40, 0x80);
-// 24f3  7b        ld      a,e
-// 24f4  fe01      cp      #01
-// 24f6  c0        ret     nz
-// 
-// 24f7  3e1a      ld      a,#1a
-// 24f9  112000    ld      de,#0020
-// 24fc  0606      ld      b,#06
-// 24fe  dd21a045  ld      ix,#45a0
-// 2502  dd770c    ld      (ix+#0c),a
-// 2505  dd7718    ld      (ix+#18),a
-// 2508  dd19      add     ix,de
-// 250a  10f6      djnz    #2502           ; (-10)
-// 250c  3e1b      ld      a,#1b
-// 250e  0605      ld      b,#05
-// 2510  dd214044  ld      ix,#4440
-// 2514  dd770e    ld      (ix+#0e),a
-// 2517  dd770f    ld      (ix+#0f),a
-// 251a  dd7710    ld      (ix+#10),a
-// 251d  dd19      add     ix,de
-// 251f  10f3      djnz    #2514           ; (-13)
-// 2521  0605      ld      b,#05
-// 2523  dd212047  ld      ix,#4720
-// 2527  dd770e    ld      (ix+#0e),a
-// 252a  dd770f    ld      (ix+#0f),a
-// 252d  dd7710    ld      (ix+#10),a
-// 2530  dd19      add     ix,de
-// 2532  10f3      djnz    #2527           ; (-13)
-// 2534  3e18      ld      a,#18
-// 2536  32ed45    ld      (#45ed),a
-// 2539  320d46    ld      (#460d),a
-// 253c  c9        ret     
+    //-------------------------------
+    // 24eb  3e0f      ld      a,#0f
+    // 24ed  0640      ld      b,#40
+    // 24ef  21c047    ld      hl,#47c0
+    // 24f2  cf        rst     #8
+    //-------------------------------
+    memset (COLOUR+0x7c0, 0xf, 0x40);
+    //-------------------------------
+    // 24f3  7b        ld      a,e
+    // 24f4  fe01      cp      #01
+    // 24f6  c0        ret     nz
+    //-------------------------------
+    if (b==1)
+        return;
+
+    //-------------------------------
+    // 24f7  3e1a      ld      a,#1a
+    // 24f9  112000    ld      de,#0020
+    // 24fc  0606      ld      b,#06
+    // 24fe  dd21a045  ld      ix,#45a0
+    //-------------------------------
+
+    for (b = 0; b < 6; b++)
+    {
+        //-------------------------------
+        // 2502  dd770c    ld      (ix+#0c),a
+        // 2505  dd7718    ld      (ix+#18),a
+        // 2508  dd19      add     ix,de
+        // 250a  10f6      djnz    #2502           ; (-10)
+        //-------------------------------
+        ix[0xc]=0x1a;
+        ix[0x18]=0x1a;
+        ix+=0x20;
+    }
+
+    //-------------------------------
+    // 250c  3e1b      ld      a,#1b
+    // 250e  0605      ld      b,#05
+    // 2510  dd214044  ld      ix,#4440
+    //-------------------------------
+    ix=COLOUR+0x40;
+    for (b = 0; b < 5; b++)
+    {
+        //-------------------------------
+        // 2514  dd770e    ld      (ix+#0e),a
+        // 2517  dd770f    ld      (ix+#0f),a
+        // 251a  dd7710    ld      (ix+#10),a
+        // 251d  dd19      add     ix,de
+        // 251f  10f3      djnz    #2514           ; (-13)
+        //-------------------------------
+        ix[0xe]=0x1b;
+        ix[0xf]=0x1b;
+        ix[0x10]=0x1b;
+    }
+    //-------------------------------
+    // 2521  0605      ld      b,#05
+    // 2523  dd212047  ld      ix,#4720
+    //-------------------------------
+    ix=COLOUR+0x320;
+    for (b = 0; b < 5; b++)
+    {
+        //-------------------------------
+        // 2527  dd770e    ld      (ix+#0e),a
+        // 252a  dd770f    ld      (ix+#0f),a
+        // 252d  dd7710    ld      (ix+#10),a
+        // 2530  dd19      add     ix,de
+        // 2532  10f3      djnz    #2527           ; (-13)
+        //-------------------------------
+        ix[0xe]=0x1b;
+        ix[0xf]=0x1b;
+        ix[0x10]=0x1b;
+    }
+
+    //-------------------------------
+    // 2534  3e18      ld      a,#18
+    // 2536  32ed45    ld      (#45ed),a
+    // 2539  320d46    ld      (#460d),a
+    // 253c  c9        ret     
+    //-------------------------------
+    COLOUR[0x1ed]=0x18;
+    COLOUR[0x20d]=0x18;
 }
 
-func_253d()
+initialisePositions_25d3()
 {
-// 253d  dd21004c  ld      ix,#4c00
-// 2541  dd360220  ld      (ix+#02),#20
-// 2545  dd360420  ld      (ix+#04),#20
-// 2549  dd360620  ld      (ix+#06),#20
-// 254d  dd360820  ld      (ix+#08),#20
-// 2551  dd360a2c  ld      (ix+#0a),#2c
-// 2555  dd360c3f  ld      (ix+#0c),#3f
-// 2559  dd360301  ld      (ix+#03),#01
-// 255d  dd360503  ld      (ix+#05),#03
-// 2561  dd360705  ld      (ix+#07),#05
-// 2565  dd360907  ld      (ix+#09),#07
-// 2569  dd360b09  ld      (ix+#0b),#09
-// 256d  dd360d00  ld      (ix+#0d),#00
-    memset (MEM+0x4c02,
-            { 0x20, 0x01, 0x20, 0x03, 0x20, 0x05, 0x02, 0x07, 0x2c, 0x09, 0x3f,
-            0x00 },
-            12);
-// 2571  78        ld      a,b
-// 2572  a7        and     a
-// 2573  c20f26    jp      nz,#260f
-// 2576  216480    ld      hl,#8064
-// 2579  22004d    ld      (#4d00),hl
-    MEM[0x4d00] = 0x8064; // 16bit
-// 257c  217c80    ld      hl,#807c
-// 257f  22024d    ld      (#4d02),hl
-    MEM[0x4d02] = 0x807c; // 16bit
-// 2582  217c90    ld      hl,#907c
-// 2585  22044d    ld      (#4d04),hl
-    MEM[0x4d04] = 0x907c; // 16bit
-// 2588  217c70    ld      hl,#707c
-// 258b  22064d    ld      (#4d06),hl
-    MEM[0x4d06] = 0x707c; // 16bit
-// 258e  21c480    ld      hl,#80c4
-// 2591  22084d    ld      (#4d08),hl
-    MEM[0x4d08] = 0x80c4; // 16bit
-// 2594  212c2e    ld      hl,#2e2c
-// 2597  220a4d    ld      (#4d0a),hl
-// 259a  22314d    ld      (#4d31),hl
-    MEM[0x4d0a] = 0x2e2c; // 16bit
-    MEM[0x4d31] = 0x2e2c; // 16bit
-// 259d  212f2e    ld      hl,#2e2f
-// 25a0  220c4d    ld      (#4d0c),hl
-// 25a3  22334d    ld      (#4d33),hl
-// 25a6  212f30    ld      hl,#302f
-// 25a9  220e4d    ld      (#4d0e),hl
-// 25ac  22354d    ld      (#4d35),hl
-// 25af  212f2c    ld      hl,#2c2f
-// 25b2  22104d    ld      (#4d10),hl
-// 25b5  22374d    ld      (#4d37),hl
-// 25b8  21382e    ld      hl,#2e38
-// 25bb  22124d    ld      (#4d12),hl
-// 25be  22394d    ld      (#4d39),hl
-// 25c1  210001    ld      hl,#0100
-// 25c4  22144d    ld      (#4d14),hl
-// 25c7  221e4d    ld      (#4d1e),hl
-// 25ca  210100    ld      hl,#0001
-// 25cd  22164d    ld      (#4d16),hl
-// 25d0  22204d    ld      (#4d20),hl
-// 25d3  21ff00    ld      hl,#00ff
-// 25d6  22184d    ld      (#4d18),hl
-// 25d9  22224d    ld      (#4d22),hl
-// 25dc  21ff00    ld      hl,#00ff
-// 25df  221a4d    ld      (#4d1a),hl
-// 25e2  22244d    ld      (#4d24),hl
-// 25e5  210001    ld      hl,#0100
-// 25e8  221c4d    ld      (#4d1c),hl
-// 25eb  22264d    ld      (#4d26),hl
-// 25ee  210201    ld      hl,#0102
-// 25f1  22284d    ld      (#4d28),hl
-// 25f4  222c4d    ld      (#4d2c),hl
-// 25f7  210303    ld      hl,#0303
-// 25fa  222a4d    ld      (#4d2a),hl
-// 25fd  222e4d    ld      (#4d2e),hl
-// 2600  3e02      ld      a,#02
-// 2602  32304d    ld      (#4d30),a
-// 2605  323c4d    ld      (#4d3c),a
-// 2608  210000    ld      hl,#0000
-// 260b  22d24d    ld      (#4dd2),hl
-// 260e  c9        ret     
+    //-------------------------------
+    // 253d  dd21004c  ld      ix,#4c00
+    // 2541  dd360220  ld      (ix+#02),#20
+    // 2545  dd360420  ld      (ix+#04),#20
+    // 2549  dd360620  ld      (ix+#06),#20
+    // 254d  dd360820  ld      (ix+#08),#20
+    // 2551  dd360a2c  ld      (ix+#0a),#2c
+    // 2555  dd360c3f  ld      (ix+#0c),#3f
+    //-------------------------------
+    BLINKY_SPRITE = 0x20;
+    PINKY_SPRITE = 0x20;
+    INKY_SPRITE = 0x20;
+    CLYDE_SPRITE = 0x20;
+    PACMAN_SPRITE = 0x2c;
+    FRUIT_SPRITE = 0x3f;
+    //-------------------------------
+    // 2559  dd360301  ld      (ix+#03),#01
+    // 255d  dd360503  ld      (ix+#05),#03
+    // 2561  dd360705  ld      (ix+#07),#05
+    // 2565  dd360907  ld      (ix+#09),#07
+    // 2569  dd360b09  ld      (ix+#0b),#09
+    // 256d  dd360d00  ld      (ix+#0d),#00
+    //-------------------------------
+    BLINKY_COLOUR = 0x01;
+    PINKY_COLOUR = 0x03;
+    INKY_COLOUR = 0x05;
+    CLYDE_COLOUR = 0x07;
+    PACMAN_COLOUR = 0x09;
+    FRUIT_COLOUR = 0x00;
+    //-------------------------------
+    // 2571  78        ld      a,b
+    // 2572  a7        and     a
+    // 2573  c20f26    jp      nz,#260f
+    //-------------------------------
+    if (b == 0)
+    {
+        //-------------------------------
+        // 2576  216480    ld      hl,#8064
+        // 2579  22004d    ld      (#4d00),hl
+        //-------------------------------
+        BLINKY_Y = 0x64;
+        BLINKY_X = 0x80;
+        //-------------------------------
+        // 257c  217c80    ld      hl,#807c
+        // 257f  22024d    ld      (#4d02),hl
+        //-------------------------------
+        PINKY_Y = 0x7c;
+        PINKY_X = 0x80;
+        //-------------------------------
+        // 2582  217c90    ld      hl,#907c
+        // 2585  22044d    ld      (#4d04),hl
+        //-------------------------------
+        INKY_Y = 0x7c;
+        INKY_X = 0x90;
+        //-------------------------------
+        // 2588  217c70    ld      hl,#707c
+        // 258b  22064d    ld      (#4d06),hl
+        //-------------------------------
+        CLYDE_Y = 0x7c;
+        CLYDE_X = 0x70;
+        //-------------------------------
+        // 258e  21c480    ld      hl,#80c4
+        // 2591  22084d    ld      (#4d08),hl
+        //-------------------------------
+        PACMAN_Y = 0xc4;
+        PACMAN_X = 0x80;
+        //-------------------------------
+        // 2594  212c2e    ld      hl,#2e2c
+        // 2597  220a4d    ld      (#4d0a),hl
+        // 259a  22314d    ld      (#4d31),hl
+        //-------------------------------
+        BLINKY_Y_TILE = BLINKY_Y_TILE2 = 0x2c;
+        BLINKY_X_TILE = BLINKY_X_TILE2 = 0x2e;
+        //-------------------------------
+        // 259d  212f2e    ld      hl,#2e2f
+        // 25a0  220c4d    ld      (#4d0c),hl
+        // 25a3  22334d    ld      (#4d33),hl
+        //-------------------------------
+        PINKY_Y_TILE = PINKY_Y_TILE2 = 0x2f;
+        PINKY_X_TILE = PINKY_X_TILE2 = 0x2e;
+        //-------------------------------
+        // 25a6  212f30    ld      hl,#302f
+        // 25a9  220e4d    ld      (#4d0e),hl
+        // 25ac  22354d    ld      (#4d35),hl
+        //-------------------------------
+        INKY_Y_TILE = INKY_Y_TILE2 = 0x2f;
+        INKY_X_TILE = INKY_X_TILE2 = 0x30;
+        //-------------------------------
+        // 25af  212f2c    ld      hl,#2c2f
+        // 25b2  22104d    ld      (#4d10),hl
+        // 25b5  22374d    ld      (#4d37),hl
+        //-------------------------------
+        CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x2f;
+        CLYDE_X_TILE = CLYDE_X_TILE2 = 0x2c;
+        //-------------------------------
+        // 25b8  21382e    ld      hl,#2e38
+        // 25bb  22124d    ld      (#4d12),hl
+        // 25be  22394d    ld      (#4d39),hl
+        //-------------------------------
+        PACMAN_Y_TILE = PACMAN_Y_TILE2 = 0x38;
+        PACMAN_X_TILE = PACMAN_X_TILE2 = 0x2e;
+        //-------------------------------
+        // 25c1  210001    ld      hl,#0100
+        // 25c4  22144d    ld      (#4d14),hl
+        // 25c7  221e4d    ld      (#4d1e),hl
+        //-------------------------------
+        BLINKY_Y_TILE_CHANGE = BLINKY_Y_TILE_CHANGE2 = 0x00;
+        BLINKY_X_TILE_CHANGE = BLINKY_X_TILE_CHANGE2 = 0x01;
+        //-------------------------------
+        // 25ca  210100    ld      hl,#0001
+        // 25cd  22164d    ld      (#4d16),hl
+        // 25d0  22204d    ld      (#4d20),hl
+        //-------------------------------
+        PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x01;
+        PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x00;
+        //-------------------------------
+        // 25d3  21ff00    ld      hl,#00ff
+        // 25d6  22184d    ld      (#4d18),hl
+        // 25d9  22224d    ld      (#4d22),hl
+        //-------------------------------
+        INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0xff;
+        INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x00;
+        //-------------------------------
+        // 25dc  21ff00    ld      hl,#00ff
+        // 25df  221a4d    ld      (#4d1a),hl
+        // 25e2  22244d    ld      (#4d24),hl
+        //-------------------------------
+        CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0xff;
+        CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x00;
+        //-------------------------------
+        // 25e5  210001    ld      hl,#0100
+        // 25e8  221c4d    ld      (#4d1c),hl
+        // 25eb  22264d    ld      (#4d26),hl
+        //-------------------------------
+        PACMAN_Y_TILE_CHANGE = PACMAN_Y_TILE_CHANGE2 = 0x00;
+        PACMAN_X_TILE_CHANGE = PACMAN_X_TILE_CHANGE2 = 0x01;
+        //-------------------------------
+        // 25ee  210201    ld      hl,#0102
+        // 25f1  22284d    ld      (#4d28),hl
+        // 25f4  222c4d    ld      (#4d2c),hl
+        //-------------------------------
+        BLINKY_ORIENTATON = BLINKY_PREV_ORIENTATION = 0x02;
+        PINKY_ORIENTATON = PINKY_PREV_ORIENTATION = 0x01;
+        //-------------------------------
+        // 25f7  210303    ld      hl,#0303
+        // 25fa  222a4d    ld      (#4d2a),hl
+        // 25fd  222e4d    ld      (#4d2e),hl
+        //-------------------------------
+        INKY_ORIENTATON = INKY_PREV_ORIENTATION = 0x03;
+        CLYDE_ORIENTATON = CLYDE_PREV_ORIENTATION = 0x03;
+        //-------------------------------
+        // 2600  3e02      ld      a,#02
+        // 2602  32304d    ld      (#4d30),a
+        // 2605  323c4d    ld      (#4d3c),a
+        //-------------------------------
+        PACMAN_ORIENTATON = PACMAN_DESIRED_ORIENTATION = 0x02;
+        //-------------------------------
+        // 2608  210000    ld      hl,#0000
+        // 260b  22d24d    ld      (#4dd2),hl
+        // 260e  c9        ret     
+        //-------------------------------
+        FRUIT_POS = 0x0000;
+    }
+    else
+    {
+        //-------------------------------
+        // 260f  219400    ld      hl,#0094
+        // 2612  22004d    ld      (#4d00),hl
+        // 2615  22024d    ld      (#4d02),hl
+        // 2618  22044d    ld      (#4d04),hl
+        // 261b  22064d    ld      (#4d06),hl
+        //-------------------------------
+        BLINKY_Y = 0x94;
+        BLINKY_X = 0x00;
+        PINKY_Y = 0x94;
+        PINKY_X = 0x00;
+        INKY_Y = 0x94;
+        INKY_X = 0x00;
+        CLYDE_Y = 0x94;
+        CLYDE_X = 0x00;
+        //-------------------------------
+        // 261e  21321e    ld      hl,#1e32
+        // 2621  220a4d    ld      (#4d0a),hl
+        // 2624  220c4d    ld      (#4d0c),hl
+        // 2627  220e4d    ld      (#4d0e),hl
+        // 262a  22104d    ld      (#4d10),hl
+        // 262d  22314d    ld      (#4d31),hl
+        // 2630  22334d    ld      (#4d33),hl
+        // 2633  22354d    ld      (#4d35),hl
+        // 2636  22374d    ld      (#4d37),hl
+        //-------------------------------
+        BLINKY_Y_TILE = BLINKY_Y_TILE2 = 0x32;
+        BLINKY_X_TILE = BLINKY_X_TILE2 = 0x1e;
+        PINKY_Y_TILE = PINKY_Y_TILE2 = 0x32;
+        PINKY_X_TILE = PINKY_X_TILE2 = 0x1e;
+        INKY_Y_TILE = INKY_Y_TILE2 = 0x32;
+        INKY_X_TILE = INKY_X_TILE2 = 0x1e;
+        CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x32;
+        CLYDE_X_TILE = CLYDE_X_TILE2 = 0x1e;
+        //-------------------------------
+        // 2639  210001    ld      hl,#0100
+        // 263c  22144d    ld      (#4d14),hl
+        // 263f  22164d    ld      (#4d16),hl
+        // 2642  22184d    ld      (#4d18),hl
+        // 2645  221a4d    ld      (#4d1a),hl
+        // 2648  221e4d    ld      (#4d1e),hl
+        // 264b  22204d    ld      (#4d20),hl
+        // 264e  22224d    ld      (#4d22),hl
+        // 2651  22244d    ld      (#4d24),hl
+        // 2654  221c4d    ld      (#4d1c),hl
+        // 2657  22264d    ld      (#4d26),hl
+        //-------------------------------
+        BLINKY_Y_TILE_CHANGE = BLINKY_Y_TILE_CHANGE2 = 0x00;
+        BLINKY_X_TILE_CHANGE = BLINKY_X_TILE_CHANGE2 = 0x01;
+        PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x00;
+        PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x01;
+        INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0x00;
+        INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x01;
+        CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0x00;
+        CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x01;
+        PACMAN_Y_TILE_CHANGE = PACMAN_Y_TILE_CHANGE2 = 0x00;
+        PACMAN_X_TILE_CHANGE = PACMAN_X_TILE_CHANGE2 = 0x01;
+        //-------------------------------
+        // 265a  21284d    ld      hl,#4d28
+        // 265d  3e02      ld      a,#02
+        // 265f  0609      ld      b,#09
+        // 2661  cf        rst     #8
+        //-------------------------------
+        memset (&BLINKY_PREV_ORIENTATION, 0x02, 0x9);
+        //-------------------------------
+        // 2662  323c4d    ld      (#4d3c),a
+        // 2665  219408    ld      hl,#0894
+        // 2668  22084d    ld      (#4d08),hl
+        //-------------------------------
+        PACMAN_DESIRED_ORIENTATION = 0x02;
+        PACMAN_Y = 0x94;
+        PACMAN_X = 0x08;
+        //-------------------------------
+        // 266b  21321f    ld      hl,#1f32
+        // 266e  22124d    ld      (#4d12),hl
+        // 2671  22394d    ld      (#4d39),hl
+        // 2674  c9        ret     
+        //-------------------------------
+        PACMAN_Y_TILE PACMAN_Y_TILE2 = 0x32;
+        PACMAN_X_TILE PACMAN_X_TILE2 = 0x32;
+    }
 }
-
-// 260f  219400    ld      hl,#0094
-// 2612  22004d    ld      (#4d00),hl
-// 2615  22024d    ld      (#4d02),hl
-// 2618  22044d    ld      (#4d04),hl
-// 261b  22064d    ld      (#4d06),hl
-// 261e  21321e    ld      hl,#1e32
-// 2621  220a4d    ld      (#4d0a),hl
-// 2624  220c4d    ld      (#4d0c),hl
-// 2627  220e4d    ld      (#4d0e),hl
-// 262a  22104d    ld      (#4d10),hl
-// 262d  22314d    ld      (#4d31),hl
-// 2630  22334d    ld      (#4d33),hl
-// 2633  22354d    ld      (#4d35),hl
-// 2636  22374d    ld      (#4d37),hl
-// 2639  210001    ld      hl,#0100
-// 263c  22144d    ld      (#4d14),hl
-// 263f  22164d    ld      (#4d16),hl
-// 2642  22184d    ld      (#4d18),hl
-// 2645  221a4d    ld      (#4d1a),hl
-// 2648  221e4d    ld      (#4d1e),hl
-// 264b  22204d    ld      (#4d20),hl
-// 264e  22224d    ld      (#4d22),hl
-// 2651  22244d    ld      (#4d24),hl
-// 2654  221c4d    ld      (#4d1c),hl
-// 2657  22264d    ld      (#4d26),hl
-// 265a  21284d    ld      hl,#4d28
-// 265d  3e02      ld      a,#02
-// 265f  0609      ld      b,#09
-// 2661  cf        rst     #8
-memset (0x4040, 0x40, 0x80);
-// 2662  323c4d    ld      (#4d3c),a
-// 2665  219408    ld      hl,#0894
-// 2668  22084d    ld      (#4d08),hl
-// 266b  21321f    ld      hl,#1f32
-// 266e  22124d    ld      (#4d12),hl
-// 2671  22394d    ld      (#4d39),hl
-// 2674  c9        ret     
 
 void func_2675()
 {
@@ -6455,20 +6686,25 @@ void func_2675()
     // 2675  210000    ld      hl,#0000
     // 2678  22d24d    ld      (#4dd2),hl
     // 267b  22084d    ld      (#4d08),hl
+    //-------------------------------
+    FRUIT_POS = 0;
+    PACMAN_Y = PACMAN_X = 0;
+    setGhostPosition_267e (0, 0);
+}
 
+void setGhostPosition_267e (int y, int x)
+{
+    //-------------------------------
     // 267e  22004d    ld      (#4d00),hl
     // 2681  22024d    ld      (#4d02),hl
     // 2684  22044d    ld      (#4d04),hl
     // 2687  22064d    ld      (#4d06),hl
     // 268a  c9        ret     
     //-------------------------------
-    hl = 0;
-    MEM[0x4dd2] = 0;
-    MEM[0x4d08] = 0;
-    MEM[0x4d00] = hl;
-    MEM[0x4d02] = hl;
-    MEM[0x4d04] = hl;
-    MEM[0x4d06] = hl;
+    BLINKY_Y = BLINKY_X = x;
+    PINKY_Y = PINKY_X = x;
+    INKY_Y = INKY_X = x;
+    CLYDE_Y = CLYDE_X = x;
 }
 
 func_268b()
@@ -6905,6 +7141,11 @@ func_200f();
 // 2960  e603      and     #03
 // 2962  77        ld      (hl),a
 // 2963  c33d29    jp      #293d
+func_293d();
+}
+
+void func_2966 ()
+{
 // 2966  223e4d    ld      (#4d3e),hl
 // 2969  ed53404d  ld      (#4d40),de
 // 296d  323b4d    ld      (#4d3b),a
@@ -6961,7 +7202,10 @@ func_29ea();
 // 29e4  dd6601    ld      h,(ix+#01)
 // 29e7  cb3f      srl     a
 // 29e9  c9        ret     
-// 
+}
+
+void func_29ea()
+{
 // 29ea  dd7e00    ld      a,(ix+#00)
 // 29ed  fd4600    ld      b,(iy+#00)
 // 29f0  90        sub     b
