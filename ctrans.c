@@ -4,48 +4,12 @@
 
 #include "memmap.h"
 
-#define DIP_TEST_SWITCH (regsRead.in0 & 0x10)
-
-//	;; 4dc5 counter for something
-uint16_t *tbdCounter = &MEM[0x4dc5];
-
-#define GAME_STATE MEM[0x4e00]
-#define START_STATE MEM[0x4e01]
-#define LEVEL MEM[0x4e13]
-//	;; 4e66 last state coin inputs shifted left by 1
-#define COIN_LAST_STATE MEM[0x4e66]
-//	;; 4e6b #coins per #credits
-#define COINS_PER_CREDIT 1
-//	;; 4e6c #left over coins (partial credits)
-static int partialCredit;
-//	;; 4e6d	#credits per #coins
-#define CREDITS_PER_COIN MEM[0x4e6d]
-//	;; 4e6e #credits in BCD
-#define CREDITS MEM[0x4e6e]
-//	;; 4e6f #lives per game
-#define LIVES_PER_GAME MEM[0x4e6f]
-//      ;; 4e70 #two player mode
-#define TWO_PLAYERS MEM[0x4e70]
-
-//	;; 4e80-4e83 P1 score
-uint32_t p1Score;
-//	;; 4e84-4e87 P2 score
-uint32_t p2Score;
-//	;; 4e88-4e8b High score
-uint32_t highScore;
-	
-//	;; 4370 #players (0=1, 1=2)
-uint8_t numPlayers;
-
-// 	Starting address: 0
-//   Ending address: 16383
-//      Output file: (none)
-// Pass 1 of 1
+//-------------------------------
 // 0000  f3        di			; Disable interrupts
 // 0001  3e3f      ld      a,#3f
 // 0003  ed47      ld      i,a		; Interrupt page = 0x3f
 // 0005  c30b23    jp      #230b		; Run startup tests
-// 
+//-------------------------------
 
 //-------------------------------
 // 	;; Fill "hl" to "hl+b" with "a"
@@ -113,7 +77,7 @@ uint16_t tableLookup (uint16_t *addr, uint8_t offset)
 // 0026  eb        ex      de,hl
 // 0027  e9        jp      (hl)
 //-------------------------------
-tableCall (void (*func*)[], uint8_t index)
+void tableCall (void (*func*)[], uint8_t index)
 {
     func[index]();
 }
@@ -121,7 +85,7 @@ tableCall (void (*func*)[], uint8_t index)
 /*  Fetches two bytes following caller return address and places in a ring.  The
  *  C implementation doesn't need to retrieve from stack, so is just a wrapper
  *  */
-void storeRingIndirect (int b, int c)
+void schedTask (int b, int c)
 {
     //-------------------------------
     // 0028  e1        pop     hl              ; retrieve return addr
@@ -132,16 +96,23 @@ void storeRingIndirect (int b, int c)
     // 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
     // 002e  1812      jr      #0042           ; (18)
     //-------------------------------
-    storeRingTBD (b, c);
+    addTask (b, c);
 }
 
-/*  Fetches 3 bytes and stores them to a free location starting at 0x4c90 */
-void rst_30 ()
+/*  Fetches 3 bytes and stores them to a free location starting at 0x4c90.  In C
+ *  we pass the bytes as params.  Task list starts at 0x4c90 and has 16 entries  */
+void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
 {
+    //-------------------------------
     // 0030  11904c    ld      de,#4c90
     // 0033  0610      ld      b,#10
     // 0035  c35100    jp      #0051
-    func_51(0x4c90, 0x10);
+    //-------------------------------
+    uint8_t data[3];
+    data[0] = time;
+    data[1] = routine;
+    data[2] = param;
+    addISRTask (ISR_TASKS, 0x10, data);
 }
 
 // 	;; Loop waiting for interrupt?
@@ -158,65 +129,75 @@ void waitForever (void)
     }
 }
 
-// 	;; Weird routine
-// 	;; (#4c80) spins through 4cc0 to 4cff
-// 	;; bc -> ((#4c80)),  (#4c80++)
-// 0042  2a804c    ld      hl,(#4c80)
-// 0045  70        ld      (hl),b
-// 0046  2c        inc     l
-// 0047  71        ld      (hl),c
-// 0048  2c        inc     l
-// 0049  2002      jr      nz,#004d        ; (2)
-// 004b  2ec0      ld      l,#c0
-// 004d  22804c    ld      (#4c80),hl
-// 0050  c9        ret     
-void storeRingTBD (int b, int c)
+/*  The task list is from 0x4cc0-0x4cff.  High byte doesn't change so only
+ *  increment l.  If the low byte is 00 then we have hit the end so we need to
+ *  wrap around to 0x4cc0 again. */
+void addTask (uint8_t task, uint8_t param)
 {
-    h = MEM[0x4c80];
-    l = MEM[0x4c81];
-    MEM[hl] = b;
-    MEM[hl+1] = c;
-    hl+=2;
-    if (l == 0)
-        l = 0xc0;
-    MEM[0x4c80] = hl;
+    //-------------------------------
+    // 0042  2a804c    ld      hl,(#4c80)       ; task list start value
+    // 0045  70        ld      (hl),b
+    // 0046  2c        inc     l
+    // 0047  71        ld      (hl),c
+    // 0048  2c        inc     l
+    // 0049  2002      jr      nz,#004d        ; (2)
+    // 004b  2ec0      ld      l,#c0            ; if l=0x00 then reset to 0xc0
+    // 004d  22804c    ld      (#4c80),hl
+    // 0050  c9        ret     
+    //-------------------------------
+    MEM[TASK_LIST_BEGIN++]=task; 
+    MEM[TASK_LIST_BEGIN++]=param; 
+
+    if ((TASK_LIST_BEGIN == 0x4d00)
+        TASK_LIST_BEGIN = 0x4cc0;
 }
 
-func_51(int de, int b)
+addISRTask(uint8_t *ptr, int count, uint8_t* data)
 {
-// 	;; Jump from rst 0x30
-// 0051  1a        ld      a,(de)
-// 0052  a7        and     a
-// 0053  2806      jr      z,#005b         ; (6)
-// 0055  1c        inc     e
-// 0056  1c        inc     e
-// 0057  1c        inc     e
-// 0058  10f7      djnz    #0051           ; (-9)
-for (int i = 0; i < b; i++)
-{
-    if (MEM[de] == 0)
-        break;
+    //-------------------------------
+    // 	;; Jump from rst 0x30
+    // 0051  1a        ld      a,(de)
+    // 0052  a7        and     a
+    // 0053  2806      jr      z,#005b         ; (6)
+    // 0055  1c        inc     e
+    // 0056  1c        inc     e
+    // 0057  1c        inc     e
+    // 0058  10f7      djnz    #0051           ; (-9)
+    //-------------------------------
+    int i;
+    for (i = 0; i < count; i++)
+    {
+        if (*ptr == 0)
+            break;
 
-    de+3;
+        ptr+3;
+    }
+    //-------------------------------
+    // 005a  c9        ret     
+    //-------------------------------
+    if (i==count)
+        return;
+
+    //-------------------------------
+    // 005b  e1        pop     hl           ; retrieve return address
+    // 005c  0603      ld      b,#03
+    //-------------------------------
+    for (i = 0; i < 3; i++)
+    {
+        //-------------------------------
+        // 005e  7e        ld      a,(hl)   ; fetch a byte from return addr
+        // 005f  12        ld      (de),a   ; store byte to task entry
+        // 0060  23        inc     hl
+        // 0061  1c        inc     e
+        // 0062  10fa      djnz    #005e           ; (-6)
+        //-------------------------------
+        *ptr++=data++;
+    }
+
+    //-------------------------------
+    // 0064  e9        jp      (hl)
+    //-------------------------------
 }
-// 005a  c9        ret     
-if (i==b)
-    return;
-
-// 005b  e1        pop     hl
-// 005c  0603      ld      b,#03
-for (b = 0; b < 3; b++)
-{
-    // 005e  7e        ld      a,(hl)
-    // 005f  12        ld      (de),a
-    // 0060  23        inc     hl
-    // 0061  1c        inc     e
-    // 0062  10fa      djnz    #005e           ; (-6)
-    MEM[de++]=MEM[hl]++;
-}
-
-// 0064  e9        jp      (hl)
-return;
 
 // 0065  c32d20    jp      #202d
 
@@ -229,21 +210,21 @@ return;
 //-------------------------------
 uint8_t data_68[] = { 0 };
 
-//-------------------------------
-// 	;; Non-test mode interrupt routine
-// 008d  f5        push    af
-// 008e  32c050    ld      (#50c0),a	; Kick watchdog 
-// 0091  af        xor     a
-// 0092  320050    ld      (#5000),a	; Disable interrupts (hardware) 
-// 0095  f3        di			; Disable interrupts (CPU) 
-// 0096  c5        push    bc
-// 0097  d5        push    de
-// 0098  e5        push    hl
-// 0099  dde5      push    ix
-// 009b  fde5      push    iy
-//-------------------------------
 void isr()
 {
+    //-------------------------------
+    // 	;; Non-test mode interrupt routine
+    // 008d  f5        push    af
+    // 008e  32c050    ld      (#50c0),a	; Kick watchdog 
+    // 0091  af        xor     a
+    // 0092  320050    ld      (#5000),a	; Disable interrupts (hardware) 
+    // 0095  f3        di			; Disable interrupts (CPU) 
+    // 0096  c5        push    bc
+    // 0097  d5        push    de
+    // 0098  e5        push    hl
+    // 0099  dde5      push    ix
+    // 009b  fde5      push    iy
+    //-------------------------------
     kickWatchdog();
     INTENABLE = 0;
     interruptDisable();
@@ -315,7 +296,7 @@ void isr()
     // 00db  011c00    ld      bc,#001c
     // 00de  edb0      ldir
     //-------------------------------
-    memcpy (&MEM[0x4c22], &MEM[0x4c02], 0x1c);
+    memcpy (SPRITE_POS, &BLINKY_SPRITE, 0x1c);
 
     //-------------------------------
     // 00e0  dd21204c  ld      ix,#4c20
@@ -371,7 +352,7 @@ void isr()
     // 0117  fe01      cp      #01
     // 0119  2038      jr      nz,#0153        ; (56)
     //-------------------------------
-    if (MEM[0x4dd1] == 0)
+    if (KILLED_STATE == 0)
     {
         //-------------------------------
         // 011b  dd21204c  ld      ix,#4c20
@@ -381,7 +362,7 @@ void isr()
         // 0124  1600      ld      d,#00
         // 0126  dd19      add     ix,de
         //-------------------------------
-        ix = 0x4c20 + MEM[0x4da4]*2;
+        ix = SPRITE_POS + KILLED_GHOST_INDEX*2;
 
         //-------------------------------
         // 0128  2a244c    ld      hl,(#4c24)
@@ -406,16 +387,6 @@ void isr()
         // 014d  dd7310    ld      (ix+#10),e
         // 0150  dd7211    ld      (ix+#11),d
         //-------------------------------
-        #if 0
-        MEM[0x4c24] = MEM[ix];
-        MEM[0x4c25] = MEM[ix+1];
-        MEM[0x4c34] = MEM[ix+0x10];
-        MEM[0x4c35] = MEM[ix+0x11];
-        MEM[ix] = l;
-        MEM[ix+1] = h;
-        MEM[ix+0x10] = e;
-        MEM[ix+0x11] = d;
-        #endif
         SWAP16 (0x4c24, ix);
         SWAP16 (0x4c34, ix+0x10);
     }
@@ -425,7 +396,7 @@ void isr()
     // 0156  a7        and     a
     // 0157  ca7601    jp      z,#0176
     //-------------------------------
-    if (MEM[0x4da6] != 0)
+    if (PILL_EFFECT != 0)
     {
         //-------------------------------
         // 015a  ed4b224c  ld      bc,(#4c22)
@@ -447,7 +418,7 @@ void isr()
     // 017c  010c00    ld      bc,#000c
     // 017f  edb0      ldir    
     //-------------------------------
-    memcpy (&MEM[0x4ff2], &MEM[0x4c22], 0xc);
+    memcpy (SPRITES, SPRITE_POS, 0xc);
 
     //-------------------------------
     // 0181  21324c    ld      hl,#4c32
@@ -640,8 +611,8 @@ void func_221()
     // 0227  4f        ld      c,a
     // 0228  0610      ld      b,#10
     //-------------------------------
-    c = MEM[0x4c8a];
-    hl = 0x4c90;
+    c = COUNTER_LIMITS_CHANGES;
+    hl = ISR_TASKS;
 
     for (int b = 0; b < 0x10; b++)
     {
@@ -727,7 +698,7 @@ void func_221()
 //-------------------------------
 func_263()
 {
-    storeRingIndirect(0x1c, 0x86);
+    schedTask(0x1c, 0x86);
 }
 
 void checkCoinInput ()
@@ -777,7 +748,7 @@ void checkCoinInput ()
     // 0299  34        inc     (hl)
     //-------------------------------
     if (COIN2_LAST_STATE == 0xc)
-        MEM[4e69]++;
+        COIN_COUNTER++;
 
     //-------------------------------
     // 029a  cb00      rlc     b                    ; Move MSB (COIN1) to carry flag
@@ -798,7 +769,7 @@ void checkCoinInput ()
     // 02ab  34        inc     (hl)
     // 02ac  c9        ret     
     //-------------------------------
-    MEM[0x4e69]++;
+    COIN_COUNTER++;
 }
 
 void func_2ad()
@@ -808,7 +779,7 @@ void func_2ad()
     // 02b0  a7        and     a
     // 02b1  c8        ret     z
     //-------------------------------
-    if (MEM[0x4e69] == 0)
+    if (COIN_COUNTER == 0)
         return;
 
     //-------------------------------
@@ -818,14 +789,14 @@ void func_2ad()
     // 02b7  fe00      cp      #00
     // 02b9  c2c402    jp      nz,#02c4
     //-------------------------------
-    if (MEM[0x4e6a] == 0)
+    if (COIN_COUNTER_TIMEOUT == 0)
     {
         //-------------------------------
         // 02bc  3e01      ld      a,#01
         // 02be  320750    ld      (#5007),a    ; coin counter = 1
         // 02c1  cddf02    call    #02df
         //-------------------------------
-        COINCOUNTER=1;
+        COIN_COUNTER=1;
         checkCoinCredit ();
     }
 
@@ -834,7 +805,7 @@ void func_2ad()
     // 02c5  fe08      cp      #08
     // 02c7  c2ce02    jp      nz,#02ce
     //-------------------------------
-    if (MEM[0x4e6a] == 8)
+    if (COIN_COUNTER_TIMEOUT == 8)
     {
         //-------------------------------
         // 02ca  af        xor     a
@@ -848,13 +819,13 @@ void func_2ad()
     // 02cf  7b        ld      a,e
     // 02d0  326a4e    ld      (#4e6a),a
     //-------------------------------
-    MEM[0x4e6a]++;
+    COIN_COUNTER_TIMEOUT++;
 
     //-------------------------------
     // 02d3  d610      sub     #10
     // 02d5  c0        ret     nz
     //-------------------------------
-    if (MEM[0x4e6a] != 0x10)
+    if (COIN_COUNTER_TIMEOUT != 0x10)
         return;
 
     //-------------------------------
@@ -864,8 +835,8 @@ void func_2ad()
     // 02db  32694e    ld      (#4e69),a
     // 02de  c9        ret     
     //-------------------------------
-    MEM[0x4e6a] -= 0x10;
-    MEM[0x4e69]--;
+    COIN_COUNTER_TIMEOUT -= 0x10;
+    COIN_COUNT--;
 }
 
 //-------------------------------
@@ -1007,7 +978,7 @@ void playerUp ()
     // 0348  3ace4d    ld      a,(#4dce)
     // 034b  c25903    jp      nz,#0359
     //-------------------------------
-    if (MEM[0x4e09] == 0)
+    if (PLAYER == 0)
     {
         //-------------------------------
         // 034e  cb67      bit     4,a
@@ -1185,14 +1156,14 @@ void func_3dc()
     // 03f1  ef        rst     #28
     // 03f2  0700
     //-------------------------------
-    storeRingIndirect (0x00, 0x00);
-    storeRingIndirect (0x06, 0x00);
-    storeRingIndirect (0x01, 0x00);
-    storeRingIndirect (0x14, 0x00);
-    storeRingIndirect (0x18, 0x00);
-    storeRingIndirect (0x04, 0x00);
-    storeRingIndirect (0x1e, 0x00);
-    storeRingIndirect (0x07, 0x00);
+    schedTask (0x00, 0x00);
+    schedTask (0x06, 0x00);
+    schedTask (0x01, 0x00);
+    schedTask (0x14, 0x00);
+    schedTask (0x18, 0x00);
+    schedTask (0x04, 0x00);
+    schedTask (0x1e, 0x00);
+    schedTask (0x07, 0x00);
 
     //-------------------------------
     // 03f4  21014e    ld      hl,#4e01
@@ -1250,7 +1221,7 @@ void func_3fe()
                          func_4bf, nothing, func_4cd, nothing,
                          func_4d3, nothing, func_4d8, nothingm
                          func_4e0, nothing, func_51c, func_54b,
-                         func_565, func_561, func_56c, func_57c };
+                         func_556, func_561, func_56c, func_57c };
     tableCall (MEM[0x4e02], func);
 }
 
@@ -1266,10 +1237,10 @@ void func_45f()
     // 0468  ef        rst     #28
     // 0469  1e00
     //-------------------------------
-    storeRingIndirect (0x00, 0x01);
-    storeRingIndirect (0x01, 0x00);
-    storeRingIndirect (0x04, 0x00);
-    storeRingIndirect (0x1e, 0x00);
+    schedTask (0x00, 0x01);
+    schedTask (0x01, 0x00);
+    schedTask (0x04, 0x00);
+    schedTask (0x1e, 0x00);
 
     //-------------------------------
     // 046b  0e0c      ld      c,#0c
@@ -1426,7 +1397,7 @@ void func_4d8()
     // 04d8  ef        rst     #28
     // 04d9  1c11
     //-------------------------------
-    storeRingIndirect (0x1c, 0x11);
+    schedTask (0x1c, 0x11);
     //-------------------------------
     //       0e12      ld      c,0x12
     // 04dd  c38505    jp      #0585
@@ -1457,10 +1428,10 @@ void func_4e0()
     // 04f2  ef        rst     #28
     // 04f3  0401
     //-------------------------------
-    storeRingIndirect (0x11, 0x00);
-    storeRingIndirect (0x05, 0x01);
-    storeRingIndirect (0x10, 0x14);
-    storeRingIndirect (0x04, 0x01);
+    schedTask (0x11, 0x00);
+    schedTask (0x05, 0x01);
+    schedTask (0x10, 0x14);
+    schedTask (0x04, 0x01);
     //-------------------------------
     // 04f5  3e01      ld      a,#01
     // 04f7  32144e    ld      (#4e14),a
@@ -1501,25 +1472,35 @@ void func_4e0()
     //-------------------------------
 }
 
-func_51c()
+void func_51c()
 {
     //-------------------------------
     // 051c  21a04d    ld      hl,#4da0
     // 051f  0621      ld      b,#21
     // 0521  3a3a4d    ld      a,(#4d3a)
+    //-------------------------------
+    func_524 (0x4da0, 0x21, MEM[0x4d3a]);
+}
 
+void func_524(int hl, int b, int a)
+{
+    //-------------------------------
     // 0524  90        sub     b
     // 0525  2005      jr      nz,#052c        ; (5)
     // 0527  3601      ld      (hl),#01
     // 0529  c38e05    jp      #058e
     //-------------------------------
-    if (MEM[0x4d3a] == 0x21)
+    if (a == 0x21)
     {
-        MEM[0x4da0]=1;
+        MEM[hl]=1;
         func_58e();
         return;
     }
+    func_52c();
+}
 
+void func_52c()
+{
     //-------------------------------
     // 052c  cd1710    call    #1017
     // 052f  cd1710    call    #1017
@@ -1545,30 +1526,68 @@ func_51c()
     func_1f73();
 }
 
-// 054b  21a14d    ld      hl,#4da1
-// 054e  0620      ld      b,#20
-// 0550  3a324d    ld      a,(#4d32)
-// 0553  c32405    jp      #0524
+void func_54b()
+{
+    //-------------------------------
+    // 054b  21a14d    ld      hl,#4da1
+    // 054e  0620      ld      b,#20
+    // 0550  3a324d    ld      a,(#4d32)
+    // 0553  c32405    jp      #0524
+    //-------------------------------
+    func_524 (0x4da1, 0x20, MEM[0x4d32]);
+}
 
-// 0556  21a24d    ld      hl,#4da2
-// 0559  0622      ld      b,#22
-// 055b  3a324d    ld      a,(#4d32)
-// 055e  c32405    jp      #0524
+void func_556()
+{
+    //-------------------------------
+    // 0556  21a24d    ld      hl,#4da2
+    // 0559  0622      ld      b,#22
+    // 055b  3a324d    ld      a,(#4d32)
+    // 055e  c32405    jp      #0524
+    //-------------------------------
+    func_524 (0x4da2, 0x22, MEM[0x4d32]);
+}
 
-// 0561  21a34d    ld      hl,#4da3
-// 0564  0624      ld      b,#24
-// 0566  3a324d    ld      a,(#4d32)
-// 0569  c32405    jp      #0524
+void func_561()
+{
+    //-------------------------------
+    // 0561  21a34d    ld      hl,#4da3
+    // 0564  0624      ld      b,#24
+    // 0566  3a324d    ld      a,(#4d32)
+    // 0569  c32405    jp      #0524
+    //-------------------------------
+    func_524 (0x4da3, 0x24, MEM[0x4d32]);
+}
 
-// 056c  3ad04d    ld      a,(#4dd0)
-// 056f  47        ld      b,a
-// 0570  3ad14d    ld      a,(#4dd1)
-// 0573  80        add     a,b
-// 0574  fe06      cp      #06
-// 0576  ca8e05    jp      z,#058e
-// 0579  c32c05    jp      #052c
-// 057c  cdbe06    call    #06be
-// 057f  c9        ret     
+void func_56c()
+{
+    //-------------------------------
+    // 056c  3ad04d    ld      a,(#4dd0)
+    // 056f  47        ld      b,a
+    // 0570  3ad14d    ld      a,(#4dd1)
+    // 0573  80        add     a,b
+    // 0574  fe06      cp      #06
+    // 0576  ca8e05    jp      z,#058e
+    //-------------------------------
+    if (KILLED_COUNT+KILLED_STATE != 6)
+    {
+        func_58e();
+        return;
+    }
+    //-------------------------------
+    // 0579  c32c05    jp      #052c
+    //-------------------------------
+    func_52c();
+}
+
+void func_57c()
+{
+    //-------------------------------
+    // 057c  cdbe06    call    #06be
+    // 057f  c9        ret     
+    //-------------------------------
+    func_6be();
+}
 
 void func_580(int c)
 {
@@ -1596,7 +1615,7 @@ void func_585(int c)
     // 058a  f7        rst     #30
     // 058b  4a0200
     //-------------------------------
-    rst_30 (0x4a, 0x02, 0x00);
+    schedISRTask (0x4a, 0x02, 0x00);
 
     //-------------------------------
     // 058e  21024e    ld      hl,#4e02
@@ -1623,7 +1642,7 @@ void func_593()
     // 05a1  cd8e05    call    #058e
     // 05a4  c9        ret     
     //-------------------------------
-    rst_30 (0x45, 0x02, 0x00);
+    schedISRTask (0x45, 0x02, 0x00);
     func_58e();
 }
 
@@ -1632,18 +1651,20 @@ void func_5a5 ()
 // 05a5  3ab54d    ld      a,(#4db5)
 // 05a8  a7        and     a
 // 05a9  c8        ret     z
-}
+if (MEM[0x4db5] == 0)
+    return;
 
-void func_5aa ()
-{
 // 05aa  af        xor     a
 // 05ab  32b54d    ld      (#4db5),a
+MEM[0x4db5] = 0;
 // 05ae  3a304d    ld      a,(#4d30)
 // 05b1  ee02      xor     #02
 // 05b3  323c4d    ld      (#4d3c),a
+MEM[0x4d3c] = MEM[0x4d30] ^ 2;
 // 05b6  47        ld      b,a
 // 05b7  21ff32    ld      hl,#32ff
 // 05ba  df        rst     #18
+hl=tableLookup (&MEM[0x32ff], b);
 // 05bb  22264d    ld      (#4d26),hl
 // 05be  c9        ret     
 }
@@ -1714,11 +1735,11 @@ func_5f3()
     // 0602  ef        rst     #28
     // 0603  1e00
     //-------------------------------
-    storeRingIndirect (0x00, 0x01);
-    storeRingIndirect (0x01, 0x00);
-    storeRingIndirect (0x1c, 0x07);
-    storeRingIndirect (0x1c, 0x0b);
-    storeRingIndirect (0x1e, 0x00);
+    schedTask (0x00, 0x01);
+    schedTask (0x01, 0x00);
+    schedTask (0x1c, 0x07);
+    schedTask (0x1c, 0x0b);
+    schedTask (0x1e, 0x00);
     //-------------------------------
     // 0605  21034e    ld      hl,#4e03
     // 0608  34        inc     (hl)
@@ -1741,8 +1762,8 @@ func_5f3()
     // 0618  1f00
     // 061a  c9        ret     
     //-------------------------------
-    storeRingIndirect (0x1c, 0x0a);
-    storeRingIndirect (0x1f, 0x00);
+    schedTask (0x1c, 0x0a);
+    schedTask (0x1f, 0x00);
 }
 
 /*  4e00==0 && 4e03==1, if start pushed, 4e03=2 */
@@ -1875,15 +1896,15 @@ func_674()
     // 068c  ef        rst     #28
     // 068d  1b00
     //-------------------------------
-    storeRingIndirect (0x01, 0x01);
-    storeRingIndirect (0x01, 0x01);
-    storeRingIndirect (0x02, 0x00);
-    storeRingIndirect (0x12, 0x00);
-    storeRingIndirect (0x03, 0x00);
-    storeRingIndirect (0x1c, 0x03);
-    storeRingIndirect (0x1c, 0x06);
-    storeRingIndirect (0x18, 0x00);
-    storeRingIndirect (0x1b, 0x00);
+    schedTask (0x01, 0x01);
+    schedTask (0x01, 0x01);
+    schedTask (0x02, 0x00);
+    schedTask (0x12, 0x00);
+    schedTask (0x03, 0x00);
+    schedTask (0x1c, 0x03);
+    schedTask (0x1c, 0x06);
+    schedTask (0x18, 0x00);
+    schedTask (0x1b, 0x00);
 
     //-------------------------------
     // 068f  af        xor     a
@@ -1899,13 +1920,13 @@ func_674()
     // 069c  ef        rst     #28
     // 069d  1a00
     //-------------------------------
-    storeRingIndirect (0x1a, 0x00);
+    schedTask (0x1a, 0x00);
 
     //-------------------------------
     // 069f  f7        rst     #30
     // 06a0  570100
     //-------------------------------
-    rst_30 (0x57, 0x01, 0x00);
+    schedISRTask (0x57, 0x01, 0x00);
 
     //-------------------------------
     // 06a3  21034e    ld      hl,#4e03
@@ -2193,12 +2214,12 @@ func_899()
     // 08b4  ef        rst     #28
     // 08b5  1a00
     //-------------------------------
-    storeRingIndirect (0x11, 0x00);
-    storeRingIndirect (0x1c, 0x83);
-    storeRingIndirect (0x04, 0x00);
-    storeRingIndirect (0x05, 0x00);
-    storeRingIndirect (0x10, 0x00);
-    storeRingIndirect (0x1a, 0x00);
+    schedTask (0x11, 0x00);
+    schedTask (0x1c, 0x83);
+    schedTask (0x04, 0x00);
+    schedTask (0x05, 0x00);
+    schedTask (0x10, 0x00);
+    schedTask (0x1a, 0x00);
 
 // 08b7  f7        rst     #30
 // 08b8  540000
@@ -2321,8 +2342,8 @@ void func_90d()
                 // 0939  f7        rst     #30
                 // 093a  540000
                 // 093d  c9        ret     
-                storeRingIndirect (0x1c, 0x05);
-                rst_30 (0x54, 0x00, 0x00);
+                schedTask (0x1c, 0x05);
+                schedISRTask (0x54, 0x00, 0x00);
                 return;
             }
         }
@@ -2366,7 +2387,7 @@ MEM[0x4e04]++;
     // 0967  ee01      xor     #01
     // 0969  32094e    ld      (#4e09),a
     //-------------------------------
-    MEM[0x4e09] ^= 1;
+    PLAYER ^= 1;
 
 // 096c  3e09      ld      a,#09
 // 096e  32044e    ld      (#4e04),a
@@ -2383,7 +2404,7 @@ return;
 MEM[0x4e02] =
 MEM[0x4e04] =
 MEM[0x4e70] =
-MEM[0x4e09] = 0;
+PLAYER = 0;
 FLIPSCREEN=0;
 
     // 0982  3e01      ld      a,#01
@@ -3548,6 +3569,8 @@ func_2000();
 // 124a  3ad14d    ld      a,(#4dd1)
 // 124d  a7        and     a
 // 124e  2027      jr      nz,#1277        ; (39)
+if (KILLED_STATE == 0)
+{
 // 1250  3ad04d    ld      a,(#4dd0)
 // 1253  0627      ld      b,#27
 // 1255  80        add     a,b
@@ -3574,7 +3597,9 @@ func_2000();
 // 1272  21d14d    ld      hl,#4dd1
 // 1275  34        inc     (hl)
 // 1276  c9        ret     
-// 
+KILLED_STATE++;
+}
+
 // 1277  3620      ld      (hl),#20
 // 1279  3e09      ld      a,#09
 // 127b  320b4c    ld      (#4c0b),a
@@ -3583,6 +3608,7 @@ func_2000();
 // 1284  af        xor     a
 // 1285  32a44d    ld      (#4da4),a
 // 1288  32d14d    ld      (#4dd1),a
+KILLED_STATE=0;
 // 128b  21ac4e    ld      hl,#4eac
 // 128e  cbf6      set     6,(hl)
 // 1290  c9        ret     
@@ -3949,7 +3975,7 @@ void func_1490()
     // 1497  a0        and     b
     // 1498  c0        ret     nz
     //-------------------------------
-    return ((MEM[0x4e72] & MEM[0x4e09]) == 0);
+    return ((MEM[0x4e72] & PLAYER) == 0);
 }     
  
 // 1499  47        ld      b,a
@@ -4448,7 +4474,7 @@ func_2a5a();
     // 184d  3a094e    ld      a,(#4e09)
     // 1850  a1        and     c
     //-------------------------------
-    c = (MEM[0x4e72] & MEM[0x4e09]);
+    c = (MEM[0x4e72] & PLAYER);
 
 // 1851  4f        ld      c,a
 // 1852  213a4d    ld      hl,#4d3a
@@ -4701,7 +4727,7 @@ func_1ed0();
     //-------------------------------
     // 1a3f  ef        rst     #28
     // 1a40  1700
-    storeRingIndirect (0x17, 0x00);
+    schedTask (0x17, 0x00);
     //-------------------------------
 
 // 1a42  dd21264d  ld      ix,#4d26
@@ -4914,7 +4940,7 @@ func_1ed0();
     // 1c05  ef        rst     #28
     // 1c06  0c00
     //-------------------------------
-    storeRingIndirect (0x0c, 0x00);
+    schedTask (0x0c, 0x00);
 // 1c08  c3191c    jp      #1c19
 // 1c0b  2a0a4d    ld      hl,(#4d0a)
 // 1c0e  cd5220    call    #2052
@@ -4926,7 +4952,7 @@ func_2052();
     // 1c16  ef        rst     #28
     // 1c17  0800
     //-------------------------------
-    storeRingIndirect (0x08, 0x00);
+    schedTask (0x08, 0x00);
 // 1c19  cdfe1e    call    #1efe
 func_1efe();
 // 1c1c  dd211e4d  ld      ix,#4d1e
@@ -5022,7 +5048,7 @@ func_1ed0();
     // 1cdc  ef        rst     #28
     // 1cdd  0d00
     //-------------------------------
-    storeRingIndirect (0x0d, 0x00);
+    schedTask (0x0d, 0x00);
 // 1cdf  c3f01c    jp      #1cf0
 // 1ce2  2a0c4d    ld      hl,(#4d0c)
 // 1ce5  cd5220    call    #2052
@@ -5034,7 +5060,7 @@ func_2052();
     // 1ced  ef        rst     #28
     // 1cee  0900
     //-------------------------------
-    storeRingIndirect (0x09, 0x00);
+    schedTask (0x09, 0x00);
 // 1cf0  cd251f    call    #1f25
 func_1f25();
 // 1cf3  dd21204d  ld      ix,#4d20
@@ -5130,7 +5156,7 @@ func_1ed0();
     // 1db3  ef        rst     #28
     // 1db4  0e00
     //-------------------------------
-    storeRingIndirect (0x0e, 0x00);
+    schedTask (0x0e, 0x00);
 // 1db6  c3c71d    jp      #1dc7
 // 1db9  2a0e4d    ld      hl,(#4d0e)
 // 1dbc  cd5220    call    #2052
@@ -5142,7 +5168,7 @@ func_2052();
     // 1dc4  ef        rst     #28
     // 1dc5  0a00
     //-------------------------------
-    storeRingIndirect (0x0e, 0x00);
+    schedTask (0x0e, 0x00);
 // 1dc7  cd4c1f    call    #1f4c
 func_1f4c();
 // 1dca  dd21224d  ld      ix,#4d22
@@ -5238,7 +5264,7 @@ func_1ed0();
     // 1e8a  ef        rst     #28
     // 1e8b  0f00
     //-------------------------------
-    storeRingIndirect (0x0f, 0x00);
+    schedTask (0x0f, 0x00);
 // 1e8d  c39e1e    jp      #1e9e
 // 1e90  2a104d    ld      hl,(#4d10)
 // 1e93  cd5220    call    #2052
@@ -5250,7 +5276,7 @@ func_2052();
     // 1e9b  ef        rst     #28
     // 1e9c  0b00
     //-------------------------------
-    storeRingIndirect (0x0b, 0x00);
+    schedTask (0x0b, 0x00);
 // 1e9e  cd731f    call    #1f73
 func_1f73();
 // 1ea1  dd21244d  ld      ix,#4d24
