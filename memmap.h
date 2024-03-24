@@ -176,11 +176,25 @@ memmap;
 #define PACMAN_X_TILE2 memmap.mem[0x4d3a]
 
 #define PACMAN_DESIRED_ORIENTATION  memmap.mem[0x4d3c]
+#define GHOST_HOUSE_MOVE_COUNT      memmap.mem[0x4d94];
 
-#define KILLED_GHOST_INDEX memmap.mem[0x4da4]
-#define PILL_EFFECT memmap.mem[0x4da6]
-#define KILLED_COUNT memmap.mem[0x4dd0]
-#define KILLED_STATE memmap.mem[0x4dd1]
+#define BLINKY_SUBSTATE             memmap.mem[0x4da0];
+#define PINKY_SUBSTATE              memmap.mem[0x4da1];
+#define INKY_SUBSTATE               memmap.mem[0x4da2];
+#define CLYDE_SUBSTATE              memmap.mem[0x4da3];
+
+#define KILLED_GHOST_INDEX     memmap.mem[0x4da4]
+#define PILL_EFFECT            memmap.mem[0x4da6]
+
+#define BLINKY_ORIENT_CHG_FLAG      memmap.mem[0x4db1];
+#define PINKY_ORIENT_CHG_FLAG       memmap.mem[0x4db2];
+#define INKY_ORIENT_CHG_FLAG        memmap.mem[0x4db3];
+#define CLYDE_ORIENT_CHG_FLAG       memmap.mem[0x4db4];
+#define PACMAN_ORIENT_CHG_FLAG      memmap.mem[0x4db5];
+
+#define KILLED_COUNT           memmap.mem[0x4dd0]
+#define KILLED_STATE           memmap.mem[0x4dd1]
+
 #define FRUIT_POS ((uint8_t *)&memmap.mem[0x4dd2])
 
 #define MAIN_STATE memmap.mem[0x4e00]
@@ -189,7 +203,10 @@ memmap;
 #define MAIN_STATE_SUB2 memmap.mem[0x4e03]
 
 #define PLAYER memmap.mem[0x4e09]
+#define CURR_DIFFICULTY (*(uint32_t*)&memmap.mem[0x4e0a])
 #define LEVEL memmap.mem[0x4e13]
+#define REAL_LIVES memmap.mem[0x4e14]
+#define DISPLAY_LIVES memmap.mem[0x4e15]
 #define PILL_ARRAY (&memmap.mem[0x4e16])                // 19 x 8 bits
 #define BIG_PILL_ARRAY (&memmap.mem[0x4e34])            // 4 entries TODO stupid name
 #define SERVICE1_DEBOUNCE memmap.mem[0x4e66]
@@ -203,6 +220,8 @@ memmap;
 #define CREDITS memmap.mem[0x4e6e]
 #define LIVES_PER_GAME memmap.mem[0x4e6f]
 #define TWO_PLAYERS memmap.mem[0x4e70]
+#define COCKTAIL_MODE memmap.mem[0x4e72]
+#define GHOST_NAMES_MODE memmap.mem[0x4e75]
 #define P1_SCORE (*(uint32_t*)&memmap.mem[0x4e80])
 #define P2_SCORE (*(uint32_t*)&memmap.mem[0x4e84])
 #define HIGH_SCORE (*(uint32_t*)&memmap.mem[0x4e88])
