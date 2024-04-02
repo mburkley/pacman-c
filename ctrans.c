@@ -5,24 +5,29 @@
 #include <string.h>
 
 #include "memmap.h"
+#include "protos.h"
 
-//-------------------------------
-// 0000  f3        di			; Disable interrupts
-// 0001  3e3f      ld      a,#3f
-// 0003  ed47      ld      i,a		; Interrupt page = 0x3f
-// 0005  c30b23    jp      #230b		; Run startup tests
-//-------------------------------
+int main (void)
+{
+    //-------------------------------
+    // 0000  f3        di			; Disable interrupts
+    // 0001  3e3f      ld      a,#3f
+    // 0003  ed47      ld      i,a		; Interrupt page = 0x3f
+    // 0005  c30b23    jp      #230b		; Run startup tests
+    //-------------------------------
+    selfTest();
+}
 
-//-------------------------------
-// 	;; Fill "hl" to "hl+b" with "a"
-// 0008  77        ld      (hl),a
-// 0009  23        inc     hl
-// 000a  10fc      djnz    #0008           ; (-4)
-// 000c  c9        ret     
-// 000d  c30e07    jp      #070e
-//-------------------------------
 void setMemory (int addr, int count, uint8_t value)
 {
+    //-------------------------------
+    // 	;; Fill "hl" to "hl+b" with "a"
+    // 0008  77        ld      (hl),a
+    // 0009  23        inc     hl
+    // 000a  10fc      djnz    #0008           ; (-4)
+    // 000c  c9        ret     
+    // 000d  c30e07    jp      #070e
+    //-------------------------------
     memset (&MEM[addr], value, count);
 }
 
@@ -32,54 +37,54 @@ void nothing (void)
 {
 }
 
-//-------------------------------
-// 	;; hl = hl + a, (hl) -> a
-// 0010  85        add     a,l		
-// 0011  6f        ld      l,a		
-// 0012  3e00      ld      a,#00
-// 0014  8c        adc     a,h		
-// 0015  67        ld      h,a
-// 0016  7e        ld      a,(hl)
-// 0017  c9        ret     
-//-------------------------------
 uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
 {
+    //-------------------------------
+    // 	;; hl = hl + a, (hl) -> a
+    // 0010  85        add     a,l		
+    // 0011  6f        ld      l,a		
+    // 0012  3e00      ld      a,#00
+    // 0014  8c        adc     a,h		
+    // 0015  67        ld      h,a
+    // 0016  7e        ld      a,(hl)
+    // 0017  c9        ret     
+    //-------------------------------
     (*addr) += offset;
     return MEM[*addr];
 }
 
-//-------------------------------
-// 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
-// 	;; (Used to add up scores!)
-// 0018  78        ld      a,b		; b -> a 
-// 0019  87        add     a,a		; 2*a -> a 
-// 001a  d7        rst     #10
-// 001b  5f        ld      e,a
-// 001c  23        inc     hl
-// 001d  56        ld      d,(hl)
-// 001e  eb        ex      de,hl
-// 001f  c9        ret     
-//-------------------------------
 uint16_t tableLookup (uint16_t *addr, uint8_t offset)
 {
+    //-------------------------------
+    // 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
+    // 	;; (Used to add up scores!)
+    // 0018  78        ld      a,b		; b -> a 
+    // 0019  87        add     a,a		; 2*a -> a 
+    // 001a  d7        rst     #10
+    // 001b  5f        ld      e,a
+    // 001c  23        inc     hl
+    // 001d  56        ld      d,(hl)
+    // 001e  eb        ex      de,hl
+    // 001f  c9        ret     
+    //-------------------------------
     int e = fetchOffset(addr, offset*2);
     (*addr)++;
     int d = MEM[*addr];
     return e+d<<8;
 }
 
-//-------------------------------
-// 0020  e1        pop     hl
-// 0021  87        add     a,a
-// 0022  d7        rst     #10
-// 0023  5f        ld      e,a
-// 0024  23        inc     hl
-// 0025  56        ld      d,(hl)
-// 0026  eb        ex      de,hl
-// 0027  e9        jp      (hl)
-//-------------------------------
-void tableCall (void (*func)[](), uint8_t index)
+void tableCall (void (*func[])(), uint8_t index)
 {
+    //-------------------------------
+    // 0020  e1        pop     hl
+    // 0021  87        add     a,a
+    // 0022  d7        rst     #10
+    // 0023  5f        ld      e,a
+    // 0024  23        inc     hl
+    // 0025  56        ld      d,(hl)
+    // 0026  eb        ex      de,hl
+    // 0027  e9        jp      (hl)
+    //-------------------------------
     func[index]();
 }
 
@@ -116,13 +121,13 @@ void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
     addISRTask (ISR_TASKS, 0x10, data);
 }
 
-// 	;; Loop waiting for interrupt?
-// 0038  af        xor     a
-// 0039  320050    ld      (#5000),a
-// 003c  320750    ld      (#5007),a
-// 003f  c33800    jp      #0038
 void waitForever (void)
 {
+    // 	;; Loop waiting for interrupt?
+    // 0038  af        xor     a
+    // 0039  320050    ld      (#5000),a
+    // 003c  320750    ld      (#5007),a
+    // 003f  c33800    jp      #0038
     while (1)
     {
         INTENABLE = 0;
@@ -149,11 +154,11 @@ void addTask (uint8_t task, uint8_t param)
     MEM[TASK_LIST_BEGIN++]=task; 
     MEM[TASK_LIST_BEGIN++]=param; 
 
-    if ((TASK_LIST_BEGIN == 0x4d00)
+    if (TASK_LIST_BEGIN == 0x4d00)
         TASK_LIST_BEGIN = 0x4cc0;
 }
 
-addISRTask(uint8_t *ptr, int count, uint8_t* data)
+void addISRTask(uint8_t *ptr, int count, uint8_t* data)
 {
     //-------------------------------
     // 	;; Jump from rst 0x30
@@ -192,7 +197,7 @@ addISRTask(uint8_t *ptr, int count, uint8_t* data)
         // 0061  1c        inc     e
         // 0062  10fa      djnz    #005e           ; (-6)
         //-------------------------------
-        *ptr++=data++;
+        *ptr++=*data++;
     }
 
     //-------------------------------
@@ -200,15 +205,17 @@ addISRTask(uint8_t *ptr, int count, uint8_t* data)
     //-------------------------------
 }
 
-// 0065  c32d20    jp      #202d
+void func_0065()
+{
+    // 0065  c32d20    jp      #202d
+    func_202d();
+}
 
-//-------------------------------
-// 0068  00 01 02 03 04 05 06 07
-// 0070  08 09 0a 0b 0c 0d 0e 0f
-// 0078  10 11 12 13 14
-// 007d  01 03 04 06 07 08 09 0a
-// 0085  0b 0c 0d 0e 0f 10 11 14
-//-------------------------------
+    //-------------------------------
+    // 0068                           00 01 02 03 04 05 06 07  |        ........|
+    // 0070  08 09 0a 0b 0c 0d 0e 0f  10 11 12 13 14 01 03 04  |................|
+    // 0080  06 07 08 09 0a 0b 0c 0d  0e 0f 10 11 14           |.............   |
+    //-------------------------------
 uint8_t data_68[] = { 0 };
 
 void isr()
@@ -434,8 +441,8 @@ void isr()
     // 018f  cd2102    call    #0221
     // 0192  cdc803    call    #03c8
     //-------------------------------
-    func_1dc();
-    func_221();
+    func_01dc();
+    dispatchISRTasks_0221();
     advanceGameState ();
 
     //-------------------------------
@@ -451,12 +458,12 @@ void isr()
     //-------------------------------
     if (GAME_STATE != 0)
     {
-        func_39d();
+        func_039d();
         func_1490();
         func_141f();
         checkCoinInput();
-        func_2ad();
-        func_2fd();
+        func_02ad();
+        func_02fd();
     }
 
     //-------------------------------
@@ -505,7 +512,7 @@ void isr()
     interruptEnable ();
 }
 
-void func_1dc()
+void func_01dc()
 {
     //-------------------------------
     // 01dc  21844c    ld      hl,#4c84
@@ -604,7 +611,7 @@ void func_1dc()
 // 0219  06 a0 0a 60 0a 60 0a a0 
 uint8_t data_219[] = { 0x06, 0xa0, 0x0a, 0x60, 0x0a, 0x60, 0x0a, 0xa0 };
 
-void func_221()
+void dispatchISRTasks_0221()
 {
     //-------------------------------
     // 0221  21904c    ld      hl,#4c90
@@ -671,8 +678,8 @@ void func_221()
                     // 025b  e1        pop     hl
                     // 025c  c1        pop     bc
                     //-------------------------------
-                    void (*func)()[] = { func_894, func_6a3, func_58e, func_1272,
-                                         func_1000, func_100b, func_263, func_212b,
+                    void (*func)()[] = { incLevelStateSubr_0894, incMainSub2_06a3, func_058e, func_1272,
+                                         func_1000, func_100b, func_0263, func_212b,
                                          func_21f0, func_22b9 };
                     tableCall (MEM[hl], func);
                 }
@@ -697,7 +704,7 @@ void func_221()
 // 0264  1c86
 // 0266  c9        ret     
 //-------------------------------
-func_263()
+func_0263()
 {
     schedTask(0x1c, 0x86);
 }
@@ -773,7 +780,7 @@ void checkCoinInput ()
     COIN_COUNTER++;
 }
 
-void func_2ad()
+void func_02ad()
 {
     //-------------------------------
     // 02ad  3a694e    ld      a,(#4e69)
@@ -840,17 +847,17 @@ void func_2ad()
     COIN_COUNT--;
 }
 
-//-------------------------------
-// 	;; Coins -> credits routine
-// 02df  3a6b4e    ld      a,(#4e6b)		; #coins per #credits 
-// 02e2  216c4e    ld      hl,#partialCredit		; #leftover coins 
-// 02e5  34        inc     (hl)			; add 1 
-// 02e6  96        sub     (hl)
-// 02e7  c0        ret     nz			; not enough coins for credit 
-// 02e8  77        ld      (hl),a		; store leftover coins 
-//-------------------------------
 bool checkCoinCredit ()
 {
+    //-------------------------------
+    // 	;; Coins -> credits routine
+    // 02df  3a6b4e    ld      a,(#4e6b)		; #coins per #credits 
+    // 02e2  216c4e    ld      hl,#partialCredit		; #leftover coins 
+    // 02e5  34        inc     (hl)			; add 1 
+    // 02e6  96        sub     (hl)
+    // 02e7  c0        ret     nz			; not enough coins for credit 
+    // 02e8  77        ld      (hl),a		; store leftover coins 
+    //-------------------------------
     if (++partialCredit < COINS_PER_CREDIT)
         return false;
 
@@ -1015,63 +1022,63 @@ void playerUp ()
         twoBlank();
 }
 
-//-------------------------------
-// 0369  dd360050  ld      (ix+#00),#50
-// 036d  dd360155  ld      (ix+#01),#55
-// 0371  dd360231  ld      (ix+#02),#31
-// 0375  c9        ret     
-//-------------------------------
 void oneUp (uint8_t *ix)
 {
+    //-------------------------------
+    // 0369  dd360050  ld      (ix+#00),#50
+    // 036d  dd360155  ld      (ix+#01),#55
+    // 0371  dd360231  ld      (ix+#02),#31
+    // 0375  c9        ret     
+    //-------------------------------
     // PU1 ?
     *ix = 0x50;
     *(ix+1) = 0x55;
     *(ix+2) = 0x31;
 }
 
-//-------------------------------
-// 0376  fd360050  ld      (iy+#00),#50
-// 037a  fd360155  ld      (iy+#01),#55
-// 037e  fd360232  ld      (iy+#02),#32
-// 0382  c9        ret     
-//-------------------------------
 void twoUp (uint8_t *iy)
 {
+    //-------------------------------
+    // 0376  fd360050  ld      (iy+#00),#50
+    // 037a  fd360155  ld      (iy+#01),#55
+    // 037e  fd360232  ld      (iy+#02),#32
+    // 0382  c9        ret     
+    //-------------------------------
     // PU2 ?
     *iy = 0x50;
     *(iy+1) = 0x55;
     *(iy+2) = 0x31;
 }
 
-//-------------------------------
-// 0383  dd360040  ld      (ix+#00),#40
-// 0387  dd360140  ld      (ix+#01),#40
-// 038b  dd360240  ld      (ix+#02),#40
-// 038f  c9        ret     
-//-------------------------------
 void oneBlank (uint8_t *ix)
 {
+    //-------------------------------
+    // 0383  dd360040  ld      (ix+#00),#40
+    // 0387  dd360140  ld      (ix+#01),#40
+    // 038b  dd360240  ld      (ix+#02),#40
+    // 038f  c9        ret     
+    //-------------------------------
     *ix = *(ix+1) = *(ix+2) = 0x40;
 }
 
-//-------------------------------
-// 0390  fd360040  ld      (iy+#00),#40
-// 0394  fd360140  ld      (iy+#01),#40
-// 0398  fd360240  ld      (iy+#02),#40
-// 039c  c9        ret     
-//-------------------------------
 void twoBlank (uint8_t *iy)
 {
+    //-------------------------------
+    // 0390  fd360040  ld      (iy+#00),#40
+    // 0394  fd360140  ld      (iy+#01),#40
+    // 0398  fd360240  ld      (iy+#02),#40
+    // 039c  c9        ret     
+    //-------------------------------
     *iy = *(iy+1) = *(iy+2) = 0x40;
 }
 
-//-------------------------------
-// 039d  3a064e    ld      a,(#4e06)
-// 03a0  d605      sub     #05
-// 03a2  d8        ret     c
-//-------------------------------
-bool func_39d (void)
+bool func_039d (void)
 {
+    //-------------------------------
+    // 039d  3a064e    ld      a,(#4e06)
+    // 03a0  d605      sub     #05
+    // 03a2  d8        ret     c
+    //-------------------------------
     if (MEM[0x4e06] < 5)
         return;
 
@@ -1118,7 +1125,7 @@ void advanceGameState  ()
     // 03d0  e505
     // 03d2  be06
     //-------------------------------
-    void (*func)()[] = { advanceStartState, func_3fe, func_5e5, func_6be };
+    void (*func)()[] = { advanceStartState, func_03fe, func_05e5, func_06be };
     tableCall (GAME_STATE, func);
 }
 
@@ -1132,12 +1139,12 @@ void advanceStartState()
     // 03d8  dc03
     // 03da  0c00
     //-------------------------------
-    void (*func)()[] = { func_3dc, nothing };
+    void (*func)()[] = { func_03dc, nothing };
     tableCall (START_STATE, func);
 }
 
 /*  4e00==0 && 4e01 == 0 => 4e01=1 */
-void func_3dc()
+void func_03dc()
 {
     //-------------------------------
     // 03dc  ef        rst     #28
@@ -1178,7 +1185,7 @@ void func_3dc()
 }
 
 /*  4e00==1.  If have credit, 4e00=2 */
-void func_3fe()
+void func_03fe()
 {
     //-------------------------------
     // 03fe  cda12b    call    #2ba1			; Write # credits on screen
@@ -1214,19 +1221,19 @@ void func_3fe()
     // 0440  04 0c 00 cd 04 0c 00 d3  04 0c 00 d8 04 0c 00 e0  |................|
     // 0450  04 0c 00 1c 05 4b 05 56  05 61 05 6c 05 7c 05     |.....K.V.a.l.|..|
     //-------------------------------
-    void (*func)()[] = { func_45f, nothing, func_471, nothing,
-                         func_47f, nothing, func_485, nothing,
-                         func_48b, nothing, func_499, nothing,
-                         func_49f, nothing, func_4a5, nothing,
-                         func_4b3, nothing, func_4b9, nothing,
-                         func_4bf, nothing, func_4cd, nothing,
-                         func_4d3, nothing, func_4d8, nothingm
-                         func_4e0, nothing, func_51c, func_54b,
-                         func_556, func_561, func_56c, func_57c };
+    void (*func)()[] = { func_045f, nothing, func_0471, nothing,
+                         func_047f, nothing, func_0485, nothing,
+                         func_048b, nothing, func_0499, nothing,
+                         func_049f, nothing, func_04a5, nothing,
+                         func_04b3, nothing, func_04b9, nothing,
+                         func_04bf, nothing, func_04cd, nothing,
+                         func_04d3, nothing, func_04d8, nothingm
+                         func_04e0, nothing, func_051c, func_054b,
+                         func_0556, func_0561, func_056c, func_057c };
     tableCall (MAIN_STATE_SUB1, func);
 }
 
-void func_45f()
+void func_045f()
 {
     //-------------------------------
     // 045f  ef        rst     #28
@@ -1248,84 +1255,84 @@ void func_45f()
     // 046d  cd8505    call    #0585
     // 0470  c9        ret     
     //-------------------------------
-    func_585(0xc);
+    func_0585(0xc);
 }
 
-void func_471()
+void func_0471()
 {
     //-------------------------------
     // 0471  210443    ld      hl,#4304
     // 0474  3e01      ld      a,#01
     // 0476  cdbf05    call    #05bf
     //-------------------------------
-    func_5bf(0x304, 1);
+    func_05bf(0x304, 1);
 
     //-------------------------------
     // 0479  0e0c      ld      c,#0c
     // 047b  cd8505    call    #0585
     // 047e  c9        ret     
     //-------------------------------
-    func_585(0xc);
+    func_0585(0xc);
 }
 
-func_47f()
+func_047f()
 {
     //-------------------------------
     // 047f  0e14      ld      c,#14
     // 0481  cd9305    call    #0593
     // 0484  c9        ret     
     //-------------------------------
-    func_593(0x14);
+    func_0593(0x14);
 }
 
-func_485()
+func_0485()
 {
     //-------------------------------
     // 0485  0e0d      ld      c,#0d
     // 0487  cd9305    call    #0593
     // 048a  c9        ret     
     //-------------------------------
-    func_585(0xd);
+    func_0585(0xd);
 }
 
-void func_48b()
+void func_048b()
 {
     //-------------------------------
     // 048b  210743    ld      hl,#4307
     // 048e  3e03      ld      a,#03
     // 0490  cdbf05    call    #05bf
     //-------------------------------
-    func_5bf(0x307, 3);
+    func_05bf(0x307, 3);
 
     //-------------------------------
     // 0493  0e0c      ld      c,#0c
     // 0495  cd8505    call    #0585
     // 0498  c9        ret     
     //-------------------------------
-    func_585(0xc);
+    func_0585(0xc);
 }
 
-void func_499()
+void func_0499()
 { 
     //-------------------------------
     // 0499  0e16      ld      c,#16
     // 049b  cd9305    call    #0593
     // 049e  c9        ret     
     //-------------------------------
-    func_593(0x16);
+    func_0593(0x16);
 }
 
-void func_49f()
+void func_049f()
 {
     //-------------------------------
     // 049f  0e0f      ld      c,#0f
     // 04a1  cd9305    call    #0593
     // 04a4  c9        ret     
     //-------------------------------
-    func_593(0xf);
+    func_0593(0xf);
 }
 
-void func_4a5()
+void func_04a5()
 {
     //-------------------------------
     // 04a5  210a43    ld      hl,#430a
@@ -1335,31 +1342,31 @@ void func_4a5()
     // 04af  cd8505    call    #0585
     // 04b2  c9        ret     
     //-------------------------------
-    func_5bf(0x30a,5);
-    func_585(0xc);
+    func_05bf(0x30a,5);
+    func_0585(0xc);
 }
 
-void func_4b3()
+void func_04b3()
 {
     //-------------------------------
     // 04b3  0e33      ld      c,#33
     // 04b5  cd9305    call    #0593
     // 04b8  c9        ret     
     //-------------------------------
-    func_593(0x33);
+    func_0593(0x33);
 }
 
-void func_4b9()
+void func_04b9()
 {
     //-------------------------------
     // 04b9  0e2f      ld      c,#2f
     // 04bb  cd9305    call    #0593
     // 04be  c9        ret     
     //-------------------------------
-    func_593(0x2f);
+    func_0593(0x2f);
 }
 
-void func_4bf()
+void func_04bf()
 {
     //-------------------------------
     // 04bf  210d43    ld      hl,#430d
@@ -1369,30 +1376,30 @@ void func_4bf()
     // 04c9  cd8505    call    #0585
     // 04cc  c9        ret     
     //-------------------------------
-    func_5bf(0x30d,7);
-    func_585(0xc);
+    func_05bf(0x30d,7);
+    func_0585(0xc);
 }
 
-void func_4cd()
+void func_04cd()
 {
     //-------------------------------
     // 04cd  0e35      ld      c,#35
     // 04cf  cd9305    call    #0593
     // 04d2  c9        ret     
     //-------------------------------
-    func_593(0x35);
+    func_0593(0x35);
 }
 
-void func_4d3()
+void func_04d3()
 {
     //-------------------------------
     // 04d3  0e31      ld      c,#31
     // 04d5  c38005    jp      #0580
     //-------------------------------
-    func_580(0x31);
+    func_0580(0x31);
 }
 
-void func_4d8()
+void func_04d8()
 {
     //-------------------------------
     // 04d8  ef        rst     #28
@@ -1402,22 +1409,22 @@ void func_4d8()
     //-------------------------------
     //       0e12      ld      c,0x12
     // 04dd  c38505    jp      #0585
-    func_585(0x12);
+    func_0585(0x12);
     //-------------------------------
 }
 
-void func_4e0()
+void func_04e0()
 {
     //-------------------------------
     // 04e0  0e13      ld      c,#13
     // 04e2  cd8505    call    #0585
     //-------------------------------
-    func_585(0x13);
+    func_0585(0x13);
 
     //-------------------------------
     // 04e5  cd7908    call    #0879
     // 04e8  35        dec     (hl)
-    func_879();
+    func_0879();
     LEVEL_STATE_SUBR--;
     //-------------------------------
     // 04e9  ef        rst     #28
@@ -1473,17 +1480,17 @@ void func_4e0()
     //-------------------------------
 }
 
-void func_51c()
+void func_051c()
 {
     //-------------------------------
     // 051c  21a04d    ld      hl,#4da0
     // 051f  0621      ld      b,#21
     // 0521  3a3a4d    ld      a,(#4d3a)
     //-------------------------------
-    func_524 (0x4da0, 0x21, PACMAN_X_TILE2);
+    func_0524 (0x4da0, 0x21, PACMAN_X_TILE2);
 }
 
-void func_524(int hl, int b, int a)
+void func_0524(int hl, int b, int a)
 {
     //-------------------------------
     // 0524  90        sub     b
@@ -1494,13 +1501,13 @@ void func_524(int hl, int b, int a)
     if (a == 0x21)
     {
         MEM[hl]=1;
-        func_58e();
+        func_058e();
         return;
     }
-    func_52c();
+    func_052c();
 }
 
-void func_52c()
+void func_052c()
 {
     //-------------------------------
     // 052c  cd1710    call    #1017
@@ -1517,17 +1524,17 @@ void func_52c()
     //-------------------------------
     func_1017(); 
     func_1017(); 
-    func_e23();
-    func_c0d();
-    setGhostColour_bd6();
-    func_5a5();
+    func_0e23();
+    func_0c0d();
+    setGhostColour_0bd6();
+    func_05a5();
     func_1efe();
     func_1f25();
     func_1f4c();
     func_1f73();
 }
 
-void func_54b()
+void func_054b()
 {
     //-------------------------------
     // 054b  21a14d    ld      hl,#4da1
@@ -1535,10 +1542,10 @@ void func_54b()
     // 0550  3a324d    ld      a,(#4d32)
     // 0553  c32405    jp      #0524
     //-------------------------------
-    func_524 (0x4da1, 0x20, BLINK_X_TILE2);
+    func_0524 (0x4da1, 0x20, BLINK_X_TILE2);
 }
 
-void func_556()
+void func_0556()
 {
     //-------------------------------
     // 0556  21a24d    ld      hl,#4da2
@@ -1546,10 +1553,10 @@ void func_556()
     // 055b  3a324d    ld      a,(#4d32)
     // 055e  c32405    jp      #0524
     //-------------------------------
-    func_524 (0x4da2, 0x22, BLINKY_X_TILE2);
+    func_0524 (0x4da2, 0x22, BLINKY_X_TILE2);
 }
 
-void func_561()
+void func_0561()
 {
     //-------------------------------
     // 0561  21a34d    ld      hl,#4da3
@@ -1557,10 +1564,10 @@ void func_561()
     // 0566  3a324d    ld      a,(#4d32)
     // 0569  c32405    jp      #0524
     //-------------------------------
-    func_524 (0x4da3, 0x24, BLINKY_X_TILE2);
+    func_0524 (0x4da3, 0x24, BLINKY_X_TILE2);
 }
 
-void func_56c()
+void func_056c()
 {
     //-------------------------------
     // 056c  3ad04d    ld      a,(#4dd0)
@@ -1572,25 +1579,25 @@ void func_56c()
     //-------------------------------
     if (KILLED_COUNT+KILLED_STATE != 6)
     {
-        func_58e();
+        func_058e();
         return;
     }
     //-------------------------------
     // 0579  c32c05    jp      #052c
     //-------------------------------
-    func_52c();
+    func_052c();
 }
 
-void func_57c()
+void func_057c()
 {
     //-------------------------------
     // 057c  cdbe06    call    #06be
     // 057f  c9        ret     
     //-------------------------------
-    func_6be();
+    func_06be();
 }
 
-void func_580(int c)
+void func_0580(int c)
 {
     //-------------------------------
     // 0580  3a754e    ld      a,(#4e75)
@@ -1601,15 +1608,16 @@ void func_580(int c)
 
     /*  Asm continues on but 585 is also called as a function, so we also define
      *  as a function and call it */
-    func_585(c);
+    func_0585(c);
 }
 
-void func_585(int c)
+void func_0585(int c)
 {
     //-------------------------------
     // 0585  061c      ld      b,#1c
     // 0587  cd4200    call    #0042
     //-------------------------------
+    void addTask (uint8_t task, uint8_t param);
     addTask (0x1c, c);
 
     //-------------------------------
@@ -1626,7 +1634,7 @@ void func_585(int c)
     MAIN_STATE_SUB1++;
 }
 
-void func_593()
+void func_0593()
 {
     //-------------------------------
     // 0593  3a754e    ld      a,(#4e75)
@@ -1644,10 +1652,10 @@ void func_593()
     // 05a4  c9        ret     
     //-------------------------------
     schedISRTask (0x45, 0x02, 0x00);
-    func_58e();
+    func_058e();
 }
 
-void func_5a5 ()
+void func_05a5 ()
 {
     //-------------------------------
     // 05a5  3ab54d    ld      a,(#4db5)
@@ -1679,7 +1687,7 @@ PACMAN_Y_TILE_CHANGE2 = hl;
 }
 
 /*  hl = offset into video buffer, a = character */
-void func_5bf (int hl, int a)
+void func_05bf (int hl, int a)
 {
     //-------------------------------
     // 05bf  36b1      ld      (hl),#b1
@@ -1740,7 +1748,7 @@ void func_5bf (int hl, int a)
 }
 
 /*  4e00 == 2 */
-func_5e5()
+func_05e5()
 {
     //-------------------------------
     // 05e5  3a034e    ld      a,(#4e03)
@@ -1749,13 +1757,13 @@ func_5e5()
     // 05e9  f305 1b06 7406 0c00
     // 05f1  a806
     //-------------------------------
-    void (*func)()[] = { func_5f3, checkStartButtons, func_674, nothing,
-                         func_6a8 };
+    void (*func)()[] = { func_05f3, checkStartButtons, func_0674, nothing,
+                         func_06a8 };
     tableCall (MEM[0x4e03], func);
 }
 
 /*  4e00 ==2 && 4e03 == 0, advance 4e03 to 1 */
-func_5f3()
+func_05f3()
 {
     //-------------------------------
     // 05f3  cda12b    call    #2ba1
@@ -1822,9 +1830,9 @@ void checkStartButtons ()
     // 0629  cd5e2c    call    #2c5e
     //-------------------------------
     if (CREDITS == 1)
-        displayMsg (8);     // 1 player only
+        displayMsg_2c5e (8);     // 1 player only
     else
-        displayMsg (9);     // 1 or 2 players
+        displayMsg_2c5e (9);     // 1 or 2 players
 
     //-------------------------------
     // 062c  3a6e4e    ld      a,(#4e6e)
@@ -1913,7 +1921,7 @@ void checkStartButtons ()
 }
 
 /*  4e00 == 2 && 4e03 == 2.  Play start sound? 4e03=3 */
-func_674()
+func_0674()
 {
     //-------------------------------
     // 0674  ef        rst     #28
@@ -1966,16 +1974,20 @@ func_674()
     // 06a0  570100
     //-------------------------------
     schedISRTask (0x57, 0x01, 0x00);
+    incMainSub2_06a3();
+}
 
+void incMainSub2_06a3()
+{
     //-------------------------------
     // 06a3  21034e    ld      hl,#4e03
     // 06a6  34        inc     (hl)
     // 06a7  c9        ret     
     //-------------------------------
-    MEM[0x4e03]++;
+    MAIN_STATE_SUB2++;
 }
 
-void func_6a8()
+void func_06a8()
 {
     //-------------------------------
     // 06a8  21154e    ld      hl,#4e15
@@ -1994,12 +2006,14 @@ void func_6a8()
     // 06bc  34        inc     (hl)
     // 06bd  c9        ret     
     //-------------------------------
-    MAIN_STATE_SUB1 = MEM[0x4e03] = MEM[0x4e04] = 0;
+    MAIN_STATE_SUB1 =
+    MAIN_STATE_SUB2 =
+    LEVEL_STATE_SUBR = 0;
     GAME_STATE++;
 }
 
 /*  4e00 == 3 */
-void func_6be()
+void func_06be()
 {
     //-------------------------------
     // 06be  3a044e    ld      a,(#4e04)
@@ -2011,20 +2025,20 @@ void func_6be()
     // 06f0  0c 00 08 0a 0c 00 0a 0a  0c 00 0c 0a 0c 00 0e 0a  |................|
     // 0700  0c 00 2c 0a 0c 00 7c 0a  a0 0a 0c 00 a3 0a        |..,...|.......x.|
     //-------------------------------
-    void (*func)()[] = { func_879, func_899, nothing, func_8cd,
-                            func_90d, nothing, func_940, nothing, 
-                            func_972, func_988, nothing, func_9d2,
-                            func_9d8, nothing, func_9e8, nothing, 
-                            func_9fe, nothing, func_a02, nothing, 
-                            func_a04, nothing, func_a06, nothing, 
-                            func_a08, nothing, func_a0a, nothing, 
-                            func_a0c, nothing, func_a0e, nothing, 
-                            func_a2c, nothing, func_a7c, func_aa0, 
-                            nothing, func_aa3 };
+    void (*func)()[] = { func_0879, func_0899, nothing, func_08cd,
+                            func_090d, nothing, func_0940, nothing, 
+                            func_0972, func_0988, nothing, func_09d2,
+                            func_09d8, nothing, func_09e8, nothing, 
+                            func_09fe, nothing, func_0a02, nothing, 
+                            func_0a04, nothing, func_0a06, nothing, 
+                            func_0a08, nothing, func_0a0a, nothing, 
+                            func_0a0c, nothing, func_0a0e, nothing, 
+                            func_0a2c, nothing, func_0a7c, func_0aa0, 
+                            nothing, func_0aa3 };
 }
 
 /*  Jump from addr 0x000d which doesn't look reachable */
-void func_70e()
+void func_070e()
 {
     //-------------------------------
     // 070e  78        ld      a,b
@@ -2080,7 +2094,7 @@ void func_70e()
     hl=0x330f+0x21 * a;
 
     // 0737  cd1408    call    #0814
-    func_814();
+    func_0814();
     // 073a  dd7e01    ld      a,(ix+#01)
     // 073d  32b04d    ld      (#4db0),a
     DIFFICULTY=MEM[ix+1];
@@ -2095,7 +2109,7 @@ void func_70e()
     // 074c  19        add     hl,de
     // 074d  cd3a08    call    #083a
     hl=0x843+3*MEM[ix+2];
-    func_83a();
+    func_083a();
 
     // 0750  dd7e03    ld      a,(ix+#03)
     // 0753  87        add     a,a
@@ -2185,7 +2199,7 @@ void func_70e()
 // 0870  00 01 00 f0 00 f0 00 b4  00                       |.........!.N....|
 
 /*  side-effect: Sets HL to 0x4e04 */
-void func_879()
+void func_0879()
 {
     //-------------------------------
     // 0879  21094e    ld      hl,#4e09
@@ -2209,10 +2223,10 @@ void func_879()
     // 0892  edb0      ldir    
     //-------------------------------
     memcpy (&P2_CURR_DIFFICULTY, &P1_CURR_DIFFICULTY, 0x2e);
-    func_894();
+    incLevelStateSubr_0894();
 }
 
-void func_894()
+void incLevelStateSubr_0894()
 {
     //-------------------------------
     // 0894  21044e    ld      hl,#4e04
@@ -2222,7 +2236,7 @@ void func_894()
     LEVEL_STATE_SUBR++;
 }
 
-func_899()
+func_0899()
 {
     //-------------------------------
     // 0899  3a004e    ld      a,(#4e00)
@@ -2281,10 +2295,10 @@ func_899()
     // 08ca  c39408    jp      #0894
     //-------------------------------
     FLIPSCREEN=1;
-    func_894();
+    incLevelStateSubr_0894();
 }
 
-void func_8cd()
+void func_08cd()
 {
     //-------------------------------
     // 08cd  3a0050    ld      a,(#5000)
@@ -2310,7 +2324,7 @@ void func_8cd()
     // 08e1  fef4      cp      #f4
     // 08e3  2006      jr      nz,#08eb        ; (6)
     //-------------------------------
-    if (P1_PILLS_EATEN == 0xf4)
+    if (P1_PILLS_EATEN_LEVEL == 0xf4)
     {
         //-------------------------------
         // 08e5  21044e    ld      hl,#4e04
@@ -2348,7 +2362,7 @@ void func_8cd()
     func_0ead();
 }
 
-void func_90d()
+void func_090d()
 {
     //-------------------------------
     // 090d  3e01      ld      a,#01
@@ -2414,7 +2428,7 @@ void func_90d()
 }
 
 // TODO fix up jump logic here
-void func_940()
+void func_0940()
 {
     // 0940  3a704e    ld      a,(#4e70)
     // 0943  a7        and     a
@@ -2448,7 +2462,7 @@ void func_940()
         }
 
     // 0961  cda60a    call    #0aa6
-    func_aa6();
+    func_0aa6();
 
     //-------------------------------
     // 0964  3a094e    ld      a,(#4e09)
@@ -2465,7 +2479,7 @@ void func_940()
     LEVEL_STATE_SUBR = 9;
 }
 
-void func_972()
+void func_0972()
 {
     //-------------------------------
     // 0972  af        xor     a
@@ -2489,7 +2503,7 @@ void func_972()
     GAME_STATE=1;
 }
 
-void func_988 ()
+void func_0988 ()
 {
     //-------------------------------
     // 0988  ef        rst     #28
@@ -2573,10 +2587,10 @@ void func_988 ()
     // 09cf  c39408    jp      #0894
     //-------------------------------
     regs.write.flipScreen = (COCKTAIL_MODE & PLAYER);
-    func_894();
+    incLevelStateSubr_0894();
 }
 
-void func_9d2()
+void func_09d2()
 {
     //-------------------------------
     // 09d2  3e03      ld      a,#03
@@ -2586,7 +2600,7 @@ void func_9d2()
     LEVEL_STATE_SUBR=3;
 }
 
-void func_9d8()
+void func_09d8()
 {
     //-------------------------------
     // 09d8  f7        rst     #30
@@ -2607,7 +2621,7 @@ void func_9d8()
     MEM[0x4ebc] = 0;
 }
 
-void func_9e8()
+void func_09e8()
 {
     //-------------------------------
     // 09e8  0e02      ld      c,#02
@@ -2633,7 +2647,7 @@ void func_9e8()
     LEVEL_STATE_SUBR++;
 }
 
-void func_9fe()
+void func_09fe()
 {
     //-------------------------------
     // 09fe  0e00      ld      c,#00
@@ -2642,55 +2656,55 @@ void func_9fe()
     addTask (0x01, 0x00);
 }
 
-void func_a02()
+void func_0a02()
 {
     //-------------------------------
     // 0a02  18e4      jr      #09e8           ; (-28)
     //-------------------------------
-    func_9e8();
+    func_09e8();
 }
 
-void func_a04()
+void func_0a04()
 {
     //-------------------------------
     // 0a04  18f8      jr      #09fe           ; (-8)
     //-------------------------------
-    func_9fe();
+    func_09fe();
 }
 
-void func_a06()
+void func_0a06()
 {
     //-------------------------------
     // 0a06  18e0      jr      #09e8           ; (-32)
     //-------------------------------
-    func_9e8();
+    func_09e8();
 }
 
-void func_a08()
+void func_0a08()
 {
     //-------------------------------
     // 0a08  18f4      jr      #09fe           ; (-12)
     //-------------------------------
-    func_9fe();
+    func_09fe();
 }
 
-void func_a0a()
+void func_0a0a()
 {
     //-------------------------------
     // 0a0a  18dc      jr      #09e8           ; (-36)
     //-------------------------------
-    func_9e8();
+    func_09e8();
 }
 
-void func_a0c()
+void func_0a0c()
 {
     //-------------------------------
     // 0a0c  18f0      jr      #09fe           ; (-16)
-    func_9fe();
+    func_09fe();
     //-------------------------------
 }
 
-void func_a0e()
+void func_0a0e()
 {
     //-------------------------------
     // 0a0e  ef        rst     #28
@@ -2731,15 +2745,15 @@ void func_a0e()
     // 0a2d  32ac4e    ld      (#4eac),a
     // 0a30  32bc4e    ld      (#4ebc),a
     //-------------------------------
-    MEM[0x4eac] =
-    MEM[0x4ebc] = 0;
+    SND_CH2_EFF_NUM = 
+    SND_CH3_EFF_NUM = 0;
     //-------------------------------
     // 0a33  3e02      ld      a,#02
     // 0a35  32cc4e    ld      (#4ecc),a
     // 0a38  32dc4e    ld      (#4edc),a
     //-------------------------------
-    MEM[0x4ecc] =
-    MEM[0x4edc] = 2;
+    SND_CH1_WAV_NUM =
+    SND_CH2_WAV_NUM = 2;
     //-------------------------------
     // 0a3b  3a134e    ld      a,(#4e13)
     // 0a3e  fe14      cp      #14
@@ -2756,12 +2770,12 @@ void func_a0e()
     // 0a50  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 97 22 6f  |.o.o.."o.o.o.."o|
     // 0a60  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 6f 0a     |.o.o.."o.o.o.o.!|
     //-------------------------------
-    void (*func)()[] = { func_a6f,  func_2108, func_a6f, func_a6f,
-                         func_219e, func_a6f,  func_a6f, func_a6f,
-                         func_2297, func_a6f,  func_a6f, func_a6f,
-                         func_2297, func_a6f,  func_a6f, func_a6f,
-                         func_2297, func_a6f,  func_a6f, func_a6f,
-                         func_a6f };
+    void (*func)()[] = { func_0a6f,  func_2108, func_0a6f, func_0a6f,
+                         func_219e, func_0a6f,  func_0a6f, func_0a6f,
+                         func_2297, func_0a6f,  func_0a6f, func_0a6f,
+                         func_2297, func_0a6f,  func_0a6f, func_0a6f,
+                         func_2297, func_0a6f,  func_0a6f, func_0a6f,
+                         func_0a6f };
     tableCall (a, func);
 
     //-------------------------------
@@ -2778,7 +2792,7 @@ void func_a0e()
     SND_CH2_WAV_NUM = 0;
 }
 
-void func_a7c()
+void func_0a7c()
 {
     //-------------------------------
     // 0a7c  af        xor     a
@@ -2828,23 +2842,23 @@ void func_a7c()
     P1_CURR_DIFFICULTY++;
 }
 
-void func_aa0()
+void func_0aa0()
 {
     //-------------------------------
     // 0aa0  c38809    jp      #0988
     //-------------------------------
-    func_988();
+    func_0988();
 }
 
-void func_aa3()
+void func_0aa3()
 {
     //-------------------------------
     // 0aa3  c3d209    jp      #09d2
     //-------------------------------
-    func_9d2();
+    func_09d2();
 }
 
-void func_aa6()
+void func_0aa6()
 {
     //-------------------------------
     // 0aa6  062e      ld      b,#2e
@@ -3254,7 +3268,7 @@ void setGhostColour_bd6()
     }
 }
 
-void func_c0d()
+void func_0c0d()
 {
     //-------------------------------
     // 0c0d  21cf4d    ld      hl,#4dcf
@@ -3331,7 +3345,7 @@ void func_c0d()
     }
 }
 
-void func_c42()
+void func_0c42()
 {
     //-------------------------------
     // 0c42  3aa44d    ld      a,(#4da4)
@@ -3411,327 +3425,639 @@ void func_c42()
             BLINKY_SUBSTATE = 1;
         }
     }
+
+    //-------------------------------
     // 0c90  3aa14d    ld      a,(#4da1)
     // 0c93  fe01      cp      #01
     // 0c95  cafb0c    jp      z,#0cfb
+    //-------------------------------
     if (PINKY_SUBSTATE != 1)
     {
+        //-------------------------------
         // 0c98  fe00      cp      #00
         // 0c9a  c2c10c    jp      nz,#0cc1
+        //-------------------------------
         if (PINKY_SUBSTATE == 0)
         {
+            //-------------------------------
             // 0c9d  3a024d    ld      a,(#4d02)
             // 0ca0  fe78      cp      #78
             // 0ca2  cc2e1f    call    z,#1f2e
             // 0ca5  fe80      cp      #80
             // 0ca7  cc2e1f    call    z,#1f2e
+            //-------------------------------
             if (PINKY_Y == 0x78 || PINKY_Y == 0x80)
                 func_1f2e();
+            //-------------------------------
             // 0caa  3a2d4d    ld      a,(#4d2d)
             // 0cad  32294d    ld      (#4d29),a
+            //-------------------------------
             PINKY_PREV_ORIENTATION = PINKY_ORIENTATION;
+            //-------------------------------
             // 0cb0  dd21204d  ld      ix,#4d20
             // 0cb4  fd21024d  ld      iy,#4d02
             // 0cb8  cd0020    call    #2000
             // 0cbb  22024d    ld      (#4d02),hl
+            //-------------------------------
             PINKY_Y=addBytePair_2000(PINKY_Y_TILE_CHANGE, PINKY_Y);
 
-// 0cbe  c3fb0c    jp      #0cfb
+            //-------------------------------
+            // 0cbe  c3fb0c    jp      #0cfb
+            //-------------------------------
+        }
+        else
+        {
+            //-------------------------------
+            // 0cc1  dd210533  ld      ix,#3305
+            // 0cc5  fd21024d  ld      iy,#4d02
+            // 0cc9  cd0020    call    #2000
+            // 0ccc  22024d    ld      (#4d02),hl
+            //-------------------------------
+            PINKY_Y=addBytePair_2000 (XY_UP, PINKY_Y);
+            //-------------------------------
+            // 0ccf  3e03      ld      a,#03
+            // 0cd1  322d4d    ld      (#4d2d),a
+            // 0cd4  32294d    ld      (#4d29),a
+            //-------------------------------
+            PINKY_PREV_ORIENTATION = PINKY_ORIENTATION = 3;
+
+            //-------------------------------
+            // 0cd7  3a024d    ld      a,(#4d02)
+            // 0cda  fe64      cp      #64
+            // 0cdc  c2fb0c    jp      nz,#0cfb
+            //-------------------------------
+            if (PINKY_Y==0x64)
+            {
+                //-------------------------------
+                // 0cdf  212c2e    ld      hl,#2e2c
+                // 0ce2  220c4d    ld      (#4d0c),hl
+                //-------------------------------
+                PINKY_Y_TILE = 0x2c;
+                PINKY_X_TILE = 0x2e;
+                //-------------------------------
+                // 0ce5  210001    ld      hl,#0100
+                // 0ce8  22164d    ld      (#4d16),hl
+                // 0ceb  22204d    ld      (#4d20),hl
+                //-------------------------------
+                PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x00;
+                PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x01;
+
+                //-------------------------------
+                // 0cee  3e02      ld      a,#02
+                // 0cf0  32294d    ld      (#4d29),a
+                // 0cf3  322d4d    ld      (#4d2d),a
+                //-------------------------------
+                PINKY_PREV_ORIENTATION = PINKY_ORIENTATION = 2;
+                //-------------------------------
+                // 0cf6  3e01      ld      a,#01
+                // 0cf8  32a14d    ld      (#4da1),a
+                //-------------------------------
+                PINKY_SUBSTATE = 1;
+            }
+        }
+    }
+
+    //-------------------------------
+    // 0cfb  3aa24d    ld      a,(#4da2)
+    // 0cfe  fe01      cp      #01
+    // 0d00  ca930d    jp      z,#0d93
+    //-------------------------------
+    if (INKY_SUBSTATE != 1)
+    {
+        //-------------------------------
+        // 0d03  fe00      cp      #00
+        // 0d05  c22c0d    jp      nz,#0d2c
+        //-------------------------------
+        if (INKY_SUBSTATE == 0)
+        {
+            //-------------------------------
+            // 0d08  3a044d    ld      a,(#4d04)
+            // 0d0b  fe78      cp      #78
+            // 0d0d  cc551f    call    z,#1f55
+            // 0d10  fe80      cp      #80
+            // 0d12  cc551f    call    z,#1f55
+            //-------------------------------
+            if (INKY_Y == 0x78 || INKY_Y == 0x80)
+                func_1f55();
+
+            //-------------------------------
+            // 0d15  3a2e4d    ld      a,(#4d2e)
+            // 0d18  322a4d    ld      (#4d2a),a
+            //-------------------------------
+            INKY_PREV_ORIENTATION = INKY_ORIENTATION;
+
+            //-------------------------------
+            // 0d1b  dd21224d  ld      ix,#4d22
+            // 0d1f  fd21044d  ld      iy,#4d04
+            // 0d23  cd0020    call    #2000
+            // 0d26  22044d    ld      (#4d04),hl
+            //-------------------------------
+            INKY_Y=addBytePair_2000(INKY_Y_TILE_CHANGE, INKY_Y);
+            //-------------------------------
+            // 0d29  c3930d    jp      #0d93
+            //-------------------------------
+        }
+        else
+        {
+            //-------------------------------
+            // 0d2c  3aa24d    ld      a,(#4da2)
+            // 0d2f  fe03      cp      #03
+            // 0d31  c2590d    jp      nz,#0d59
+            //-------------------------------
+            if (INKY_SUBSTATE != 3)
+            {
+                //-------------------------------
+                // 0d34  dd21ff32  ld      ix,#32ff
+                // 0d38  fd21044d  ld      iy,#4d04
+                // 0d3c  cd0020    call    #2000
+                // 0d3f  22044d    ld      (#4d04),hl
+                //-------------------------------
+                INKY_Y=addBytePair_2000 (XY_UP, INKY_Y);
+
+                //-------------------------------
+                // 0d42  af        xor     a
+                // 0d43  322a4d    ld      (#4d2a),a
+                // 0d46  322e4d    ld      (#4d2e),a
+                //-------------------------------
+                INKY_PREV_ORIENTATION = INKY_ORIENTATION = 0;
+                //-------------------------------
+                // 0d49  3a054d    ld      a,(#4d05)
+                // 0d4c  fe80      cp      #80
+                // 0d4e  c2930d    jp      nz,#0d93
+                //-------------------------------
+                if (INKY_X==0x80)
+                {
+                    //-------------------------------
+                    // 0d51  3e02      ld      a,#02
+                    // 0d53  32a24d    ld      (#4da2),a
+                    //-------------------------------
+                    INKY_SUBSTATE=2;
+                    //-------------------------------
+                    // 0d56  c3930d    jp      #0d93
+                    //-------------------------------
+                }
+            }
+            else
+            {
+                //-------------------------------
+                // 0d59  dd210533  ld      ix,#3305
+                // 0d5d  fd21044d  ld      iy,#4d04
+                // 0d61  cd0020    call    #2000
+                // 0d64  22044d    ld      (#4d04),hl
+                //-------------------------------
+                INKY_Y=addBytePair_2000 (XY_UP, INKY_Y);
+                //-------------------------------
+                // 0d67  3e03      ld      a,#03
+                // 0d69  322a4d    ld      (#4d2a),a
+                // 0d6c  322e4d    ld      (#4d2e),a
+                //-------------------------------
+                INKY_PREV_ORIENTATION = INKY_ORIENTATION = 3;
+                //-------------------------------
+                // 0d6f  3a044d    ld      a,(#4d04)
+                // 0d72  fe64      cp      #64
+                // 0d74  c2930d    jp      nz,#0d93
+                //-------------------------------
+                if (INKY_Y==0x64)
+                {
+                    //-------------------------------
+                    // 0d77  212c2e    ld      hl,#2e2c
+                    // 0d7a  220e4d    ld      (#4d0e),hl
+                    //-------------------------------
+                    INKY_Y_TILE = 0x2c;
+                    INKY_X_TILE = 0x2e;
+                    //-------------------------------
+                    // 0d7d  210001    ld      hl,#0100
+                    // 0d80  22184d    ld      (#4d18),hl
+                    // 0d83  22224d    ld      (#4d22),hl
+                    //-------------------------------
+                    INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0x00;
+                    INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x01;
+                    //-------------------------------
+                    // 0d86  3e02      ld      a,#02
+                    // 0d88  322a4d    ld      (#4d2a),a
+                    // 0d8b  322e4d    ld      (#4d2e),a
+                    //-------------------------------
+                    INKY_PREV_ORIENTATION = INKY_ORIENTATION = 2;
+                    //-------------------------------
+                    // 0d8e  3e01      ld      a,#01
+                    // 0d90  32a24d    ld      (#4da2),a
+                    //-------------------------------
+                    INKY_SUBSTATE = 1;
+                }
+            }
+        }
+    }
+    //-------------------------------
+    // 0d93  3aa34d    ld      a,(#4da3)
+    // 0d96  fe01      cp      #01
+    // 0d98  c8        ret     z
+    //-------------------------------
+    if (CLYDE_SUBSTATE == 1)
+        return;
+
+    //-------------------------------
+    // 0d99  fe00      cp      #00
+    // 0d9b  c2c00d    jp      nz,#0dc0
+    //-------------------------------
+    if (CLYDE_SUBSTATE == 0)
+    {
+        //-------------------------------
+        // 0d9e  3a064d    ld      a,(#4d06)
+        // 0da1  fe78      cp      #78
+        // 0da3  cc7c1f    call    z,#1f7c
+        // 0da6  fe80      cp      #80
+        // 0da8  cc7c1f    call    z,#1f7c
+        //-------------------------------
+        if (CLYDE_Y == 0x78 || CLYDE_Y == 0x80)
+            func_1f7c();
+        //-------------------------------
+        // 0dab  3a2f4d    ld      a,(#4d2f)
+        // 0dae  322b4d    ld      (#4d2b),a
+        //-------------------------------
+        CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION;
+        //-------------------------------
+        // 0db1  dd21244d  ld      ix,#4d24
+        // 0db5  fd21064d  ld      iy,#4d06
+        // 0db9  cd0020    call    #2000
+        // 0dbc  22064d    ld      (#4d06),hl
+        // 0dbf  c9        ret     
+        //-------------------------------
+        CLYDE_Y=addBytePair_2000(CLYDE_Y_TILE_CHANGE, CLYDE_Y);
+        return;
+    }
+    //-------------------------------
+    // 0dc0  3aa34d    ld      a,(#4da3)
+    // 0dc3  fe03      cp      #03
+    // 0dc5  c2ea0d    jp      nz,#0dea
+    //-------------------------------
+    if (CLYDE_SUBSTATE != 3)
+    {
+        //-------------------------------
+        // 0dc8  dd210333  ld      ix,#3303
+        // 0dcc  fd21064d  ld      iy,#4d06
+        // 0dd0  cd0020    call    #2000
+        // 0dd3  22064d    ld      (#4d06),hl
+        //-------------------------------
+        CLYDE_Y=addBytePair_2000 (XY_UP, CLYDE_Y);
+        //-------------------------------
+        // 0dd6  3e02      ld      a,#02
+        // 0dd8  322b4d    ld      (#4d2b),a
+        // 0ddb  322f4d    ld      (#4d2f),a
+        //-------------------------------
+        CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION = 2;
+        //-------------------------------
+        // 0dde  3a074d    ld      a,(#4d07)
+        // 0de1  fe80      cp      #80
+        // 0de3  c0        ret     nz
+        //-------------------------------
+        if (CLYDE_X!=0x80)
+            return;
+        //-------------------------------
+        // 
+        // 0de4  3e02      ld      a,#02
+        // 0de6  32a34d    ld      (#4da3),a
+        // 0de9  c9        ret     
+        //-------------------------------
+        CLYDE_SUBSTATE=2;
+        return;
+    }
+
+    //-------------------------------
+    // 0dea  dd210533  ld      ix,#3305
+    // 0dee  fd21064d  ld      iy,#4d06
+    // 0df2  cd0020    call    #2000
+    // 0df5  22064d    ld      (#4d06),hl
+    //-------------------------------
+    CLYDE_Y=addBytePair_2000 (XY_UP, CLYDE_Y);
+    //-------------------------------
+    // 0df8  3e03      ld      a,#03
+    // 0dfa  322b4d    ld      (#4d2b),a
+    // 0dfd  322f4d    ld      (#4d2f),a
+    //-------------------------------
+    CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION = 3;
+    //-------------------------------
+    // 0e00  3a064d    ld      a,(#4d06)
+    // 0e03  fe64      cp      #64
+    // 0e05  c0        ret     nz
+    //-------------------------------
+    if (CLYDE_Y!=0x64)
+        return;
+    //-------------------------------
+    // 0e06  212c2e    ld      hl,#2e2c
+    // 0e09  22104d    ld      (#4d10),hl
+    //-------------------------------
+    CLYDE_Y_TILE = 0x2c;
+    CLYDE_X_TILE = 0x2e;
+    //-------------------------------
+    // 0e0c  210001    ld      hl,#0100
+    // 0e0f  221a4d    ld      (#4d1a),hl
+    // 0e12  22244d    ld      (#4d24),hl
+    //-------------------------------
+    CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0x00;
+    CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x01;
+    //-------------------------------
+    // 0e15  3e02      ld      a,#02
+    // 0e17  322b4d    ld      (#4d2b),a
+    // 0e1a  322f4d    ld      (#4d2f),a
+    //-------------------------------
+    CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION = 2;
+    //-------------------------------
+    // 0e1d  3e01      ld      a,#01
+    // 0e1f  32a34d    ld      (#4da3),a
+    // 0e22  c9        ret     
+    //-------------------------------
+    CLYDE_SUBSTATE = 1;
 }
-else
+
+void func_0e23()
 {
-// 0cc1  dd210533  ld      ix,#3305
-// 0cc5  fd21024d  ld      iy,#4d02
-// 0cc9  cd0020    call    #2000
-PINKY_Y UP
-// 0ccc  22024d    ld      (#4d02),hl
-// 0ccf  3e03      ld      a,#03
-// 0cd1  322d4d    ld      (#4d2d),a
-// 0cd4  32294d    ld      (#4d29),a
-// 0cd7  3a024d    ld      a,(#4d02)
-// 0cda  fe64      cp      #64
-// 0cdc  c2fb0c    jp      nz,#0cfb
-// 0cdf  212c2e    ld      hl,#2e2c
-// 0ce2  220c4d    ld      (#4d0c),hl
-// 0ce5  210001    ld      hl,#0100
-// 0ce8  22164d    ld      (#4d16),hl
-// 0ceb  22204d    ld      (#4d20),hl
-// 0cee  3e02      ld      a,#02
-// 0cf0  32294d    ld      (#4d29),a
-// 0cf3  322d4d    ld      (#4d2d),a
-// 0cf6  3e01      ld      a,#01
-// 0cf8  32a14d    ld      (#4da1),a
+    //-------------------------------
+    // 0e23  21c44d    ld      hl,#4dc4
+    // 0e26  34        inc     (hl)
+    // 0e27  3e08      ld      a,#08
+    // 0e29  be        cp      (hl)
+    // 0e2a  c0        ret     nz
+    //-------------------------------
+    if (COUNTER_TO_8++ != 8)
+        return;
+    //-------------------------------
+    // 0e2b  3600      ld      (hl),#00
+    //-------------------------------
+    COUNTER_TO_8=0;
+    //-------------------------------
+    // 0e2d  3ac04d    ld      a,(#4dc0)
+    // 0e30  ee01      xor     #01
+    // 0e32  32c04d    ld      (#4dc0),a
+    // 0e35  c9        ret     
+    //-------------------------------
+    GHOST_ANIMATION^=1;
+}
 
-// 0cfb  3aa24d    ld      a,(#4da2)
-// 0cfe  fe01      cp      #01
-// 0d00  ca930d    jp      z,#0d93
-// 0d03  fe00      cp      #00
-// 0d05  c22c0d    jp      nz,#0d2c
-// 0d08  3a044d    ld      a,(#4d04)
-// 0d0b  fe78      cp      #78
-// 0d0d  cc551f    call    z,#1f55
-// 0d10  fe80      cp      #80
-// 0d12  cc551f    call    z,#1f55
-// 0d15  3a2e4d    ld      a,(#4d2e)
-// 0d18  322a4d    ld      (#4d2a),a
-// 0d1b  dd21224d  ld      ix,#4d22
-// 0d1f  fd21044d  ld      iy,#4d04
-// 0d23  cd0020    call    #2000
-// 0d26  22044d    ld      (#4d04),hl
-// 0d29  c3930d    jp      #0d93
-// 0d2c  3aa24d    ld      a,(#4da2)
-// 0d2f  fe03      cp      #03
-// 0d31  c2590d    jp      nz,#0d59
-// 0d34  dd21ff32  ld      ix,#32ff
-// 0d38  fd21044d  ld      iy,#4d04
-// 0d3c  cd0020    call    #2000
-// 0d3f  22044d    ld      (#4d04),hl
-// 0d42  af        xor     a
-// 0d43  322a4d    ld      (#4d2a),a
-// 0d46  322e4d    ld      (#4d2e),a
-// 0d49  3a054d    ld      a,(#4d05)
-// 0d4c  fe80      cp      #80
-// 0d4e  c2930d    jp      nz,#0d93
-// 0d51  3e02      ld      a,#02
-// 0d53  32a24d    ld      (#4da2),a
-// 0d56  c3930d    jp      #0d93
-// 0d59  dd210533  ld      ix,#3305
-// 0d5d  fd21044d  ld      iy,#4d04
-// 0d61  cd0020    call    #2000
-// 0d64  22044d    ld      (#4d04),hl
-// 0d67  3e03      ld      a,#03
-// 0d69  322a4d    ld      (#4d2a),a
-// 0d6c  322e4d    ld      (#4d2e),a
-// 0d6f  3a044d    ld      a,(#4d04)
-// 0d72  fe64      cp      #64
-// 0d74  c2930d    jp      nz,#0d93
-// 0d77  212c2e    ld      hl,#2e2c
-// 0d7a  220e4d    ld      (#4d0e),hl
-// 0d7d  210001    ld      hl,#0100
-// 0d80  22184d    ld      (#4d18),hl
-// 0d83  22224d    ld      (#4d22),hl
-// 0d86  3e02      ld      a,#02
-// 0d88  322a4d    ld      (#4d2a),a
-// 0d8b  322e4d    ld      (#4d2e),a
-// 0d8e  3e01      ld      a,#01
-// 0d90  32a24d    ld      (#4da2),a
-// 0d93  3aa34d    ld      a,(#4da3)
-// 0d96  fe01      cp      #01
-// 0d98  c8        ret     z
-// 
-// 0d99  fe00      cp      #00
-// 0d9b  c2c00d    jp      nz,#0dc0
-// 0d9e  3a064d    ld      a,(#4d06)
-// 0da1  fe78      cp      #78
-// 0da3  cc7c1f    call    z,#1f7c
-// 0da6  fe80      cp      #80
-// 0da8  cc7c1f    call    z,#1f7c
-// 0dab  3a2f4d    ld      a,(#4d2f)
-// 0dae  322b4d    ld      (#4d2b),a
-// 0db1  dd21244d  ld      ix,#4d24
-// 0db5  fd21064d  ld      iy,#4d06
-// 0db9  cd0020    call    #2000
-// 0dbc  22064d    ld      (#4d06),hl
-// 0dbf  c9        ret     
-// 
-// 0dc0  3aa34d    ld      a,(#4da3)
-// 0dc3  fe03      cp      #03
-// 0dc5  c2ea0d    jp      nz,#0dea
-// 0dc8  dd210333  ld      ix,#3303
-// 0dcc  fd21064d  ld      iy,#4d06
-// 0dd0  cd0020    call    #2000
-// 0dd3  22064d    ld      (#4d06),hl
-// 0dd6  3e02      ld      a,#02
-// 0dd8  322b4d    ld      (#4d2b),a
-// 0ddb  322f4d    ld      (#4d2f),a
-// 0dde  3a074d    ld      a,(#4d07)
-// 0de1  fe80      cp      #80
-// 0de3  c0        ret     nz
-// 
-// 0de4  3e02      ld      a,#02
-// 0de6  32a34d    ld      (#4da3),a
-// 0de9  c9        ret     
-// 
-// 0dea  dd210533  ld      ix,#3305
-// 0dee  fd21064d  ld      iy,#4d06
-// 0df2  cd0020    call    #2000
-// 0df5  22064d    ld      (#4d06),hl
-// 0df8  3e03      ld      a,#03
-// 0dfa  322b4d    ld      (#4d2b),a
-// 0dfd  322f4d    ld      (#4d2f),a
-// 0e00  3a064d    ld      a,(#4d06)
-// 0e03  fe64      cp      #64
-// 0e05  c0        ret     nz
-// 
-// 0e06  212c2e    ld      hl,#2e2c
-// 0e09  22104d    ld      (#4d10),hl
-// 0e0c  210001    ld      hl,#0100
-// 0e0f  221a4d    ld      (#4d1a),hl
-// 0e12  22244d    ld      (#4d24),hl
-// 0e15  3e02      ld      a,#02
-// 0e17  322b4d    ld      (#4d2b),a
-// 0e1a  322f4d    ld      (#4d2f),a
-// 0e1d  3e01      ld      a,#01
-// 0e1f  32a34d    ld      (#4da3),a
-// 0e22  c9        ret     
-// 
-// 0e23  21c44d    ld      hl,#4dc4
-// 0e26  34        inc     (hl)
-// 0e27  3e08      ld      a,#08
-// 0e29  be        cp      (hl)
-// 0e2a  c0        ret     nz
-// 
-// 0e2b  3600      ld      (hl),#00
-// 0e2d  3ac04d    ld      a,(#4dc0)
-// 0e30  ee01      xor     #01
-// 0e32  32c04d    ld      (#4dc0),a
-// 0e35  c9        ret     
-// 
-// 0e36  3aa64d    ld      a,(#4da6)
-// 0e39  a7        and     a
-// 0e3a  c0        ret     nz
-// 
-// 0e3b  3ac14d    ld      a,(#4dc1)
-// 0e3e  fe07      cp      #07
-// 0e40  c8        ret     z
-// 
-// 0e41  87        add     a,a
-// 0e42  2ac24d    ld      hl,(#4dc2)
-// 0e45  23        inc     hl
-// 0e46  22c24d    ld      (#4dc2),hl
-// 0e49  5f        ld      e,a
-// 0e4a  1600      ld      d,#00
-// 0e4c  dd21864d  ld      ix,#4d86
-// 0e50  dd19      add     ix,de
-// 0e52  dd5e00    ld      e,(ix+#00)
-// 0e55  dd5601    ld      d,(ix+#01)
-// 0e58  a7        and     a
-// 0e59  ed52      sbc     hl,de
-// 0e5b  c0        ret     nz
-// 
-// 0e5c  cb3f      srl     a
-// 0e5e  3c        inc     a
-// 0e5f  32c14d    ld      (#4dc1),a
-// 0e62  210101    ld      hl,#0101
-// 0e65  22b14d    ld      (#4db1),hl
-// 0e68  22b34d    ld      (#4db3),hl
-// 0e6b  c9        ret     
-// 
-// 0e6c  3aa54d    ld      a,(#4da5)
-// 0e6f  a7        and     a
-// 0e70  2805      jr      z,#0e77         ; (5)
-// 0e72  af        xor     a
-// 0e73  32ac4e    ld      (#4eac),a
-// 0e76  c9        ret     
-// 
-// 0e77  21ac4e    ld      hl,#4eac
-// 0e7a  06e0      ld      b,#e0
-// 0e7c  3a0e4e    ld      a,(#4e0e)
-// 0e7f  fee4      cp      #e4
-// 0e81  3806      jr      c,#0e89         ; (6)
-// 0e83  78        ld      a,b
-// 0e84  a6        and     (hl)
-// 0e85  cbe7      set     4,a
-// 0e87  77        ld      (hl),a
-// 0e88  c9        ret     
-// 
-// 0e89  fed4      cp      #d4
-// 0e8b  3806      jr      c,#0e93         ; (6)
-// 0e8d  78        ld      a,b
-// 0e8e  a6        and     (hl)
-// 0e8f  cbdf      set     3,a
-// 0e91  77        ld      (hl),a
-// 0e92  c9        ret     
-// 
-// 0e93  feb4      cp      #b4
-// 0e95  3806      jr      c,#0e9d         ; (6)
-// 0e97  78        ld      a,b
-// 0e98  a6        and     (hl)
-// 0e99  cbd7      set     2,a
-// 0e9b  77        ld      (hl),a
-// 0e9c  c9        ret     
-// 
-// 0e9d  fe74      cp      #74
-// 0e9f  3806      jr      c,#0ea7         ; (6)
-// 0ea1  78        ld      a,b
-// 0ea2  a6        and     (hl)
-// 0ea3  cbcf      set     1,a
-// 0ea5  77        ld      (hl),a
-// 0ea6  c9        ret     
-// 
-// 0ea7  78        ld      a,b
-// 0ea8  a6        and     (hl)
-// 0ea9  cbc7      set     0,a
-// 0eab  77        ld      (hl),a
-// 0eac  c9        ret     
-// 
-// 0ead  3aa54d    ld      a,(#4da5)
-// 0eb0  a7        and     a
-// 0eb1  c0        ret     nz
-// 
-// 0eb2  3ad44d    ld      a,(#4dd4)
-// 0eb5  a7        and     a
-// 0eb6  c0        ret     nz
-// 
-// 0eb7  3a0e4e    ld      a,(#4e0e)
-// 0eba  fe46      cp      #46
-// 0ebc  280e      jr      z,#0ecc         ; (14)
-// 0ebe  feaa      cp      #aa
-// 0ec0  c0        ret     nz
-// 
-// 0ec1  3a0d4e    ld      a,(#4e0d)
-// 0ec4  a7        and     a
-// 0ec5  c0        ret     nz
-// 
-// 0ec6  210d4e    ld      hl,#4e0d
-// 0ec9  34        inc     (hl)
-// 0eca  1809      jr      #0ed5           ; (9)
-// 0ecc  3a0c4e    ld      a,(#4e0c)
-// 0ecf  a7        and     a
-// 0ed0  c0        ret     nz
-// 
-// 0ed1  210c4e    ld      hl,#4e0c
-// 0ed4  34        inc     (hl)
-// 0ed5  219480    ld      hl,#8094
-// 0ed8  22d24d    ld      (#4dd2),hl
-// 0edb  21fd0e    ld      hl,#0efd
-// 0ede  3a134e    ld      a,(#4e13)
-// 0ee1  fe14      cp      #14
-// 0ee3  3802      jr      c,#0ee7         ; (2)
-// 0ee5  3e14      ld      a,#14
-// 0ee7  47        ld      b,a
-// 0ee8  87        add     a,a
-// 0ee9  80        add     a,b
-// 0eea  d7        rst     #10
-// 0eeb  320c4c    ld      (#4c0c),a
-// 0eee  23        inc     hl
-// 0eef  7e        ld      a,(hl)
-// 0ef0  320d4c    ld      (#4c0d),a
-// 0ef3  23        inc     hl
-// 0ef4  7e        ld      a,(hl)
-// 0ef5  32d44d    ld      (#4dd4),a
-// 0ef8  f7        rst     #30
-// 0ef9  8a0400
-                schedISRTask (0x8a, 0x04, 0x00);
-// 0efc  c9        ret     
+void func_0e36 ()
+{
+    //-------------------------------
+    // 0e36  3aa64d    ld      a,(#4da6)
+    // 0e39  a7        and     a
+    // 0e3a  c0        ret     nz
+    //-------------------------------
+    if (PILL_EFFECT)
+        return;
+    //-------------------------------
+    // 0e3b  3ac14d    ld      a,(#4dc1)
+    // 0e3e  fe07      cp      #07
+    // 0e40  c8        ret     z
+    //-------------------------------
+    if (NONRANDOM_MOVEMENT==7)
+        return;
+    //-------------------------------
+    // 0e41  87        add     a,a
+    // 0e42  2ac24d    ld      hl,(#4dc2)
+    // 0e45  23        inc     hl
+    // 0e46  22c24d    ld      (#4dc2),hl
+    //-------------------------------
+    ORIENTATION_CHANGE_COUNT++;
+    //-------------------------------
+    // 0e49  5f        ld      e,a
+    // 0e4a  1600      ld      d,#00
+    // 0e4c  dd21864d  ld      ix,#4d86
+    // 0e50  dd19      add     ix,de
+    // 0e52  dd5e00    ld      e,(ix+#00)
+    // 0e55  dd5601    ld      d,(ix+#01)
+    // 0e58  a7        and     a
+    // 0e59  ed52      sbc     hl,de
+    // 0e5b  c0        ret     nz
+    //-------------------------------
+    if (ORIENTATION_CHANGE_COUNT != DIFFICULTY_TABLE[NONRANDOM_MOVEMENT])
+        return;
+    // 
+    //-------------------------------
+    // 0e5c  cb3f      srl     a
+    // 0e5e  3c        inc     a
+    // 0e5f  32c14d    ld      (#4dc1),a
+    //-------------------------------
+    NONRANDOM_MOVEMENT++;
+    //-------------------------------
+    // 0e62  210101    ld      hl,#0101
+    // 0e65  22b14d    ld      (#4db1),hl
+    // 0e68  22b34d    ld      (#4db3),hl
+    // 0e6b  c9        ret     
+    //-------------------------------
+    BLINKY_ORIENT_CHG_FLAG =
+    PINKY_ORIENT_CHG_FLAG =
+    INKY_ORIENT_CHG_FLAG =
+    CLYDE_ORIENT_CHG_FLAG = 0x01;
 
-// 0ef0                                          00 14 06  |2.L#~2.M........|
-// 0f00  01 0f 07 02 15 08 02 15  08 04 14 09 04 14 09 05  |................|
-// 0f10  17 0a 05 17 0a 06 09 0b  06 09 0b 03 16 0c 03 16  |................|
-// 0f20  0c 07 16 0d 07 16 0d 07  16 0d 07 16 0d 07 16 0d  |................|
-// 0f30  07 16 0d 07 16 0d 07 16  0d 07 16 0d 00 00 00 00  |................|
-// 0f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-// 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36  |..............H6|
+    //-------------------------------
+    // 0e6c  3aa54d    ld      a,(#4da5)
+    // 0e6f  a7        and     a
+    // 0e70  2805      jr      z,#0e77         ; (5)
+    //-------------------------------
+    if (PAC_DEAD_ANIM_STATE != 0)
+    {
+        //-------------------------------
+        // 0e72  af        xor     a
+        // 0e73  32ac4e    ld      (#4eac),a
+        // 0e76  c9        ret     
+        //-------------------------------
+        SND_CH2_EFF_NUM = 0;
+        return;
+    }
+    //-------------------------------
+    // 0e77  21ac4e    ld      hl,#4eac
+    // 0e7a  06e0      ld      b,#e0
+    // 0e7c  3a0e4e    ld      a,(#4e0e)
+    // 0e7f  fee4      cp      #e4
+    // 0e81  3806      jr      c,#0e89         ; (6)
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL == 0xe4)
+    {
+        //-------------------------------
+        // 0e83  78        ld      a,b
+        // 0e84  a6        and     (hl)
+        // 0e85  cbe7      set     4,a
+        // 0e87  77        ld      (hl),a
+        // 0e88  c9        ret     
+        //-------------------------------
+        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x10;
+        return;
+    }
+    //-------------------------------
+    // 0e89  fed4      cp      #d4
+    // 0e8b  3806      jr      c,#0e93         ; (6)
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL == 0xd4)
+    {
+        //-------------------------------
+        // 0e8d  78        ld      a,b
+        // 0e8e  a6        and     (hl)
+        // 0e8f  cbdf      set     3,a
+        // 0e91  77        ld      (hl),a
+        // 0e92  c9        ret     
+        //-------------------------------
+        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x08;
+        return;
+    }
+    //-------------------------------
+    // 0e93  feb4      cp      #b4
+    // 0e95  3806      jr      c,#0e9d         ; (6)
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL == 0xb4)
+    {
+        //-------------------------------
+        // 0e97  78        ld      a,b
+        // 0e98  a6        and     (hl)
+        // 0e99  cbd7      set     2,a
+        // 0e9b  77        ld      (hl),a
+        // 0e9c  c9        ret     
+        //-------------------------------
+        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x04;
+        return;
+    }
+    //-------------------------------
+    // 0e9d  fe74      cp      #74
+    // 0e9f  3806      jr      c,#0ea7         ; (6)
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL == 0x74)
+    {
+        //-------------------------------
+        // 0ea1  78        ld      a,b
+        // 0ea2  a6        and     (hl)
+        // 0ea3  cbcf      set     1,a
+        // 0ea5  77        ld      (hl),a
+        // 0ea6  c9        ret     
+        //-------------------------------
+        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x02;
+        return;
+    }
+    //-------------------------------
+    // 
+    // 0ea7  78        ld      a,b
+    // 0ea8  a6        and     (hl)
+    // 0ea9  cbc7      set     0,a
+    // 0eab  77        ld      (hl),a
+    // 0eac  c9        ret     
+    //-------------------------------
+    SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x01;
+}
+
+void func_0ead()
+{
+    //-------------------------------
+    // 0ead  3aa54d    ld      a,(#4da5)
+    // 0eb0  a7        and     a
+    // 0eb1  c0        ret     nz
+    //-------------------------------
+    if (PAC_DEAD_ANIM_STATE != 0)
+        return;
+    //-------------------------------
+    // 0eb2  3ad44d    ld      a,(#4dd4)
+    // 0eb5  a7        and     a
+    // 0eb6  c0        ret     nz
+    //-------------------------------
+    if (FRUIT_POINTS != 0)
+        return;
+    //-------------------------------
+    // 0eb7  3a0e4e    ld      a,(#4e0e)
+    // 0eba  fe46      cp      #46
+    // 0ebc  280e      jr      z,#0ecc         ; (14)
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL != 0x46)
+    {
+        //-------------------------------
+        // 0ebe  feaa      cp      #aa
+        // 0ec0  c0        ret     nz
+        //-------------------------------
+        if (P1_PILLS_EATEN_LEVEL != 0xaa)
+            return;
+        //-------------------------------
+        // 0ec1  3a0d4e    ld      a,(#4e0d)
+        // 0ec4  a7        and     a
+        // 0ec5  c0        ret     nz
+        //-------------------------------
+        if (P1_SECOND_FRUIT != 0)
+            return;
+        //-------------------------------
+        // 0ec6  210d4e    ld      hl,#4e0d
+        // 0ec9  34        inc     (hl)
+        //-------------------------------
+        P1_SECOND_FRUIT++;
+        //-------------------------------
+        // 0eca  1809      jr      #0ed5           ; (9)
+        //-------------------------------
+    }
+    //-------------------------------
+    // 0ecc  3a0c4e    ld      a,(#4e0c)
+    // 0ecf  a7        and     a
+    // 0ed0  c0        ret     nz
+    //-------------------------------
+    if (P1_FIRST_FRUIT != 0)
+        return;
+    //-------------------------------
+    // 0ed1  210c4e    ld      hl,#4e0c
+    // 0ed4  34        inc     (hl)
+    //-------------------------------
+    P1_FIRST_FRUIT++;
+    //-------------------------------
+    // 0ed5  219480    ld      hl,#8094
+    // 0ed8  22d24d    ld      (#4dd2),hl
+    //-------------------------------
+    FRUIT_POS[0]=0x80;
+    FRUIT_POS[1]=0x94;
+    //-------------------------------
+    // 0edb  21fd0e    ld      hl,#0efd
+    // 0ede  3a134e    ld      a,(#4e13)
+    //-------------------------------
+    a = P1_LEVEL;
+    //-------------------------------
+    // 0ee1  fe14      cp      #14
+    // 0ee3  3802      jr      c,#0ee7         ; (2)
+    // 0ee5  3e14      ld      a,#14
+    //-------------------------------
+    if (a > 20) a = 20;
+    //-------------------------------
+    // 0ee7  47        ld      b,a
+    // 0ee8  87        add     a,a
+    // 0ee9  80        add     a,b
+    //-------------------------------
+    a*=3;
+    //-------------------------------
+    // 0eea  d7        rst     #10
+    //-------------------------------
+    fetchOffset (data_0efd, a);
+    //-------------------------------
+    // 0eeb  320c4c    ld      (#4c0c),a
+    // 0eee  23        inc     hl
+    // 0eef  7e        ld      a,(hl)
+    // 0ef0  320d4c    ld      (#4c0d),a
+    // 0ef3  23        inc     hl
+    // 0ef4  7e        ld      a,(hl)
+    // 0ef5  32d44d    ld      (#4dd4),a
+    // 0ef8  f7        rst     #30
+    // 0ef9  8a0400
+    //-------------------------------
+    schedISRTask (0x8a, 0x04, 0x00);
+    //-------------------------------
+    // 0efc  c9        ret     
+    //-------------------------------
+}
+
+    // 0efd                                          00 14 06  |2.L#~2.M........|
+    // 0f00  01 0f 07 02 15 08 02 15  08 04 14 09 04 14 09 05  |................|
+    // 0f10  17 0a 05 17 0a 06 09 0b  06 09 0b 03 16 0c 03 16  |................|
+    // 0f20  0c 07 16 0d 07 16 0d 07  16 0d 07 16 0d 07 16 0d  |................|
+    // 0f30  07 16 0d 07 16 0d 07 16  0d 07 16 0d 00 00 00 00  |................|
+    // 0f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36  |..............H6|
 
 void func_1000()
 {
@@ -4034,6 +4360,11 @@ void func_10d2()
     BLINKY_SUBSTATE=0;
     BLINKY_STATE=0;
     BLINKY_EDIBLE=0;
+    func_1101();
+}
+
+void func_1101()
+{
     //-------------------------------
     // 1101  dd21ac4d  ld      ix,#4dac
     // 1105  ddb600    or      (ix+#00)
@@ -4085,32 +4416,62 @@ void func_112a()
     //-------------------------------
     PINKY_Y=addBytePair_2000(0x3301, PINKY_Y);
 
-// 1138  3e01      ld      a,#01
-// 113a  32294d    ld      (#4d29),a
-// 113d  322d4d    ld      (#4d2d),a
-// 1140  3a024d    ld      a,(#4d02)
-// 1143  fe80      cp      #80
-// 1145  c0        ret     nz
-// 
-// 1146  212f2e    ld      hl,#2e2f
-// 1149  220c4d    ld      (#4d0c),hl
-// 114c  22334d    ld      (#4d33),hl
-// 114f  af        xor     a
-// 1150  32a14d    ld      (#4da1),a
-// 1153  32ad4d    ld      (#4dad),a
-// 1156  32a84d    ld      (#4da8),a
-// 1159  c30111    jp      #1101
-// 115c  cd861d    call    #1d86
-func_1d86();
-// 115f  2a044d    ld      hl,(#4d04)
-// 1162  116480    ld      de,#8064
-// 1165  a7        and     a
-// 1166  ed52      sbc     hl,de
-// 1168  c0        ret     nz
-// 
-// 1169  21ae4d    ld      hl,#4dae
-// 116c  34        inc     (hl)
-// 116d  c9        ret     
+    //-------------------------------
+    // 1138  3e01      ld      a,#01
+    // 113a  32294d    ld      (#4d29),a
+    // 113d  322d4d    ld      (#4d2d),a
+    //-------------------------------
+    PINKY_ORIENTATION = PINKY_PREV_ORIENTATION = 1;
+    //-------------------------------
+    // 1140  3a024d    ld      a,(#4d02)
+    // 1143  fe80      cp      #80
+    // 1145  c0        ret     nz
+    //-------------------------------
+    if (PINKY_Y != 0x80)
+        return;
+    //-------------------------------
+    // 1146  212f2e    ld      hl,#2e2f
+    // 1149  220c4d    ld      (#4d0c),hl
+    // 114c  22334d    ld      (#4d33),hl
+    //-------------------------------
+    PINKY_Y_TILE = PINKY_Y_TILE2 = 0x2f;
+    PINKY_X_TILE = PINKY_X_TILE2 = 0x2e;
+    //-------------------------------
+    // 114f  af        xor     a
+    // 1150  32a14d    ld      (#4da1),a
+    // 1153  32ad4d    ld      (#4dad),a
+    // 1156  32a84d    ld      (#4da8),a
+    //-------------------------------
+    PINKY_SUBSTATE=
+    PINKY_STATE=
+    PINKY_EDIBLE=0;
+    //-------------------------------
+    // 1159  c30111    jp      #1101
+    //-------------------------------
+    func_1101();
+}
+
+void func_11fc()
+{
+    //-------------------------------
+    // 115c  cd861d    call    #1d86
+    //-------------------------------
+    func_1d86();
+    //-------------------------------
+    // 115f  2a044d    ld      hl,(#4d04)
+    // 1162  116480    ld      de,#8064
+    // 1165  a7        and     a
+    // 1166  ed52      sbc     hl,de
+    // 1168  c0        ret     nz
+    //-------------------------------
+    if (INKY_Y != 0x64 || INKY_X != 0x80)
+        return;
+    //-------------------------------
+    // 1169  21ae4d    ld      hl,#4dae
+    // 116c  34        inc     (hl)
+    // 116d  c9        ret     
+    //-------------------------------
+    INKY_STATE++;
 }
 
 void func_116e()
@@ -4122,16 +4483,25 @@ void func_116e()
     // 1179  22044d    ld      (#4d04),hl
     //-------------------------------
     INKY_Y=addBytePair_2000(0x3301, INKY_Y);
-// 117c  3e01      ld      a,#01
-// 117e  322a4d    ld      (#4d2a),a
-// 1181  322e4d    ld      (#4d2e),a
-// 1184  3a044d    ld      a,(#4d04)
-// 1187  fe80      cp      #80
-// 1189  c0        ret     nz
-// 
-// 118a  21ae4d    ld      hl,#4dae
-// 118d  34        inc     (hl)
-// 118e  c9        ret     
+    //-------------------------------
+    // 117c  3e01      ld      a,#01
+    // 117e  322a4d    ld      (#4d2a),a
+    // 1181  322e4d    ld      (#4d2e),a
+    //-------------------------------
+    INKY_ORIENTATION = INKY_PREV_ORIENTATION = 1;
+    //-------------------------------
+    // 1184  3a044d    ld      a,(#4d04)
+    // 1187  fe80      cp      #80
+    // 1189  c0        ret     nz
+    //-------------------------------
+    if (INKY_Y != 0x80)
+        return;
+    //-------------------------------
+    // 118a  21ae4d    ld      hl,#4dae
+    // 118d  34        inc     (hl)
+    // 118e  c9        ret     
+    //-------------------------------
+    INKY_STATE++;
 }
 
 void func_118f()
@@ -4143,9 +4513,13 @@ void func_118f()
     // 119a  22044d    ld      (#4d04),hl
     //-------------------------------
     INKY_Y=addBytePair_2000(0x3303, INKY_Y);
-// 119d  3e02      ld      a,#02
-// 119f  322a4d    ld      (#4d2a),a
-// 11a2  322e4d    ld      (#4d2e),a
+
+    //-------------------------------
+    // 119d  3e02      ld      a,#02
+    // 119f  322a4d    ld      (#4d2a),a
+    // 11a2  322e4d    ld      (#4d2e),a
+    //-------------------------------
+    INKY_ORIENTATION = INKY_PREV_ORIENTATION = 2;
 
     //-------------------------------
     // 11a5  3a054d    ld      a,(#4d05)
@@ -4155,28 +4529,60 @@ void func_118f()
     if (INKY_X!=0x90)
         return;
 
-// 11ab  212f30    ld      hl,#302f
-// 11ae  220e4d    ld      (#4d0e),hl
-// 11b1  22354d    ld      (#4d35),hl
-// 11b4  3e01      ld      a,#01
-// 11b6  322a4d    ld      (#4d2a),a
-// 11b9  322e4d    ld      (#4d2e),a
-// 11bc  af        xor     a
-// 11bd  32a24d    ld      (#4da2),a
-// 11c0  32ae4d    ld      (#4dae),a
-// 11c3  32a94d    ld      (#4da9),a
-// 11c6  c30111    jp      #1101
-// 11c9  cd5d1e    call    #1e5d
-func_1e5d();
-// 11cc  2a064d    ld      hl,(#4d06)
-// 11cf  116480    ld      de,#8064
-// 11d2  a7        and     a
-// 11d3  ed52      sbc     hl,de
-// 11d5  c0        ret     nz
-// 
-// 11d6  21af4d    ld      hl,#4daf
-// 11d9  34        inc     (hl)
-// 11da  c9        ret     
+    //-------------------------------
+    // 11ab  212f30    ld      hl,#302f
+    // 11ae  220e4d    ld      (#4d0e),hl
+    // 11b1  22354d    ld      (#4d35),hl
+    //-------------------------------
+    INKY_Y_TILE = INKY_Y_TILE2 = 0x2f;
+    INKY_X_TILE = INKY_X_TILE2 = 0x30;
+    //-------------------------------
+    // 11b4  3e01      ld      a,#01
+    // 11b6  322a4d    ld      (#4d2a),a
+    // 11b9  322e4d    ld      (#4d2e),a
+    //-------------------------------
+    INKY_ORIENTATION = INKY_PREV_ORIENTATION = 1;
+    //-------------------------------
+    // 11bc  af        xor     a
+    // 11bd  32a24d    ld      (#4da2),a
+    // 11c0  32ae4d    ld      (#4dae),a
+    // 11c3  32a94d    ld      (#4da9),a
+    //-------------------------------
+    INKY_SUBSTATE=
+    INKY_STATE=
+    INKY_EDIBLE=0;
+
+    //-------------------------------
+    // 11c6  c30111    jp      #1101
+    //-------------------------------
+    func_1101();
+}
+
+void func_11c9()
+{
+    //-------------------------------
+    // 11c9  cd5d1e    call    #1e5d
+    //-------------------------------
+    func_1e5d();
+    //-------------------------------
+    // 11cc  2a064d    ld      hl,(#4d06)
+    // 11cf  116480    ld      de,#8064
+    // 11d2  a7        and     a
+    // 11d3  ed52      sbc     hl,de
+    // 11d5  c0        ret     nz
+    //-------------------------------
+    if (CLYDE_Y != 0x64 || CLYDE_X != 0x80)
+        return;
+    //-------------------------------
+    // 11d6  21af4d    ld      hl,#4daf
+    // 11d9  34        inc     (hl)
+    // 11da  c9        ret     
+    //-------------------------------
+    CLYDE_STATE++;
+}
+
+void func_11db()
+{
     //-------------------------------
     // 11db  dd210133  ld      ix,#3301
     // 11df  fd21064d  ld      iy,#4d06
@@ -4185,17 +4591,29 @@ func_1e5d();
     //-------------------------------
     CLYDE_Y=addBytePair_2000(0x3301, CLYDE_Y);
 
-// 11e9  3e01      ld      a,#01
-// 11eb  322b4d    ld      (#4d2b),a
-// 11ee  322f4d    ld      (#4d2f),a
-// 11f1  3a064d    ld      a,(#4d06)
-// 11f4  fe80      cp      #80
-// 11f6  c0        ret     nz
-// 
-// 11f7  21af4d    ld      hl,#4daf
-// 11fa  34        inc     (hl)
-// 11fb  c9        ret     
+    //-------------------------------
+    // 11e9  3e01      ld      a,#01
+    // 11eb  322b4d    ld      (#4d2b),a
+    // 11ee  322f4d    ld      (#4d2f),a
+    //-------------------------------
+    CLYDE_ORIENTATION = CLYDE_PREV_ORIENTATION = 1;
+    //-------------------------------
+    // 11f1  3a064d    ld      a,(#4d06)
+    // 11f4  fe80      cp      #80
+    // 11f6  c0        ret     nz
+    //-------------------------------
+    if (CLYDE_Y != 0x80)
+        return;
+    //-------------------------------
+    // 11f7  21af4d    ld      hl,#4daf
+    // 11fa  34        inc     (hl)
+    // 11fb  c9        ret     
+    //-------------------------------
+    CLYDE_STATE++;
+}
 
+void func_11fc()
+{
     //-------------------------------
     // 11fc  dd21ff32  ld      ix,#32ff
     // 1200  fd21064d  ld      iy,#4d06
@@ -4203,136 +4621,186 @@ func_1e5d();
     // 1207  22064d    ld      (#4d06),hl
     //-------------------------------
     CLYDE_Y=addBytePair_2000(0x32ff, CLYDE_Y);
-// 120a  af        xor     a
-// 120b  322b4d    ld      (#4d2b),a
-// 120e  322f4d    ld      (#4d2f),a
-// 1211  3a074d    ld      a,(#4d07)
-// 1214  fe70      cp      #70
-// 1216  c0        ret     nz
-// 
-// 1217  212f2c    ld      hl,#2c2f
-// 121a  22104d    ld      (#4d10),hl
-// 121d  22374d    ld      (#4d37),hl
-// 1220  3e01      ld      a,#01
-// 1222  322b4d    ld      (#4d2b),a
-// 1225  322f4d    ld      (#4d2f),a
-// 1228  af        xor     a
-// 1229  32a34d    ld      (#4da3),a
-// 122c  32af4d    ld      (#4daf),a
-// 122f  32aa4d    ld      (#4daa),a
-// 1232  c30111    jp      #1101
-// 1235  3ad14d    ld      a,(#4dd1)
-// 1238  e7        rst     #20
-// 1239  3f        ccf     
-// 123a  12        ld      (de),a
-// 123b  0c        inc     c
-// 123c  00        nop     
-// 123d  3f        ccf     
-// 123e  12        ld      (de),a
-// 123f  21004c    ld      hl,#4c00
-// 1242  3aa44d    ld      a,(#4da4)
-// 1245  87        add     a,a
-// 1246  5f        ld      e,a
-// 1247  1600      ld      d,#00
-// 1249  19        add     hl,de
-// 124a  3ad14d    ld      a,(#4dd1)
-// 124d  a7        and     a
-// 124e  2027      jr      nz,#1277        ; (39)
-if (KILLED_STATE == 0)
-{
-// 1250  3ad04d    ld      a,(#4dd0)
-// 1253  0627      ld      b,#27
-// 1255  80        add     a,b
-// 1256  47        ld      b,a
-
     //-------------------------------
-    // 1257  3a724e    ld      a,(#4e72)
-    // 125a  4f        ld      c,a
-    // 125b  3a094e    ld      a,(#4e09)
-    // 125e  a1        and     c
+    // 120a  af        xor     a
+    // 120b  322b4d    ld      (#4d2b),a
+    // 120e  322f4d    ld      (#4d2f),a
     //-------------------------------
-    b = (COCKTAIL_MODE & PLAYER;
-
-// 125f  2804      jr      z,#1265         ; (4)
-// 1261  cbf0      set     6,b
-// 1263  cbf8      set     7,b
-// 1265  70        ld      (hl),b
-// 1266  23        inc     hl
-// 1267  3618      ld      (hl),#18
-// 1269  3e00      ld      a,#00
-// 126b  320b4c    ld      (#4c0b),a
-// 126e  f7        rst     #30
-// 126f  4a0300
-                schedISRTask (0x4a, 0x03, 0x00);
-// 1272  21d14d    ld      hl,#4dd1
-// 1275  34        inc     (hl)
-// 1276  c9        ret     
-KILLED_STATE++;
+    CLYDE_ORIENTATION = CLYDE_PREV_ORIENTATION = 0;
+    //-------------------------------
+    // 1211  3a074d    ld      a,(#4d07)
+    // 1214  fe70      cp      #70
+    // 1216  c0        ret     nz
+    //-------------------------------
+    if (CLYDE_X!=0x70)
+        return;
+    //-------------------------------
+    // 1217  212f2c    ld      hl,#2c2f
+    // 121a  22104d    ld      (#4d10),hl
+    // 121d  22374d    ld      (#4d37),hl
+    //-------------------------------
+    CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x2f;
+    CLYDE_X_TILE = CLYDE_X_TILE2 = 0x2c;
+    //-------------------------------
+    // 1220  3e01      ld      a,#01
+    // 1222  322b4d    ld      (#4d2b),a
+    // 1225  322f4d    ld      (#4d2f),a
+    //-------------------------------
+    CLYDE_ORIENTATION = CLYDE_PREV_ORIENTATION = 1;
+    //-------------------------------
+    // 1228  af        xor     a
+    // 1229  32a34d    ld      (#4da3),a
+    // 122c  32af4d    ld      (#4daf),a
+    // 122f  32aa4d    ld      (#4daa),a
+    //-------------------------------
+    CLYDE_SUBSTATE=
+    CLYDE_STATE=
+    CLYDE_EDIBLE=0;
+    //-------------------------------
+    // 1232  c30111    jp      #1101
+    //-------------------------------
+    func_1101();
 }
 
-// 1277  3620      ld      (hl),#20
-// 1279  3e09      ld      a,#09
-// 127b  320b4c    ld      (#4c0b),a
-// 127e  3aa44d    ld      a,(#4da4)
-// 1281  32ab4d    ld      (#4dab),a
-// 1284  af        xor     a
-// 1285  32a44d    ld      (#4da4),a
-// 1288  32d14d    ld      (#4dd1),a
-KILLED_STATE=0;
-// 128b  21ac4e    ld      hl,#4eac
-// 128e  cbf6      set     6,(hl)
-// 1290  c9        ret     
+void func_1235()
+{
+    //-------------------------------
+    // 1235  3ad14d    ld      a,(#4dd1)
+    // 1238  e7        rst     #20
+    // 1239  3f 12 0c 00 3f 12 
+    //-------------------------------
+    void (*func)()[] = { func_123f, nothing, func_123f };
+    tableCall (func, KILLED_STATE);
+    //-------------------------------
+    // 123f  21004c    ld      hl,#4c00
+    // 1242  3aa44d    ld      a,(#4da4)
+    // 1245  87        add     a,a
+    // 1246  5f        ld      e,a
+    // 1247  1600      ld      d,#00
+    // 1249  19        add     hl,de
+    //-------------------------------
+    hl=0x4c00+KILLED_GHOST_INDEX*2;
+    //-------------------------------
+    // 124a  3ad14d    ld      a,(#4dd1)
+    // 124d  a7        and     a
+    // 124e  2027      jr      nz,#1277        ; (39)
+    //-------------------------------
+    if (KILLED_STATE == 0)
+    {
+        //-------------------------------
+        // 1250  3ad04d    ld      a,(#4dd0)
+        // 1253  0627      ld      b,#27
+        // 1255  80        add     a,b
+        // 1256  47        ld      b,a
+        //-------------------------------
+        b=KILLED_COUNT+0x27;
+        //-------------------------------
+        // 1257  3a724e    ld      a,(#4e72)
+        // 125a  4f        ld      c,a
+        // 125b  3a094e    ld      a,(#4e09)
+        // 125e  a1        and     c
+        // 125f  2804      jr      z,#1265         ; (4)
+        //-------------------------------
+        if ((COCKTAIL_MODE & PLAYER) != 0)
+        {
+            //-------------------------------
+            // 1261  cbf0      set     6,b
+            // 1263  cbf8      set     7,b
+            //-------------------------------
+            b|=0xc0;
+        }
+        //-------------------------------
+        // 1265  70        ld      (hl),b
+        //-------------------------------
+        MEM[hl]=b;
+
+        //-------------------------------
+        // 1266  23        inc     hl
+        // 1267  3618      ld      (hl),#18
+        //-------------------------------
+        MEM[hl+1]=0x18;
+        //-------------------------------
+        // 1269  3e00      ld      a,#00
+        // 126b  320b4c    ld      (#4c0b),a
+        //-------------------------------
+        PACMAN_COLOUR=0;
+        //-------------------------------
+        // 126e  f7        rst     #30
+        // 126f  4a0300
+        //-------------------------------
+        schedISRTask (0x4a, 0x03, 0x00);
+        //-------------------------------
+        // 1272  21d14d    ld      hl,#4dd1
+        // 1275  34        inc     (hl)
+        // 1276  c9        ret     
+        //-------------------------------
+        KILLED_STATE++;
+        return;
+    }
+
+    //-------------------------------
+    // 1277  3620      ld      (hl),#20
+    //-------------------------------
+    MEM[hl]=0x20;
+    //-------------------------------
+    // 1279  3e09      ld      a,#09
+    // 127b  320b4c    ld      (#4c0b),a
+    //-------------------------------
+    PACMAN_COLOUR=9;
+    //-------------------------------
+    // 127e  3aa44d    ld      a,(#4da4)
+    // 1281  32ab4d    ld      (#4dab),a
+    //-------------------------------
+    GHOST_STATE=KILLED_GHOST_INDEX;
+    //-------------------------------
+    // 1284  af        xor     a
+    // 1285  32a44d    ld      (#4da4),a
+    // 1288  32d14d    ld      (#4dd1),a
+    //-------------------------------
+    KILLED_GHOST_INDEX=
+    KILLED_STATE=0;
+    //-------------------------------
+    // 128b  21ac4e    ld      hl,#4eac
+    // 128e  cbf6      set     6,(hl)
+    // 1290  c9        ret     
+    //-------------------------------
 
     //-------------------------------
     // 1291  3aa54d    ld      a,(#4da5)
     // 1294  e7        rst     #20
-    // 1295  0c00
-    // 1297  b712
-    // 1299  b712
-    // 129b  b712
-    // 129d  b712
-    // 129f  cb12
-    // 12a1  f912
-    // 12a3  0613
-    // 12a5  0e13
-    // 12a7  1613
-    // 12a9  1e13
-    // 12ab  2613
-    // 12ad  2e13
-    // 12af  3613
-    // 12b1  3e13
-    // 12b3  4613
-    // 12b5  5313
+    // 1295                 0c 00 b7  12 b7 12 b7 12 b7 12 cb  |.:.M............|
+    // 12a0  12 f9 12 06 13 0e 13 16  13 1e 13 26 13 2e 13 36  |...........&...6|
+    // 12b0  13 3e 13 46 13 53 13                              |.>.F.S.*.M#".M.x|
     //-------------------------------
     void (*func)()[] = { nothing, func_b712, func_b712, func_b712,
                          func_b712, func_12cb, func_12f9, func_1306,
                          func_130e, func_1316, func_131e, func_1326,
                          func_132e, func_1336, func_133e, func_1346,
                          func_1353 };
-    tableCall (addr, MEM[0x4da5]);
+    tableCall (func, PAC_DEAD_ANIM_STATE);
 }
 
-//-------------------------------
-// 12b7  2ac54d    ld      hl,(#4dc5)
-// 12ba  23        inc     hl
-// 12bb  22c54d    ld      (#4dc5),hl
-// 12be  117800    ld      de,#0078
-// 12c1  a7        and     a
-// 12c2  ed52      sbc     hl,de
-// 12c4  c0        ret     nz
-//-------------------------------
 bool func_12b7()
 {
-    MEM[0x4dc5]++;
-    if (MEM[0x4dc5] != 0x78)
+    //-------------------------------
+    // 12b7  2ac54d    ld      hl,(#4dc5)
+    // 12ba  23        inc     hl
+    // 12bb  22c54d    ld      (#4dc5),hl
+    // 12be  117800    ld      de,#0078
+    // 12c1  a7        and     a
+    // 12c2  ed52      sbc     hl,de
+    // 12c4  c0        ret     nz
+    //-------------------------------
+    COUNT_SINCE_PAC_KILLED++;
+    if (COUNT_SINCE_PAC_KILLED != 0x78)
         return;
 
-//-------------------------------
-// 12c5  3e05      ld      a,#05
-// 12c7  32a54d    ld      (#4da5),a
-// 12ca  c9        ret     
-//-------------------------------
-    MEM[0x4da5] = 5;
+    //-------------------------------
+    // 12c5  3e05      ld      a,#05
+    // 12c7  32a54d    ld      (#4da5),a
+    // 12ca  c9        ret     
+    //-------------------------------
+    PAC_DEAD_ANIM_STATE = 5;
 }
 
 void func_12cb()
@@ -4342,114 +4810,208 @@ void func_12cb()
     // 12ce  cd7e26    call    #267e
     // 12d1  3e34      ld      a,#34
     // 12d3  11b400    ld      de,#00b4
-    // 12d6  4f        ld      c,a
     //-------------------------------
     setGhostPosition_267e(0, 0);
-    c=0x34;
-    de=0xb4;
+    pacmanDeadAnimation_12d6(0x34, 0xb4);
+}
 
+void pacmanDeadAnimation_12d6(int ch, int count)
+{
     //-------------------------------
+    // 12d6  4f        ld      c,a
     // 12d7  3a724e    ld      a,(#4e72)
     // 12da  47        ld      b,a
     // 12db  3a094e    ld      a,(#4e09)
     // 12de  a0        and     b
     // 12df  2804      jr      z,#12e5         ; (4)
     //-------------------------------
-    a = (COCKTAIL_MODE & PLAYER);
-    if (a != 0)
+    if (COCKTAIL_MODE & PLAYER)
     {
-
         //-------------------------------
         // 12e1  3ec0      ld      a,#c0
         // 12e3  b1        or      c
         // 12e4  4f        ld      c,a
         //-------------------------------
-        c |= 0xc0;
+        ch |= 0xc0;
     }
 
     //-------------------------------
     // 12e5  79        ld      a,c
     // 12e6  320a4c    ld      (#4c0a),a
     //-------------------------------
-    MEM[0x4c0a] = c;
+    PACMAN_SPRITE = ch;
 
     //-------------------------------
     // 12e9  2ac54d    ld      hl,(#4dc5)
     // 12ec  23        inc     hl
     // 12ed  22c54d    ld      (#4dc5),hl
+    // 12f0  a7        and     a
+    // 12f1  ed52      sbc     hl,de
+    // 12f3  c0        ret     nz
     //-------------------------------
-    tbdCounter++;
-// 12f0  a7        and     a
-// 12f1  ed52      sbc     hl,de
-// 12f3  c0        ret     nz
-// 
-// 12f4  21a54d    ld      hl,#4da5
-// 12f7  34        inc     (hl)
-// 12f8  c9        ret     
-// 
-// 12f9  21bc4e    ld      hl,#4ebc
-// 12fc  cbe6      set     4,(hl)
-// 12fe  3e35      ld      a,#35
-// 1300  11c300    ld      de,#00c3
-// 1303  c3d612    jp      #12d6
-// 1306  3e36      ld      a,#36
-// 1308  11d200    ld      de,#00d2
-// 130b  c3d612    jp      #12d6
-// 130e  3e37      ld      a,#37
-// 1310  11e100    ld      de,#00e1
-// 1313  c3d612    jp      #12d6
-// 1316  3e38      ld      a,#38
-// 1318  11f000    ld      de,#00f0
-// 131b  c3d612    jp      #12d6
-// 131e  3e39      ld      a,#39
-// 1320  11ff00    ld      de,#00ff
-// 1323  c3d612    jp      #12d6
-// 1326  3e3a      ld      a,#3a
-// 1328  110e01    ld      de,#010e
-// 132b  c3d612    jp      #12d6
-// 132e  3e3b      ld      a,#3b
-// 1330  111d01    ld      de,#011d
-// 1333  c3d612    jp      #12d6
-// 1336  3e3c      ld      a,#3c
-// 1338  112c01    ld      de,#012c
-// 133b  c3d612    jp      #12d6
-// 133e  3e3d      ld      a,#3d
-// 1340  113b01    ld      de,#013b
-// 1343  c3d612    jp      #12d6
-// 1346  21bc4e    ld      hl,#4ebc
-// 1349  3620      ld      (hl),#20
-// 134b  3e3e      ld      a,#3e
-// 134d  115901    ld      de,#0159
-// 1350  c3d612    jp      #12d6
-// 1353  3e3f      ld      a,#3f
-// 1355  320a4c    ld      (#4c0a),a
+    if (++COUNT_SINCE_PAC_KILLED != count)
+        return;
+
+    //-------------------------------
+    // 12f4  21a54d    ld      hl,#4da5
+    // 12f7  34        inc     (hl)
+    // 12f8  c9        ret     
+    //-------------------------------
+    PAC_DEAD_ANIM_STATE++;
+}
+
+void func_12f9()
+{
+    //-------------------------------
+    // 12f9  21bc4e    ld      hl,#4ebc
+    // 12fc  cbe6      set     4,(hl)
+    //-------------------------------
+    SND_CH3_EFF_NUM |=0x10;
+    //-------------------------------
+    // 12fe  3e35      ld      a,#35
+    // 1300  11c300    ld      de,#00c3
+    // 1303  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x35,0xc3);
+}
+
+void func_1306()
+{
+    //-------------------------------
+    // 1306  3e36      ld      a,#36
+    // 1308  11d200    ld      de,#00d2
+    // 130b  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x36,0xd2);
+}
+
+void func_130e()
+{
+    //-------------------------------
+    // 130e  3e37      ld      a,#37
+    // 1310  11e100    ld      de,#00e1
+    // 1313  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x37,0xe1);
+}
+
+void func_1316()
+{
+    //-------------------------------
+    // 1316  3e38      ld      a,#38
+    // 1318  11f000    ld      de,#00f0
+    // 131b  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x38,0xf0);
+}
+
+void func_131e()
+{
+    //-------------------------------
+    // 131e  3e39      ld      a,#39
+    // 1320  11ff00    ld      de,#00ff
+    // 1323  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x39,0xff);
+}
+
+void func_1326()
+{
+    //-------------------------------
+    // 1326  3e3a      ld      a,#3a
+    // 1328  110e01    ld      de,#010e
+    // 132b  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x3a,0x10e);
+}
+
+void func_132e()
+{
+    //-------------------------------
+    // 132e  3e3b      ld      a,#3b
+    // 1330  111d01    ld      de,#011d
+    // 1333  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x3b,0x11d);
+}
+
+void func_1336()
+{
+    //-------------------------------
+    // 1336  3e3c      ld      a,#3c
+    // 1338  112c01    ld      de,#012c
+    // 133b  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x3c,0x12c);
+}
+
+void func_133e()
+{
+    //-------------------------------
+    // 133e  3e3d      ld      a,#3d
+    // 1340  113b01    ld      de,#013b
+    // 1343  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x3d,0x13b);
+}
+
+void func_1346()
+{
+    //-------------------------------
+    // 1346  21bc4e    ld      hl,#4ebc
+    // 1349  3620      ld      (hl),#20
+    //-------------------------------
+    SND_CH3_EFF_NUM = 0x20;
+    //-------------------------------
+    // 134b  3e3e      ld      a,#3e
+    // 134d  115901    ld      de,#0159
+    // 1350  c3d612    jp      #12d6
+    //-------------------------------
+    pacmanDeadAnimation_12d6(0x35,0xc3);
+}
+
+void func_1353()
+{
+    //-------------------------------
+    // 1353  3e3f      ld      a,#3f
+    // 1355  320a4c    ld      (#4c0a),a
+    //-------------------------------
+    PACMAN_SPRITE=0x3f;
     //-------------------------------
     // 1358  2ac54d    ld      hl,(#4dc5)
     // 135b  23        inc     hl
     // 135c  22c54d    ld      (#4dc5),hl
+    // 135f  11b801    ld      de,#01b8
+    // 1362  a7        and     a
+    // 1363  ed52      sbc     hl,de
+    // 1365  c0        ret     nz
     //-------------------------------
-    tbdCounter++;
-// 135f  11b801    ld      de,#01b8
-// 1362  a7        and     a
-// 1363  ed52      sbc     hl,de
-// 1365  c0        ret     nz
-// 
-// 1366  21144e    ld      hl,#4e14
-// 1369  35        dec     (hl)
-// 136a  21154e    ld      hl,#4e15
-// 136d  35        dec     (hl)
-// 136e  cd7526    call    #2675
-func_2675();
-// 1371  21044e    ld      hl,#4e04
-// 1374  34        inc     (hl)
-// 1375  c9        ret     
-// 
-// 1376  3aa64d    ld      a,(#4da6)
-// 1379  a7        and     a
-// 137a  c8        ret     z
+    if (++COUNT_SINCE_PAC_KILLED != 0x1b8)
+        return;
+    // 1366  21144e    ld      hl,#4e14
+    // 1369  35        dec     (hl)
+    // 136a  21154e    ld      hl,#4e15
+    // 136d  35        dec     (hl)
+    // 136e  cd7526    call    #2675
+    REAL_LIVES--;
+    DISPLAY_LIVES--;
+    func_2675();
+    // 1371  21044e    ld      hl,#4e04
+    // 1374  34        inc     (hl)
+    // 1375  c9        ret     
+    LEVEL_STATE_SUBR++;
+}
 
-void func_137b()
+void func_1376()
 {
+    //-------------------------------
+    // 1376  3aa64d    ld      a,(#4da6)
+    // 1379  a7        and     a
+    // 137a  c8        ret     z
+    //-------------------------------
+    if (PILL_EFFECT == 0)
+        return;
+
     //-------------------------------
     // 137b  dd21a74d  ld      ix,#4da7
     // 137f  dd7e00    ld      a,(ix+#00)
@@ -4465,14 +5027,13 @@ void func_137b()
         // 1391  2b        dec     hl
         // 1392  22cb4d    ld      (#4dcb),hl
         //-------------------------------
-        hl = --(uint16_t) MEM[0x4dcb];
 
         //-------------------------------
         // 1395  7c        ld      a,h
         // 1396  b5        or      l
         // 1397  c0        ret     nz
         //-------------------------------
-        if (hl == 0)
+        if (--EDIBLE_REMAIN_COUNT != 0)
             return;
     }
 
@@ -4480,7 +5041,7 @@ void func_137b()
     // 1398  210b4c    ld      hl,#4c0b
     // 139b  3609      ld      (hl),#09
     //-------------------------------
-    MEM[0x4c0b] = 9;
+    PACMAN_COLOUR = 9;
 
     //-------------------------------
     // 139d  3aac4d    ld      a,(#4dac)
@@ -4522,7 +5083,6 @@ void func_137b()
         INKY_EDIBLE = 0;
     }
 
-
     //-------------------------------
     // 13bb  3aaf4d    ld      a,(#4daf)
     // 13be  a7        and     a
@@ -4536,49 +5096,64 @@ void func_137b()
         CLYDE_EDIBLE = 0;
     }
 
+    //-------------------------------
     // 13c5  af        xor     a
     // 13c6  32cb4d    ld      (#4dcb),a
     // 13c9  32cc4d    ld      (#4dcc),a
     // 13cc  32a64d    ld      (#4da6),a
     // 13cf  32c84d    ld      (#4dc8),a
     // 13d2  32d04d    ld      (#4dd0),a
+    //-------------------------------
     EDIBLE_REMAIN_COUNT=0;
     PILL_EFFECT = 0;
     GHOST_COL_POWERP_COUNTER = 0;
     KILLED_COUNT=0;
 
-// 13d5  21ac4e    ld      hl,#4eac
-// 13d8  cbae      res     5,(hl)
-// 13da  cbbe      res     7,(hl)
-// 13dc  c9        ret     
-SND_CH2_EFF_NUM &= 0x6f;
+    //-------------------------------
+    // 13d5  21ac4e    ld      hl,#4eac
+    // 13d8  cbae      res     5,(hl)
+    // 13da  cbbe      res     7,(hl)
+    // 13dc  c9        ret     
+    //-------------------------------
+    SND_CH2_EFF_NUM &= 0x5f;
 
-// 13dd  219e4d    ld      hl,#4d9e
-// 13e0  3a0e4e    ld      a,(#4e0e)
-// 13e3  be        cp      (hl)
-// 13e4  caee13    jp      z,#13ee
-if (P1_PILLS_EATEN == MEM[0x4d9e])
-{
-// 13e7  210000    ld      hl,#0000
-// 13ea  22974d    ld      (#4d97),hl
-// 13ed  c9        ret     
-MEM[0x4d97] = 0; // inactiv counter
-MEM[0x4d98] = 0;
-return;
-// 
-// 13ee  2a974d    ld      hl,(#4d97)
-// 13f1  23        inc     hl
-// 13f2  22974d    ld      (#4d97),hl
-MEM[0x4d97]++;
-// 13f5  ed5b954d  ld      de,(#4d95)
-// 13f9  a7        and     a
-// 13fa  ed52      sbc     hl,de
-// 13fc  c0        ret     nz
-if (MEM[0x4d97] != MEM[0x4d95])
-    return;
-// 13fd  210000    ld      hl,#0000
-// 1400  22974d    ld      (#4d97),hl
-MEM[0x4d97] = 0;
+    //-------------------------------
+    // 13dd  219e4d    ld      hl,#4d9e
+    // 13e0  3a0e4e    ld      a,(#4e0e)
+    // 13e3  be        cp      (hl)
+    // 13e4  caee13    jp      z,#13ee
+    //-------------------------------
+    if (P1_PILLS_EATEN_LEVEL == EATEN_SINCE_MOVE)
+    {
+        //-------------------------------
+        // 13e7  210000    ld      hl,#0000
+        // 13ea  22974d    ld      (#4d97),hl
+        // 13ed  c9        ret     
+        //-------------------------------
+        MEM[0x4d97] = 0; // inactiv counter
+        MEM[0x4d98] = 0;
+        return;
+    }
+
+    //-------------------------------
+    // 13ee  2a974d    ld      hl,(#4d97)
+    // 13f1  23        inc     hl
+    // 13f2  22974d    ld      (#4d97),hl
+    //-------------------------------
+    UNITS_INACTIVITY_COUNTER++;
+    //-------------------------------
+    // 13f5  ed5b954d  ld      de,(#4d95)
+    // 13f9  a7        and     a
+    // 13fa  ed52      sbc     hl,de
+    // 13fc  c0        ret     nz
+    //-------------------------------
+    if (UNITS_INACTIVITY_COUNTER != UNITS_B4_GHOST_LEAVES_HOME)
+        return;
+    //-------------------------------
+    // 13fd  210000    ld      hl,#0000
+    // 1400  22974d    ld      (#4d97),hl
+    //-------------------------------
+    UNITS_INACTIVITY_COUNTER = 0;
 
     //-------------------------------
     // 1403  3aa14d    ld      a,(#4da1)
@@ -4828,46 +5403,51 @@ void func_1490()
 
 void func_14fe()
 {
-// 14fe  3aa54d    ld      a,(#4da5)
-// 1501  a7        and     a
-// 1502  c24b15    jp      nz,#154b
-// 1505  3aa44d    ld      a,(#4da4)
-// 1508  a7        and     a
-// 1509  c2b415    jp      nz,#15b4
-// 150c  211c15    ld      hl,#151c
-// 150f  e5        push    hl
-// 1510  3a304d    ld      a,(#4d30)
-// 1513  e7        rst     #20
-// 1514  8c        adc     a,h
-// 1515  16b1      ld      d,#b1
-// 1517  16d6      ld      d,#d6
-// 1519  16f7      ld      d,#f7
-// 151b  1678      ld      d,#78
-// 151d  a7        and     a
-// 151e  282b      jr      z,#154b         ; (43)
-// 1520  0ec0      ld      c,#c0
-// 1522  3a0a4c    ld      a,(#4c0a)
-// 1525  57        ld      d,a
-// 1526  a1        and     c
-// 1527  2005      jr      nz,#152e        ; (5)
-// 1529  7a        ld      a,d
-// 152a  b1        or      c
-// 152b  c34815    jp      #1548
-// 152e  3a304d    ld      a,(#4d30)
-// 1531  fe02      cp      #02
-// 1533  2009      jr      nz,#153e        ; (9)
-// 1535  cb7a      bit     7,d
-// 1537  2812      jr      z,#154b         ; (18)
-// 1539  7a        ld      a,d
-// 153a  a9        xor     c
-// 153b  c34815    jp      #1548
-// 153e  fe03      cp      #03
-// 1540  2009      jr      nz,#154b        ; (9)
-// 1542  cb72      bit     6,d
-// 1544  2805      jr      z,#154b         ; (5)
-// 1546  7a        ld      a,d
-// 1547  a9        xor     c
-// 1548  320a4c    ld      (#4c0a),a
+    // 14fe  3aa54d    ld      a,(#4da5)
+    // 1501  a7        and     a
+    // 1502  c24b15    jp      nz,#154b
+    if (PAC_DEAD_ANIM_STATE == 0)
+    {
+        // 1505  3aa44d    ld      a,(#4da4)
+        // 1508  a7        and     a
+        // 1509  c2b415    jp      nz,#15b4
+        if (KILLED_GHOST_INDEX == 0)
+        {
+        // 150c  211c15    ld      hl,#151c
+        // 150f  e5        push    hl
+        // 1510  3a304d    ld      a,(#4d30)
+        // 1513  e7        rst     #20
+        // 1514  8c        adc     a,h
+        // 1515  16b1      ld      d,#b1
+        // 1517  16d6      ld      d,#d6
+        // 1519  16f7      ld      d,#f7
+        // 151b  1678      ld      d,#78
+        // 151d  a7        and     a
+        // 151e  282b      jr      z,#154b         ; (43)
+        // 1520  0ec0      ld      c,#c0
+        // 1522  3a0a4c    ld      a,(#4c0a)
+        // 1525  57        ld      d,a
+        // 1526  a1        and     c
+        // 1527  2005      jr      nz,#152e        ; (5)
+        // 1529  7a        ld      a,d
+        // 152a  b1        or      c
+        // 152b  c34815    jp      #1548
+        // 152e  3a304d    ld      a,(#4d30)
+        // 1531  fe02      cp      #02
+        // 1533  2009      jr      nz,#153e        ; (9)
+        // 1535  cb7a      bit     7,d
+        // 1537  2812      jr      z,#154b         ; (18)
+        // 1539  7a        ld      a,d
+        // 153a  a9        xor     c
+        // 153b  c34815    jp      #1548
+        // 153e  fe03      cp      #03
+        // 1540  2009      jr      nz,#154b        ; (9)
+        // 1542  cb72      bit     6,d
+        // 1544  2805      jr      z,#154b         ; (5)
+        // 1546  7a        ld      a,d
+        // 1547  a9        xor     c
+        // 1548  320a4c    ld      (#4c0a),a
+    }
 // 154b  21c04d    ld      hl,#4dc0
 // 154e  56        ld      d,(hl)
 // 154f  3e1c      ld      a,#1c
@@ -4936,24 +5516,33 @@ func_1652();
 // 15c2  3a024c    ld      a,(#4c02)
 // 15c5  b1        or      c
 // 15c6  32024c    ld      (#4c02),a
+BLINKY_SPRITE|=0xc0;
 // 15c9  3a044c    ld      a,(#4c04)
 // 15cc  b1        or      c
 // 15cd  32044c    ld      (#4c04),a
+PINKY_SPRITE|=0xc0;
+
 // 15d0  3a064c    ld      a,(#4c06)
 // 15d3  b1        or      c
 // 15d4  32064c    ld      (#4c06),a
+INKY_SPRITE|=0xc0;
 // 15d7  3a084c    ld      a,(#4c08)
 // 15da  b1        or      c
 // 15db  32084c    ld      (#4c08),a
+CLYDE_SPRITE|=0xc0;
 // 15de  3a0c4c    ld      a,(#4c0c)
 // 15e1  b1        or      c
 // 15e2  320c4c    ld      (#4c0c),a
+FRUIT_SPRITE|=0xc0;
+
 // 15e5  c9        ret     
-// 
+}
+
 // 15e6  3a064e    ld      a,(#4e06)
 // 15e9  d605      sub     #05
 // 15eb  d8        ret     c
-// 
+if (SCENE1_STATE < 5)
+    return;
 // 15ec  3a094d    ld      a,(#4d09)
 // 15ef  e60f      and     #0f
 // 15f1  fe0c      cp      #0c
@@ -5442,27 +6031,28 @@ func_2018();
 // 19ae  ed52      sbc     hl,de
 // 19b0  201b      jr      nz,#19cd        ; (27)
 
-//-------------------------------
-// 19b2  0619      ld      b,#19
-// 19b4  4f        ld      c,a
-// 19b5  cd4200    call    #0042
-//-------------------------------
-addTask (0x19, a);
+    //-------------------------------
+    // 19b2  0619      ld      b,#19
+    // 19b4  4f        ld      c,a
+    // 19b5  cd4200    call    #0042
+    //-------------------------------
+    addTask (0x19, a);
 
-//-------------------------------
-// 19b8  0e15      ld      c,#15
-// 19ba  81        add     a,c
-// 19bb  4f        ld      c,a
-// 19bc  061c      ld      b,#1c
-// 19be  cd4200    call    #0042
-//-------------------------------
-addTask (0x1c, a+0x15);
-
-// 19c1  cd0410    call    #1004
-func_1004();
-// 19c4  f7        rst     #30
-// 19c5  540500
-                schedISRTask (0x54, 0x05, 0x00);
+    //-------------------------------
+    // 19b8  0e15      ld      c,#15
+    // 19ba  81        add     a,c
+    // 19bb  4f        ld      c,a
+    // 19bc  061c      ld      b,#1c
+    // 19be  cd4200    call    #0042
+    // 19c1  cd0410    call    #1004
+    //-------------------------------
+    addTask (0x1c, a+0x15);
+    func_1004();
+    //-------------------------------
+    // 19c4  f7        rst     #30
+    // 19c5  540500
+    //-------------------------------
+    schedISRTask (0x54, 0x05, 0x00);
 
 // 19c8  21bc4e    ld      hl,#4ebc
 // 19cb  cbd6      set     2,(hl)
@@ -5470,7 +6060,7 @@ func_1004();
 // 19cf  329d4d    ld      (#4d9d),a
 // 19d2  2a394d    ld      hl,(#4d39)
 // 19d5  cd6500    call    #0065
-func_065();
+func_0065();
 // 19d8  7e        ld      a,(hl)
 // 19d9  fe10      cp      #10
 // 19db  2803      jr      z,#19e0         ; (3)
@@ -5483,23 +6073,23 @@ func_065();
 // 19e9  cb3f      srl     a
 // 19eb  0640      ld      b,#40
 // 19ed  70        ld      (hl),b
-//-------------------------------
-// 19ee  0619      ld      b,#19
-// 19f0  4f        ld      c,a
-// 19f1  cb39      srl     c
-// 19f3  cd4200    call    #0042
-//-------------------------------
-addTask (0x19, a>>1);
+    //-------------------------------
+    // 19ee  0619      ld      b,#19
+    // 19f0  4f        ld      c,a
+    // 19f1  cb39      srl     c
+    // 19f3  cd4200    call    #0042
+    //-------------------------------
+    addTask (0x19, a>>1);
 
 // 19f6  3c        inc     a
 // 19f7  fe01      cp      #01
 // 19f9  cafd19    jp      z,#19fd
 // 19fc  87        add     a,a
 // 19fd  329d4d    ld      (#4d9d),a
-// 1a00  cd081b    call    #1b08
-// 1a03  cd6a1a    call    #1a6a
-func_1b08();
-func_1a6a();
+    // 1a00  cd081b    call    #1b08
+    // 1a03  cd6a1a    call    #1a6a
+    func_1b08();
+    func_1a6a();
 // 1a06  21bc4e    ld      hl,#4ebc
 // 1a09  3a0e4e    ld      a,(#4e0e)
 // 1a0c  0f        rrca    
@@ -5526,8 +6116,8 @@ func_1a6a();
 // 1a33  fe04      cp      #04
 // 1a35  c25c1a    jp      nz,#1a5c
 // 1a38  3e05      ld      a,#05
-// 1a3a  cdd01e    call    #1ed0
-func_1ed0();
+    // 1a3a  cdd01e    call    #1ed0
+    func_1ed0();
 // 1a3d  3803      jr      c,#1a42         ; (3)
 
     //-------------------------------
@@ -5557,6 +6147,7 @@ func_1ed0();
 
     addBytePair_2000(PACMAN_Y_TILE_CHANGE, PACMAN_Y);
 // 1a67  c38519    jp      #1985
+
 // 1a6a  3a9d4d    ld      a,(#4d9d)
 // 1a6d  fe06      cp      #06
 // 1a6f  c0        ret     nz
@@ -5564,10 +6155,9 @@ func_1ed0();
 void unknown()
 {
 
-// 1a70  2abd4d    ld      hl,(#4dbd)
-// 1a73  22cb4d    ld      (#4dcb),hl
-    MEM[0x4dcb] = MEM[0x4dbd];
-    MEM[0x4dcc] = MEM[0x4dbe];
+    // 1a70  2abd4d    ld      hl,(#4dbd)
+    // 1a73  22cb4d    ld      (#4dcb),hl
+    EDIBLE_REMAIN_COUNT = GHOST_EDIBLE_TIME;
     //-------------------------------
     // 1a76  3e01      ld      a,#01
     // 1a78  32a64d    ld      (#4da6),a
@@ -5810,8 +6400,8 @@ func_205a();
 // 1bf2  fe04      cp      #04
 // 1bf4  c2361c    jp      nz,#1c36
 // 1bf7  3e01      ld      a,#01
-// 1bf9  cdd01e    call    #1ed0
-func_1ed0();
+    // 1bf9  cdd01e    call    #1ed0
+    func_1ed0();
 // 1bfc  381b      jr      c,#1c19         ; (27)
 // 1bfe  3aa74d    ld      a,(#4da7)
 // 1c01  a7        and     a
@@ -5823,8 +6413,8 @@ func_1ed0();
     schedTask (0x0c, 0x00);
 // 1c08  c3191c    jp      #1c19
 // 1c0b  2a0a4d    ld      hl,(#4d0a)
-// 1c0e  cd5220    call    #2052
-func_2052();
+    // 1c0e  cd5220    call    #2052
+    func_2052();
 // 1c11  7e        ld      a,(hl)
 // 1c12  fe1a      cp      #1a
 // 1c14  2803      jr      z,#1c19         ; (3)
@@ -5833,12 +6423,12 @@ func_2052();
     // 1c17  0800
     //-------------------------------
     schedTask (0x08, 0x00);
-// 1c19  cdfe1e    call    #1efe
-func_1efe();
+    // 1c19  cdfe1e    call    #1efe
+    func_1efe();
 // 1c1c  dd211e4d  ld      ix,#4d1e
 // 1c20  fd210a4d  ld      iy,#4d0a
-// 1c24  cd0020    call    #2000
-addBytePair_2000();
+    // 1c24  cd0020    call    #2000
+    addBytePair_2000();
 // 1c27  220a4d    ld      (#4d0a),hl
 // 1c2a  2a1e4d    ld      hl,(#4d1e)
 // 1c2d  22144d    ld      (#4d14),hl
@@ -5846,11 +6436,11 @@ addBytePair_2000();
 // 1c33  32284d    ld      (#4d28),a
 // 1c36  dd21144d  ld      ix,#4d14
 // 1c3a  fd21004d  ld      iy,#4d00
-// 1c3e  cd0020    call    #2000
-addBytePair_2000();
+    // 1c3e  cd0020    call    #2000
+    addBytePair_2000();
 // 1c41  22004d    ld      (#4d00),hl
-// 1c44  cd1820    call    #2018
-func_2018();
+    // 1c44  cd1820    call    #2018
+    func_2018();
 // 1c47  22314d    ld      (#4d31),hl
 // 1c4a  c9        ret     
 // 
@@ -5864,8 +6454,8 @@ func_2018();
 // 
 // 1c56  2a334d    ld      hl,(#4d33)
 // 1c59  019a4d    ld      bc,#4d9a
-// 1c5c  cd5a20    call    #205a
-func_205a();
+    // 1c5c  cd5a20    call    #205a
+    func_205a();
 // 1c5f  3a9a4d    ld      a,(#4d9a)
 // 1c62  a7        and     a
 // 1c63  ca7d1c    jp      z,#1c7d
@@ -5918,8 +6508,8 @@ func_205a();
 // 1cc9  fe04      cp      #04
 // 1ccb  c20d1d    jp      nz,#1d0d
 // 1cce  3e02      ld      a,#02
-// 1cd0  cdd01e    call    #1ed0
-func_1ed0();
+    // 1cd0  cdd01e    call    #1ed0
+    func_1ed0();
 // 1cd3  381b      jr      c,#1cf0         ; (27)
 // 1cd5  3aa84d    ld      a,(#4da8)
 // 1cd8  a7        and     a
@@ -5931,8 +6521,8 @@ func_1ed0();
     schedTask (0x0d, 0x00);
 // 1cdf  c3f01c    jp      #1cf0
 // 1ce2  2a0c4d    ld      hl,(#4d0c)
-// 1ce5  cd5220    call    #2052
-func_2052();
+    // 1ce5  cd5220    call    #2052
+    func_2052();
 // 1ce8  7e        ld      a,(hl)
 // 1ce9  fe1a      cp      #1a
 // 1ceb  2803      jr      z,#1cf0         ; (3)
@@ -5941,12 +6531,12 @@ func_2052();
     // 1cee  0900
     //-------------------------------
     schedTask (0x09, 0x00);
-// 1cf0  cd251f    call    #1f25
-func_1f25();
+    // 1cf0  cd251f    call    #1f25
+    func_1f25();
 // 1cf3  dd21204d  ld      ix,#4d20
 // 1cf7  fd210c4d  ld      iy,#4d0c
-// 1cfb  cd0020    call    #2000
-addBytePair_2000();
+    // 1cfb  cd0020    call    #2000
+    addBytePair_2000();
 // 1cfe  220c4d    ld      (#4d0c),hl
 // 1d01  2a204d    ld      hl,(#4d20)
 // 1d04  22164d    ld      (#4d16),hl
@@ -5954,11 +6544,11 @@ addBytePair_2000();
 // 1d0a  32294d    ld      (#4d29),a
 // 1d0d  dd21164d  ld      ix,#4d16
 // 1d11  fd21024d  ld      iy,#4d02
-// 1d15  cd0020    call    #2000
-addBytePair_2000();
+    // 1d15  cd0020    call    #2000
+    addBytePair_2000();
 // 1d18  22024d    ld      (#4d02),hl
-// 1d1b  cd1820    call    #2018
-func_2018();
+    // 1d1b  cd1820    call    #2018
+    func_2018();
 // 1d1e  22334d    ld      (#4d33),hl
 // 1d21  c9        ret     
 // 
@@ -5972,8 +6562,8 @@ func_2018();
 // 
 // 1d2d  2a354d    ld      hl,(#4d35)
 // 1d30  019b4d    ld      bc,#4d9b
-// 1d33  cd5a20    call    #205a
-func_205a();
+    // 1d33  cd5a20    call    #205a
+    func_205a();
 // 1d36  3a9b4d    ld      a,(#4d9b)
 // 1d39  a7        and     a
 // 1d3a  ca541d    jp      z,#1d54
@@ -6026,8 +6616,8 @@ func_205a();
 // 1da0  fe04      cp      #04
 // 1da2  c2e41d    jp      nz,#1de4
 // 1da5  3e03      ld      a,#03
-// 1da7  cdd01e    call    #1ed0
-func_1ed0();
+    // 1da7  cdd01e    call    #1ed0
+    func_1ed0();
 // 1daa  381b      jr      c,#1dc7         ; (27)
 // 1dac  3aa94d    ld      a,(#4da9)
 // 1daf  a7        and     a
@@ -6039,8 +6629,8 @@ func_1ed0();
     schedTask (0x0e, 0x00);
 // 1db6  c3c71d    jp      #1dc7
 // 1db9  2a0e4d    ld      hl,(#4d0e)
-// 1dbc  cd5220    call    #2052
-func_2052();
+    // 1dbc  cd5220    call    #2052
+    func_2052();
 // 1dbf  7e        ld      a,(hl)
 // 1dc0  fe1a      cp      #1a
 // 1dc2  2803      jr      z,#1dc7         ; (3)
@@ -6049,12 +6639,12 @@ func_2052();
     // 1dc5  0a00
     //-------------------------------
     schedTask (0x0e, 0x00);
-// 1dc7  cd4c1f    call    #1f4c
-func_1f4c();
+    // 1dc7  cd4c1f    call    #1f4c
+    func_1f4c();
 // 1dca  dd21224d  ld      ix,#4d22
 // 1dce  fd210e4d  ld      iy,#4d0e
-// 1dd2  cd0020    call    #2000
-addBytePair_2000();
+    // 1dd2  cd0020    call    #2000
+    addBytePair_2000();
 // 1dd5  220e4d    ld      (#4d0e),hl
 // 1dd8  2a224d    ld      hl,(#4d22)
 // 1ddb  22184d    ld      (#4d18),hl
@@ -6062,11 +6652,11 @@ addBytePair_2000();
 // 1de1  322a4d    ld      (#4d2a),a
 // 1de4  dd21184d  ld      ix,#4d18
 // 1de8  fd21044d  ld      iy,#4d04
-// 1dec  cd0020    call    #2000
-addBytePair_2000();
+    // 1dec  cd0020    call    #2000
+    addBytePair_2000();
 // 1def  22044d    ld      (#4d04),hl
-// 1df2  cd1820    call    #2018
-func_2018();
+    // 1df2  cd1820    call    #2018
+    func_2018();
 // 1df5  22354d    ld      (#4d35),hl
 // 1df8  c9        ret     
 // 
@@ -6080,8 +6670,8 @@ func_2018();
 // 
 // 1e04  2a374d    ld      hl,(#4d37)
 // 1e07  019c4d    ld      bc,#4d9c
-// 1e0a  cd5a20    call    #205a
-func_205a();
+    // 1e0a  cd5a20    call    #205a
+    func_205a();
 // 1e0d  3a9c4d    ld      a,(#4d9c)
 // 1e10  a7        and     a
 // 1e11  ca2b1e    jp      z,#1e2b
@@ -6134,8 +6724,8 @@ func_205a();
 // 1e77  fe04      cp      #04
 // 1e79  c2bb1e    jp      nz,#1ebb
 // 1e7c  3e04      ld      a,#04
-// 1e7e  cdd01e    call    #1ed0
-func_1ed0();
+    // 1e7e  cdd01e    call    #1ed0
+    func_1ed0();
 // 1e81  381b      jr      c,#1e9e         ; (27)
 // 1e83  3aaa4d    ld      a,(#4daa)
 // 1e86  a7        and     a
@@ -6147,8 +6737,8 @@ func_1ed0();
     schedTask (0x0f, 0x00);
 // 1e8d  c39e1e    jp      #1e9e
 // 1e90  2a104d    ld      hl,(#4d10)
-// 1e93  cd5220    call    #2052
-func_2052();
+    // 1e93  cd5220    call    #2052
+    func_2052();
 // 1e96  7e        ld      a,(hl)
 // 1e97  fe1a      cp      #1a
 // 1e99  2803      jr      z,#1e9e         ; (3)
@@ -6157,12 +6747,12 @@ func_2052();
     // 1e9c  0b00
     //-------------------------------
     schedTask (0x0b, 0x00);
-// 1e9e  cd731f    call    #1f73
-func_1f73();
+    // 1e9e  cd731f    call    #1f73
+    func_1f73();
 // 1ea1  dd21244d  ld      ix,#4d24
 // 1ea5  fd21104d  ld      iy,#4d10
-// 1ea9  cd0020    call    #2000
-addBytePair_2000();
+    // 1ea9  cd0020    call    #2000
+    addBytePair_2000();
 // 1eac  22104d    ld      (#4d10),hl
 // 1eaf  2a244d    ld      hl,(#4d24)
 // 1eb2  221a4d    ld      (#4d1a),hl
@@ -6170,11 +6760,11 @@ addBytePair_2000();
 // 1eb8  322b4d    ld      (#4d2b),a
 // 1ebb  dd211a4d  ld      ix,#4d1a
 // 1ebf  fd21064d  ld      iy,#4d06
-// 1ec3  cd0020    call    #2000
-addBytePair_2000();
+    // 1ec3  cd0020    call    #2000
+    addBytePair_2000();
 // 1ec6  22064d    ld      (#4d06),hl
-// 1ec9  cd1820    call    #2018
-func_2018();
+    // 1ec9  cd1820    call    #2018
+    func_2018();
 // 1ecc  22374d    ld      (#4d37),hl
 // 1ecf  c9        ret     
 // 
@@ -6190,18 +6780,23 @@ func_2018();
 // 1ee0  c3fc1e    jp      #1efc
 // 1ee3  fe3e      cp      #3e
 // 1ee5  c2ed1e    jp      nz,#1eed
+{
 // 1ee8  361e      ld      (hl),#1e
 // 1eea  c3fc1e    jp      #1efc
+}
 // 1eed  0621      ld      b,#21
 // 1eef  90        sub     b
 // 1ef0  dafc1e    jp      c,#1efc
+{
 // 1ef3  7e        ld      a,(hl)
 // 1ef4  063b      ld      b,#3b
 // 1ef6  90        sub     b
 // 1ef7  d2fc1e    jp      nc,#1efc
-// 1efa  a7        and     a
-// 1efb  c9        ret     
-// 
+    {
+    // 1efa  a7        and     a
+    // 1efb  c9        ret     
+    }
+}
 // 1efc  37        scf     
 // 1efd  c9        ret     
 // 
@@ -6248,7 +6843,10 @@ func_2018();
 // 1f47  78        ld      a,b
 // 1f48  32294d    ld      (#4d29),a
 // 1f4b  c9        ret     
-// 
+}
+
+void func_1f4c()
+{
 // 1f4c  3ab34d    ld      a,(#4db3)
 // 1f4f  a7        and     a
 // 1f50  c8        ret     z
@@ -6270,7 +6868,10 @@ func_2018();
 // 1f6e  78        ld      a,b
 // 1f6f  322a4d    ld      (#4d2a),a
 // 1f72  c9        ret     
-// 
+}
+
+void func_1f73()
+{
 // 1f73  3ab44d    ld      a,(#4db4)
 // 1f76  a7        and     a
 // 1f77  c8        ret     z
@@ -6292,6 +6893,7 @@ func_2018();
 // 1f95  78        ld      a,b
 // 1f96  322b4d    ld      (#4d2b),a
 // 1f99  c9        ret     
+}
 
 // 1f9a data 0x00 0x1f9a-0x1ffd
 // 1ffe  5d
@@ -6302,13 +6904,13 @@ func_2018();
  *  addition inline than manipulate parts of a uint16_t */
 uint16_t addBytePair_2000 (uint16_t ix, uint16_t iy)
 {
-// 2000  fd7e00    ld      a,(iy+#00)
-// 2003  dd8600    add     a,(ix+#00)
-// 2006  6f        ld      l,a
-// 2007  fd7e01    ld      a,(iy+#01)
-// 200a  dd8601    add     a,(ix+#01)
-// 200d  67        ld      h,a
-// 200e  c9        ret     
+    // 2000  fd7e00    ld      a,(iy+#00)
+    // 2003  dd8600    add     a,(ix+#00)
+    // 2006  6f        ld      l,a
+    // 2007  fd7e01    ld      a,(iy+#01)
+    // 200a  dd8601    add     a,(ix+#01)
+    // 200d  67        ld      h,a
+    // 200e  c9        ret     
 }
 
 void tbd (uint16_t hl)
@@ -6319,10 +6921,10 @@ void tbd (uint16_t hl)
     h = a;
 }
 
-// 200f  cd0020    call    #2000
-// 2012  cd6500    call    #0065
-addBytePair_2000(ix, iy);
-func_065();
+    // 200f  cd0020    call    #2000
+    // 2012  cd6500    call    #0065
+    addBytePair_2000(ix, iy);
+    func_0065();
 // 2015  7e        ld      a,(hl)
 // 2016  a7        and     a
 // 2017  c9        ret     
@@ -6375,7 +6977,7 @@ void func_202d ()
 void func_2052()
 {
 // 2052  cd6500    call    #0065
-func_065();
+func_0065();
 // 2055  110004    ld      de,#0400
 // 2058  19        add     hl,de
 // 2059  c9        ret     
@@ -6511,26 +7113,27 @@ func_2052();
 // 2121  3c        inc     a
 // 2122  32a04d    ld      (#4da0),a
 // 2125  32b74d    ld      (#4db7),a
-// 2128  cd0605    call    #0506
-func_506();
-// 212b  21064e    ld      hl,#4e06
-// 212e  34        inc     (hl)
-// 212f  c9        ret     
-MEM[0x4e06]++;
+    // 2128  cd0605    call    #0506
+    func_0506();
+    // 212b  21064e    ld      hl,#4e06
+    // 212e  34        inc     (hl)
+    // 212f  c9        ret     
+    MEM[0x4e06]++;
+    }
+
+    // 2130  cd0618    call    #1806
+    // 2133  cd0618    call    #1806
+    // 2136  cd361b    call    #1b36
+    // 2139  cd361b    call    #1b36
+    // 213c  cd230e    call    #0e23
+    func_1806();
+    func_1806();
+    func_1b36();
+    func_1b36();
+    func_0e23();
+    // 213f  c9        ret     
 }
 
-// 2130  cd0618    call    #1806
-// 2133  cd0618    call    #1806
-// 2136  cd361b    call    #1b36
-// 2139  cd361b    call    #1b36
-// 213c  cd230e    call    #0e23
-func_1806();
-func_1806();
-func_1b36();
-func_1b36();
-func_e23();
-// 213f  c9        ret     
-// 
 // 2140  3a3a4d    ld      a,(#4d3a)
 // 2143  d61e      sub     #1e
 // 2145  c23021    jp      nz,#2130
@@ -6538,13 +7141,13 @@ func_e23();
 // 214b  3a324d    ld      a,(#4d32)
 // 214e  d61e      sub     #1e
 // 2150  c23621    jp      nz,#2136
-// 2153  cd701a    call    #1a70
-func_1a70();
+    // 2153  cd701a    call    #1a70
+    func_1a70();
 // 2156  af        xor     a
 // 2157  32ac4e    ld      (#4eac),a
 // 215a  32bc4e    ld      (#4ebc),a
-// 215d  cda505    call    #05a5
-func_5a5();
+    // 215d  cda505    call    #05a5
+    func_05a5();
 // 2160  221c4d    ld      (#4d1c),hl
 // 2163  3a3c4d    ld      a,(#4d3c)
 // 2166  32304d    ld      (#4d30),a
@@ -6560,17 +7163,17 @@ func_5a5();
 // 217e  d63d      sub     #3d
 // 2180  c23021    jp      nz,#2130
 // 2183  c32b21    jp      #212b
-// 2186  cd0618    call    #1806
-// 2189  cd0618    call    #1806
-func_1806();
-func_1806();
+    // 2186  cd0618    call    #1806
+    // 2189  cd0618    call    #1806
+    func_1806();
+    func_1806();
 // 218c  3a3a4d    ld      a,(#4d3a)
 // 218f  d63d      sub     #3d
 // 2191  c0        ret     nz
 // 
 // 2192  32064e    ld      (#4e06),a
-// 2195  f7        rst     #30
-// 2196  450000
+    // 2195  f7        rst     #30
+    // 2196  450000
                 schedISRTask (0x45, 0x00, 0x00);
 // 2199  21044e    ld      hl,#4e04
 // 219c  34        inc     (hl)
@@ -6599,12 +7202,12 @@ func_1806();
 // 21c7  32d345    ld      (#45d3),a
 // 21ca  32f245    ld      (#45f2),a
 // 21cd  32f345    ld      (#45f3),a
-// 21d0  cd0605    call    #0506
-func_506();
+    // 21d0  cd0605    call    #0506
+    func_0506();
 // 21d3  fd360060  ld      (iy+#00),#60
 // 21d7  fd360161  ld      (iy+#01),#61
-// 21db  f7        rst     #30
-// 21dc  430800
+    // 21db  f7        rst     #30
+    // 21dc  430800
                 schedISRTask (0x43, 0x08, 0x00);
 // 21df  180f      jr      #21f0           ; (15)
 // 21e1  3a3a4d    ld      a,(#4d3a)
@@ -6640,14 +7243,14 @@ func_506();
 // 222d  fd362066  ld      (iy+#20),#66
 // 2231  fd362167  ld      (iy+#21),#67
 // 2235  18b9      jr      #21f0           ; (-71)
-// 2237  cd0618    call    #1806
-// 223a  cd0618    call    #1806
-// 223d  cd361b    call    #1b36
-// 2240  cd230e    call    #0e23
-func_1806();
-func_1806();
-func_1b36();
-func_e23();
+    // 2237  cd0618    call    #1806
+    // 223a  cd0618    call    #1806
+    // 223d  cd361b    call    #1b36
+    // 2240  cd230e    call    #0e23
+    func_1806();
+    func_1806();
+    func_1b36();
+    func_0e23();
 // 2243  c9        ret     
 // 
 // 2244  3a014d    ld      a,(#4d01)
@@ -6661,8 +7264,8 @@ func_e23();
 // 225d  3a014d    ld      a,(#4d01)
 // 2260  d680      sub     #80
 // 2262  20d3      jr      nz,#2237        ; (-45)
-// 2264  f7        rst     #30
-// 2265  4f0800
+    // 2264  f7        rst     #30
+    // 2265  4f0800
                 schedISRTask (0x4f, 0x08, 0x00);
 // 2268  1886      jr      #21f0           ; (-122)
 // 226a  21014d    ld      hl,#4d01
@@ -6672,12 +7275,12 @@ func_e23();
 // 2273  fd36016d  ld      (iy+#01),#6d
 // 2277  fd362040  ld      (iy+#20),#40
 // 227b  fd362140  ld      (iy+#21),#40
-// 227f  f7        rst     #30
-// 2280  4a0800
+    // 227f  f7        rst     #30
+    // 2280  4a0800
                 schedISRTask (0x4a, 0x08, 0x00);
 // 2283  c3f021    jp      #21f0
-// 2286  f7        rst     #30
-// 2287  540800
+    // 2286  f7        rst     #30
+    // 2287  540800
                 schedISRTask (0x54, 0x08, 0x00);
 // 228a  c3f021    jp      #21f0
 // 228d  af        xor     a
@@ -6701,8 +7304,8 @@ func_e23();
 // 22af  3c        inc     a
 // 22b0  32a04d    ld      (#4da0),a
 // 22b3  32b74d    ld      (#4db7),a
-// 22b6  cd0605    call    #0506
-func_506();
+    // 22b6  cd0605    call    #0506
+    func_0506();
 // 22b9  21084e    ld      hl,#4e08
 // 22bc  34        inc     (hl)
 // 22bd  c9        ret     
@@ -6717,10 +7320,10 @@ func_506();
 // 22cc  32014d    ld      (#4d01),a
 // 22cf  3e01      ld      a,#01
 // 22d1  32b14d    ld      (#4db1),a
-// 22d4  cdfe1e    call    #1efe
-func_1efe();
-// 22d7  f7        rst     #30
-// 22d8  4a0900
+    // 22d4  cdfe1e    call    #1efe
+    func_1efe();
+    // 22d7  f7        rst     #30
+    // 22d8  4a0900
                 schedISRTask (0x4a, 0x09, 0x00);
 // 22db  18dc      jr      #22b9           ; (-36)
 // 22dd  3a324d    ld      a,(#4d32)
@@ -6738,13 +7341,15 @@ func_1efe();
 // 22fc  18e6      jr      #22e4           ; (-26)
 // 22fe  af        xor     a
 // 22ff  32084e    ld      (#4e08),a
-// 2302  f7        rst     #30
-// 2303  450000
+    // 2302  f7        rst     #30
+    // 2303  450000
                 schedISRTask (0x45, 0x00, 0x00);
 // 2306  21044e    ld      hl,#4e04
 // 2309  34        inc     (hl)
 // 230a  c9        ret     
 // 
+void selfTest ()
+{
 // 	;; RAM/ROM test
 // 
 // 	;; Clear 74ls259 contents (irq off, sound off, flip off, etc...)
@@ -6755,8 +7360,6 @@ func_1efe();
 // 2312  2c        inc     l
 // 2313  10fc      djnz    #2311           ; (-4)
 
-void selfTest ()
-{
     intEnable =
     soundEnable =
     auxEnable =
@@ -6769,10 +7372,10 @@ void selfTest ()
 // 	;; Set 4000-43ff to 0x40 (video ram)
 // 2315  210040    ld      hl,#4000
 // 2318  0604      ld      b,#04
-// 231a  32c050    ld      (#50c0),a	; Kick the dog
-    kickWatchdog();
-// 231d  320750    ld      (#5007),a	; Clear coin
-    regsWrite.coinCounter = 0;
+    // 231a  32c050    ld      (#50c0),a	; Kick the dog
+        kickWatchdog();
+    // 231d  320750    ld      (#5007),a	; Clear coin
+        regsWrite.coinCounter = 0;
 // 2320  3e40      ld      a,#40
 // 2322  77        ld      (hl),a
 // 2323  2c        inc     l
@@ -6849,7 +7452,7 @@ void selfTest ()
     kickWatchdog();
 
     // 236b  cd0d24    call    #240d		; Clear color ram
-    clearColour();
+    clearColour_240d();
 
 // 236e  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
@@ -6928,13 +7531,13 @@ void selfTest ()
         //-------------------------------
         void (*func)()[] = { jumpClearScreen,
                             func_24d7, testRomLoc, drawPills, initialisePositions_25d3, 
-                            func_268b, clearColour, func_2698, func_2730,
+                            func_268b, clearColour_240d, func_2698, func_2730,
                             func_276c, func_27a9, func_27f1, func_283b,
                             func_2865, func_288f, func_28b9, func_000d,
                             func_26a2, clearPills, func_2a35, func_26d0,
                             updatePillsFromScreen, func_23e8, func_28e3, func_2ae0,
-                            func_2a5a, func_2b6a, func_2bea, displayMsg,
-                            displayCredits, func_2675, func_26b2 };
+                            func_2a5a, func_2b6a, func_2bea, displayMsg_2c5e,
+                            displayCredits, func_2675, showBonusLifeScore_26b2 };
         tableCall (func, a);
     }
 }
@@ -6962,11 +7565,11 @@ void jumpClearScreen()
 
     /*  This redirect is called from #2373.  It has only one jump to clear the
      *  screen */
-    clearScreen();
+    clearScreen_23f3();
 }
 
 
-void clearScreen (void)
+void clearScreen_23f3 (void)
 {
     //-------------------------------
     // 23f3  3e40      ld      a,#40
@@ -6980,7 +7583,7 @@ void clearScreen (void)
     memset (VIDEO, 0x40, 0x400);
 }
 
-void clearMaze (void)
+void clearMaze_2400 (void)
 {
     //-------------------------------
     // 2400  3e40      ld      a,#40
@@ -6997,7 +7600,7 @@ void clearMaze (void)
     memset (VIDEO+0x40, 0x40, 0x380);
 }
 
-void clearColour (void)
+void clearColour_240d (void)
 {
     //-------------------------------
     // 	;; Set Color ram to 0x00
@@ -7665,30 +8268,36 @@ void func_26a2()
         MEM[i] = 0;
 }
 
-void func_2b62()
+void showBonusLifeScore_26b2()
 {
-// 26b2  dd213641  ld      ix,#4136
-// 26b6  3a714e    ld      a,(#4e71)
-// 26b9  e60f      and     #0f
-// 26bb  c630      add     a,#30
-// 26bd  dd7700    ld      (ix+#00),a
-int digit = MEM[0x4e71];
-VIDEO[0x136] = (digit & 0xf) + 0x30
-// 26c0  3a714e    ld      a,(#4e71)
-// 26c3  0f        rrca    
-// 26c4  0f        rrca    
-// 26c5  0f        rrca    
-// 26c6  0f        rrca    
-// 26c7  e60f      and     #0f
-// 26c9  c8        ret     z
-digit >>= 4;
-if (digit & 0xf == 0)
-    return;
+    //-------------------------------
+    // 26b2  dd213641  ld      ix,#4136
+    // 26b6  3a714e    ld      a,(#4e71)
+    // 26b9  e60f      and     #0f
+    // 26bb  c630      add     a,#30
+    // 26bd  dd7700    ld      (ix+#00),a
+    //-------------------------------
+    int digit = BONUS_LIFE;
+    VIDEO[0x136] = (digit & 0xf) + 0x30
+    //-------------------------------
+    // 26c0  3a714e    ld      a,(#4e71)
+    // 26c3  0f        rrca    
+    // 26c4  0f        rrca    
+    // 26c5  0f        rrca    
+    // 26c6  0f        rrca    
+    // 26c7  e60f      and     #0f
+    // 26c9  c8        ret     z
+    //-------------------------------
+    digit >>= 4;
+    if (digit & 0xf == 0)
+        return;
 
-// 26ca  c630      add     a,#30
-// 26cc  dd7720    ld      (ix+#20),a
-// 26cf  c9        ret     
-VIDEO[0x156] = digit + 0x30;
+    //-------------------------------
+    // 26ca  c630      add     a,#30
+    // 26cc  dd7720    ld      (ix+#20),a
+    // 26cf  c9        ret     
+    //-------------------------------
+    VIDEO[0x156] = digit + 0x30;
 }
 
 void func_26d0()
@@ -8070,7 +8679,7 @@ void func_2966 ()
 addBytePair_2000(0x32ff, 0x4d3e);
 // 2992  22424d    ld      (#4d42),hl
 // 2995  cd6500    call    #0065
-func_65();
+func_0065();
 // 2998  7e        ld      a,(hl)
 // 2999  e6c0      and     #c0
 // 299b  d6c0      sub     #c0
@@ -8222,7 +8831,7 @@ func_2b0b();
 // 2a81  3d        dec     a
 // 2a82  bc        cp      h
 // 2a83  dc332b    call    c,#2b33
-func_,#2b33();
+func_2b33();
 // 2a86  cdaf2a    call    #2aaf
 func_2aaf();
 // 2a89  13        inc     de
@@ -8295,7 +8904,7 @@ void func_2ae0()
     // 2ae0  0600      ld      b,#00		; Draw 'High Score' 
     // 2ae2  cd5e2c    call    #2c5e
     //-------------------------------
-    displayMsg(0);
+    displayMsg_2c5e(0);
 
 // 2ae5  af        xor     a		; Clear P1 score 
 // 2ae6  21804e    ld      hl,#4e80
@@ -8351,21 +8960,22 @@ uint16_t scoreTable[] =
     0x0500		        // fruit
 };
 
-// 
+void func_2b33(int de)
+{
 // 2b33  13        inc     de
 // 2b34  6b        ld      l,e
 // 2b35  62        ld      h,d
 // 2b36  1b        dec     de
 // 2b37  cb46      bit     0,(hl)
 // 2b39  c0        ret     nz
+if (MEM[de+1]&1 != 0)
+    return;
 
-func_2b3a(int hl)
-{
 // 2b3a  cbc6      set     0,(hl)
+MEM[de+1] |= 1;
 // 2b3c  219c4e    ld      hl,#4e9c
 // 2b3f  cbc6      set     0,(hl)
-MEM[hl]|=1;
-MEM[0x4e9c]|=1;
+SND_CH1_EFF_NUM|=1;
 // 2b41  21144e    ld      hl,#4e14
 // 2b44  34        inc     (hl)
 // 2b45  21154e    ld      hl,#4e15
@@ -8373,7 +8983,7 @@ MEM[0x4e9c]|=1;
 P1_REAL_LIVES++;
 P1_DISPLAY_LIVES++;
 // 2b49  46        ld      b,(hl)
-int b = mem[0x4e15];
+int b = P1_DISPLAY_LIVES;
 while (1)
 {
 // 2b4a  211a40    ld      hl,#401a
@@ -8421,18 +9031,17 @@ void func_2b6a()
 // 2b6f  c8        ret     z
 if (GAME_STATE==1)
     return;
-}
 
 // 2b70  cdcd2b    call    #2bcd
 // 2b73  12 44 09 0a 02
-fillScreenArea (0x4412, 0x09, 0x0a, 0x02);
+fillScreenArea_2bcd (0x4412, 0x09, 0x0a, 0x02);
 
 // 2b78  21154e    ld      hl,#4e15
 // 2b7b  46        ld      b,(hl)
 // 2b7c  18cc      jr      #2b4a           ; (-52)
 
 // 2b7e  3e40      ld      a,#40
-drawCharSquare (0x4e15, 0x40);
+drawCharSquare_2b80 (0x4e15, 0x40);
 }
 
 //-------------------------------
@@ -8451,7 +9060,7 @@ drawCharSquare (0x4e15, 0x40);
 // 2b8d  e1        pop     hl
 // 2b8e  c9        ret     
 //-------------------------------
-void drawCharSquare (uint16_t addr, int a)
+void drawCharSquare_2b80 (uint16_t addr, int a)
 {
     MEM[addr] = a;
     MEM[addr+1] = a;
@@ -8536,7 +9145,7 @@ void displayCredits ()
     VIDEO[0x33] = digit + 0x30;
 }
 
-void fillScreenArea (int addr, int ch, int cols, int rows)
+void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
 {
     //-------------------------------
     // fetch e,d,c,b,a from stack
@@ -8595,13 +9204,13 @@ void fillScreenArea (int addr, int ch, int cols, int rows)
     //-------------------------------
 }
 
-//-------------------------------
-// 2bea  3a004e    ld      a,(#4e00)
-// 2bed  fe01      cp      #01
-// 2bef  c8        ret     z
-//-------------------------------
 bool func_2bea ()
 {
+    //-------------------------------
+    // 2bea  3a004e    ld      a,(#4e00)
+    // 2bed  fe01      cp      #01
+    // 2bef  c8        ret     z
+    //-------------------------------
     if (GAME_STATE == 1)
         return;
 
@@ -8634,7 +9243,7 @@ h+=4;
 // 2c0b  1a        ld      a,(de)		; v
 a=MEM[++de];
 // 2c0c  cd802b    call    #2b80		; Erase next fruit 
-drawSquare (hl, a);
+drawCharSquare_2b80 (hl, a);
 // 2c0f  3efc      ld      a,#fc		; 
 // 2c11  84        add     a,h		; 
 // 2c12  67        ld      h,a		; 
@@ -8659,7 +9268,7 @@ func_2b7e();
 // 2c21  67        ld      h,a
 // 2c22  af        xor     a
 // 2c23  cd802b    call    #2b80
-drawSquare (hl, 0);
+drawCharSquare_2b80 (hl, 0);
 // 2c26  3efc      ld      a,#fc
 // 2c28  84        add     a,h
 // 2c29  67        ld      h,a
@@ -8706,7 +9315,7 @@ drawSquare (hl, 0);
 // 	;; Appears to draw messages from a table with
 // 	;;   coordinates and message data
 // 	;;   b=message # in table
-void displayMsg (int msg)
+void displayMsg_2c5e (int msg)
 {
 // 2c5e  21a536    ld      hl,#36a5
 // 2c61  df        rst     #18		; (hl+2*b) -> hl 
@@ -8883,38 +9492,9 @@ if (MEM[ix+2] & (0x80>>i) == 0)
 // 2d82  e60f      and     #0f
 // 2d84  e7        rst     #20
 
-// 2d85  55        ld      d,l
-// 2d86  2f        cpl     
-// 2d87  65        ld      h,l
-// 2d88  2f        cpl     
-// 2d89  77        ld      (hl),a
-// 2d8a  2f        cpl     
-// 2d8b  89        adc     a,c
-// 2d8c  2f        cpl     
-// 2d8d  9b        sbc     a,e
-// 2d8e  2f        cpl     
-// 2d8f  0c        inc     c
-// 2d90  00        nop     
-// 2d91  0c        inc     c
-// 2d92  00        nop     
-// 2d93  0c        inc     c
-// 2d94  00        nop     
-// 2d95  0c        inc     c
-// 2d96  00        nop     
-// 2d97  0c        inc     c
-// 2d98  00        nop     
-// 2d99  0c        inc     c
-// 2d9a  00        nop     
-// 2d9b  0c        inc     c
-// 2d9c  00        nop     
-// 2d9d  0c        inc     c
-// 2d9e  00        nop     
-// 2d9f  0c        inc     c
-// 2da0  00        nop     
-// 2da1  0c        inc     c
-// 2da2  00        nop     
-// 2da3  ad        xor     l
-// 2da4  2f        cpl     
+// 2d85                 55 2f 65  2f 77 2f 89 2f 9b 2f 0c  |-....U/e/w/././.|
+// 2d90  00 0c 00 0c 00 0c 00 0c  00 0c 00 0c 00 0c 00 0c  |................|
+// 2da0  00 0c 00 ad 2f                                    |..../G..(..p..N.|
 
 void func_2da5()
 {
@@ -9781,657 +10361,657 @@ kickWatchdog();
 // 32f9  3031      jr      nc,#332c        ; (49)
 // 32fb  35        dec     (hl)
 // 32fc  313032    ld      sp,#3230
-'0','1','5','1','0','2'
-// 32ff  00        nop     
-uint8_t data_32ff[];
 
-// 3300  ff        rst     #38
-// 3301  010000    ld      bc,#0000
-// 3304  01
+    '0','1','5','1','0','2'
+    // 32ff  00ff    // LEFT
+    // 3301  0100    // DOWN
+    // 3303  0001    // RIGHT
+    uint8_t data_32ff[] = { 0x00ff, 0x0100, 0x0001 };
 
-// 3305  ff00    // UP
-// 3307  00ff    // LEFT
-// 3309  0100    // DOWN
-// 330b  0001    // RIGHT
-// 330d  ff00    // UP
-uint8_t data_3305[];
+    // 3305  ff00    // UP
+    // 3307  00ff    // LEFT
+    // 3309  0100    // DOWN
+    // 330b  0001    // RIGHT
+    // 330d  ff00    // UP
+    uint8_t data_3305[] = { 0xff00, 0x00ff, 0x0100, 0x0001, 0xff00 };
+    #define XY_UP data_3305[0];
 
-// 35b5  62 01 02 01 01 01 01 0c   01 01 04 01 01 01 04 04
-// 35c5  03 0c 03 03 03 04 04 03   0c 03 01 01 01 03 04 04
-// 35d5  03 0c 06 03 04 04 03 0c   06 03 04 01 01 01 01 01
-// 35e5  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
-// 35f5  01 01 01 01 03 04 04 0f   03 06 04 04 0f 03 06 04
-// 3605  04 01 01 01 0c 03 01 01   01 03 04 04 03 0c 03 03
-// 3615  03 04 04 03 0c 03 03 03   04 01 01 01 01 03 0c 01
-// 3625  01 01 03 01 01 01 08 18   08 18 04 01 01 01 01 03
-// 3635  0c 01 01 01 03 01 01 01   04 04 03 0c 03 03 03 04
-// 3645  04 03 0c 03 03 03 04 04   01 01 01 0c 03 01 01 01
-// 3655  03 04 04 0f 03 06 04 04   0f 03 06 04 01 01 01 01
-// 3665  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
-// 3675  01 01 01 01 01 03 04 04   03 0c 06 03 04 04 03 0c
-// 3685  06 03 04 04 03 0c 03 01   01 01 03 04 04 03 0c 03
-// 3695  03 03 04 01 02 01 01 01   01 0c 01 01 04 01 01 01
-uint8_t data_35b5[] = { 0 };
+    // 35b5  62 01 02 01 01 01 01 0c   01 01 04 01 01 01 04 04
+    // 35c5  03 0c 03 03 03 04 04 03   0c 03 01 01 01 03 04 04
+    // 35d5  03 0c 06 03 04 04 03 0c   06 03 04 01 01 01 01 01
+    // 35e5  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
+    // 35f5  01 01 01 01 03 04 04 0f   03 06 04 04 0f 03 06 04
+    // 3605  04 01 01 01 0c 03 01 01   01 03 04 04 03 0c 03 03
+    // 3615  03 04 04 03 0c 03 03 03   04 01 01 01 01 03 0c 01
+    // 3625  01 01 03 01 01 01 08 18   08 18 04 01 01 01 01 03
+    // 3635  0c 01 01 01 03 01 01 01   04 04 03 0c 03 03 03 04
+    // 3645  04 03 0c 03 03 03 04 04   01 01 01 0c 03 01 01 01
+    // 3655  03 04 04 0f 03 06 04 04   0f 03 06 04 01 01 01 01
+    // 3665  01 01 01 01 01 01 01 01   01 01 01 01 01 01 01 01
+    // 3675  01 01 01 01 01 03 04 04   03 0c 06 03 04 04 03 0c
+    // 3685  06 03 04 04 03 0c 03 01   01 01 03 04 04 03 0c 03
+    // 3695  03 03 04 01 02 01 01 01   01 0c 01 01 04 01 01 01
+    uint8_t data_35b5[] = { 0 };
 
-// 	;; Indirect Lookup table for 2c5e routine  (0x48 entries) 
-// 36a5  1337			; 0         HIGH SCORE
-// 36a7  2337			; 1	    CREDIT   
-// 36a9  3237			; 2	    FREE PLAY
-// 36ab  4137			; 3         PLAYER ONE
-// 36ad  5a37			; 4         PLAYER TWO
-// 36af  6a37			; 5         GAME  OVER
-// 36b1  7a37			; 6         READY?
-// 36b3  8637			; 7	    PUSH START BUTTON
-// 36b5  9d37			; 8         1 PLAYER ONLY 
-// 36b7  b137			; 9         1 OR 2 PLAYERS
-// 36b9  003d			; a  c837   BONUS PAC-MAN FOR   000 Pts
-// 36bb  213d			; b  e937   @ 1980 MIDWAY MFG.CO.
-// 36bd  fd37			; c         CHARACTER / NICKNAME
-// 36bf  673d			; d  1738   "BLINKY" 
-// 36c1  e33d			; e  2538   "BBBBBBBB"
-// 36c3  863d			; f  3238   "PINKY"  
-// 36c5  023e			; 10 3f38   "DDDDDDDD"
-// 36c7  4c38			; 11        . 10 Pts
-// 36c9  5a38			; 12        o 50 Pts
-// 36cb  3c3d			; 13 6838   @ 1980 MIDWAY MFG.CO.
-// 36cd  573d			; 14 7538   -SHADOW
-// 36cf  d33d			; 15 8638   "AAAAAAAA"
-// 36d1  763d			; 16 9838   -SPEEDY
-// 36d3  f23d			; 17 aa38   "CCCCCCCC"
-// 36d5  0100			; 18 
-// 36d7  0200			; 19
-// 36d9  0300			; 1a
-// 36db  bc38			; 1b ce38    100
-// 36dd  c438			; 1c d838    300
-// 36df  ce38			; 1d e238    500
-// 36e1  d838			; 1e ec38    700
-// 36e3  e238			; 1f f638    1000
-// 36e5  ec38			; 20 0039    2000
-// 36e7  f638			; 21 0039    3000
-// 36e9  0039			; 22 0039    5000
-// 36eb  0a39                      ; 23         MEMORY  OK
-// 36ed  1a39			; 24         BAD    R M
-// 36ef  6f39			; 25         FREE  PLAY       
-// 36f1  2a39                      ; 26         1 COIN  1 CREDIT 
-// 36f3  5839			; 27         1 COIN  2 CREDITS
-// 36f5  4139			; 28         2 COINS 1 CREDIT 
-// 36f7  4f3e			; 29 a339    PAC-MAN
-// 36f8  8639			; 2a	     BONUS  NONE
-// 36fb  9739			; 2b         BONUS
-// 36fd  b039			; 2c         TABLE  
-// 36ff  bd39			; 2d         UPRIGHT
-// 3701  ca39			; 2e	     000
-// 3703  a53d			; 2f d339    "INKY"    
-// 3705  213e			; 30 e139    "FFFFFFFF"
-// 3707  c43d			; 31 ee39    "CLYDE"  
-// 3709  403e			; 32 fc39    "HHHHHHHH"
-// 370b  953d			; 33 093a    -BASHFUL  
-// 370d  113e			; 34 1a3a    "EEEEEEEE"
-// 3711  b43d			; 35 2c3a    -POKEY   
-// 3711  303e			; 36 3d3a    "GGGGGGGG"
+    // 	;; Indirect Lookup table for 2c5e routine  (0x48 entries) 
+    // 36a5  1337			; 0         HIGH SCORE
+    // 36a7  2337			; 1	    CREDIT   
+    // 36a9  3237			; 2	    FREE PLAY
+    // 36ab  4137			; 3         PLAYER ONE
+    // 36ad  5a37			; 4         PLAYER TWO
+    // 36af  6a37			; 5         GAME  OVER
+    // 36b1  7a37			; 6         READY?
+    // 36b3  8637			; 7	    PUSH START BUTTON
+    // 36b5  9d37			; 8         1 PLAYER ONLY 
+    // 36b7  b137			; 9         1 OR 2 PLAYERS
+    // 36b9  003d			; a  c837   BONUS PAC-MAN FOR   000 Pts
+    // 36bb  213d			; b  e937   @ 1980 MIDWAY MFG.CO.
+    // 36bd  fd37			; c         CHARACTER / NICKNAME
+    // 36bf  673d			; d  1738   "BLINKY" 
+    // 36c1  e33d			; e  2538   "BBBBBBBB"
+    // 36c3  863d			; f  3238   "PINKY"  
+    // 36c5  023e			; 10 3f38   "DDDDDDDD"
+    // 36c7  4c38			; 11        . 10 Pts
+    // 36c9  5a38			; 12        o 50 Pts
+    // 36cb  3c3d			; 13 6838   @ 1980 MIDWAY MFG.CO.
+    // 36cd  573d			; 14 7538   -SHADOW
+    // 36cf  d33d			; 15 8638   "AAAAAAAA"
+    // 36d1  763d			; 16 9838   -SPEEDY
+    // 36d3  f23d			; 17 aa38   "CCCCCCCC"
+    // 36d5  0100			; 18 
+    // 36d7  0200			; 19
+    // 36d9  0300			; 1a
+    // 36db  bc38			; 1b ce38    100
+    // 36dd  c438			; 1c d838    300
+    // 36df  ce38			; 1d e238    500
+    // 36e1  d838			; 1e ec38    700
+    // 36e3  e238			; 1f f638    1000
+    // 36e5  ec38			; 20 0039    2000
+    // 36e7  f638			; 21 0039    3000
+    // 36e9  0039			; 22 0039    5000
+    // 36eb  0a39                      ; 23         MEMORY  OK
+    // 36ed  1a39			; 24         BAD    R M
+    // 36ef  6f39			; 25         FREE  PLAY       
+    // 36f1  2a39                      ; 26         1 COIN  1 CREDIT 
+    // 36f3  5839			; 27         1 COIN  2 CREDITS
+    // 36f5  4139			; 28         2 COINS 1 CREDIT 
+    // 36f7  4f3e			; 29 a339    PAC-MAN
+    // 36f8  8639			; 2a	     BONUS  NONE
+    // 36fb  9739			; 2b         BONUS
+    // 36fd  b039			; 2c         TABLE  
+    // 36ff  bd39			; 2d         UPRIGHT
+    // 3701  ca39			; 2e	     000
+    // 3703  a53d			; 2f d339    "INKY"    
+    // 3705  213e			; 30 e139    "FFFFFFFF"
+    // 3707  c43d			; 31 ee39    "CLYDE"  
+    // 3709  403e			; 32 fc39    "HHHHHHHH"
+    // 370b  953d			; 33 093a    -BASHFUL  
+    // 370d  113e			; 34 1a3a    "EEEEEEEE"
+    // 3711  b43d			; 35 2c3a    -POKEY   
+    // 3711  303e			; 36 3d3a    "GGGGGGGG"
 
-// 	;; 36a5 Table Entry 0
-// 3713
-{ 0xd4, 0x83, 'H', 'I','G','H',0X40,'S','C','O','R','E' },
-// 371f  2f 8f 2f 80
+    // 	;; 36a5 Table Entry 0
+    // 3713
+    { 0xd4, 0x83, 'H', 'I','G','H',0X40,'S','C','O','R','E' },
+    // 371f  2f 8f 2f 80
 
-// 	;; 36a5 Table Entry 1
-// 3723  3b 80
-"CREDIT   "
-// 372e  2f 8f 2f 80
+    // 	;; 36a5 Table Entry 1
+    // 3723  3b 80
+    "CREDIT   "
+    // 372e  2f 8f 2f 80
 
-// 	;; 36a5 Table Entry 2
-// 3732  3b 80
-"FREE PLAY"
-// 373d  2f 8f 2f 80
+    // 	;; 36a5 Table Entry 2
+    // 3732  3b 80
+    "FREE PLAY"
+    // 373d  2f 8f 2f 80
 
-// 	;; 36a5 Table Entry 3
-// 3741  8c 02
-"PLAYER ONE"
-// 374d  2f 85 2f 1010 1a 1a 1a 1a 1a 1a 1010
+    // 	;; 36a5 Table Entry 3
+    // 3741  8c 02
+    "PLAYER ONE"
+    // 374d  2f 85 2f 1010 1a 1a 1a 1a 1a 1a 1010
 
-// 	;; 36a5 Table Entry 4
-// 375a  8c 02
-"PLAYER TWO"
-// 3766  2f 85 2f 80
+    // 	;; 36a5 Table Entry 4
+    // 375a  8c 02
+    "PLAYER TWO"
+    // 3766  2f 85 2f 80
 
-// 	;; 36a5 Table Entry 5
-// 376a  92 02
-"GAME  OVER"
-// 3776  2f 81 2f 80
+    // 	;; 36a5 Table Entry 5
+    // 376a  92 02
+    "GAME  OVER"
+    // 3776  2f 81 2f 80
 
-// 	;; 36a5 Table Entry 6
-// 377a  52 02
-"READY?"
-// 3782  2f 89 2f 90
+    // 	;; 36a5 Table Entry 6
+    // 377a  52 02
+    "READY?"
+    // 3782  2f 89 2f 90
 
-// 	;; 36a5 Table Entry 7
-// 3786  ee 02
-"PUSH START BUTTON"
-// 3799  2f 87 2f 80
+    // 	;; 36a5 Table Entry 7
+    // 3786  ee 02
+    "PUSH START BUTTON"
+    // 3799  2f 87 2f 80
 
-// 	;; 36a5 Table Entry 8
-// 379d  b2 02
-"1 PLAYER ONLY "
-// 37ad  2f 85 2f 80
+    // 	;; 36a5 Table Entry 8
+    // 379d  b2 02
+    "1 PLAYER ONLY "
+    // 37ad  2f 85 2f 80
 
-// 	;; 36a5 Table Entry 9
-// 37b1  b2 02
-"1 OR 2 PLAYERS"
-// 37c1  2f 85 00 2f 00 80
+    // 	;; 36a5 Table Entry 9
+    // 37b1  b2 02
+    "1 OR 2 PLAYERS"
+    // 37c1  2f 85 00 2f 00 80
 
-// 	;; 36a5 Table Entry ??
-// 37c7  00 96 03
-"BONUS PUCKMAN FOR   000 Pts"
-// 37e2  2f 8e 2f 80
+    // 	;; 36a5 Table Entry ??
+    // 37c7  00 96 03
+    "BONUS PUCKMAN FOR   000 Pts"
+    // 37e2  2f 8e 2f 80
 
-// 37e9  ba 02
-"L "
-// 37ed  28 29
+    // 37e9  ba 02
+    "L "
+    // 37ed  28 29
 
-// 37ef  2a 2b 2c 2d 2e
-" 1980"
-// 37f8  2f 83 2f 80
+    // 37ef  2a 2b 2c 2d 2e
+    " 1980"
+    // 37f8  2f 83 2f 80
 
-// 	;; 36a5 Table Entry c
-// 37fd  c3 02
-"CHARACTER / NICKNAME"
-// 3813  2f 8f 2f 80
+    // 	;; 36a5 Table Entry c
+    // 37fd  c3 02
+    "CHARACTER / NICKNAME"
+    // 3813  2f 8f 2f 80
 
-// 3817  65 01 26
-"AKABEI"
-// 3820  26 
-// 3821  2f 81 2f 80
+    // 3817  65 01 26
+    "AKABEI"
+    // 3820  26 
+    // 3821  2f 81 2f 80
 
-// 3825  45 01 26
-"MACKY"
-// 382d  26 2f 81 2f 80 48 01 26
-"PINKY"
-// 383a  26 2f 83 2f 80 48 01 26
-"MICKY"
-// 3847  26 2f 83 2f 80
+    // 3825  45 01 26
+    "MACKY"
+    // 382d  26 2f 81 2f 80 48 01 26
+    "PINKY"
+    // 383a  26 2f 83 2f 80 48 01 26
+    "MICKY"
+    // 3847  26 2f 83 2f 80
 
-// 	;; 36a5 Table Entry 11
-// 384c  76 02
-// 384e  10
-" 10 pts"
-// 3856  2f 9f 2f 80
-// 
-// 	;; 36a5 Table Entry 12
-// 385a  78 02
-// 385c  14
-" 50 pts"
-// 3864  2f 9f 2f 80
+    // 	;; 36a5 Table Entry 11
+    // 384c  76 02
+    // 384e  10
+    " 10 pts"
+    // 3856  2f 9f 2f 80
+    // 
+    // 	;; 36a5 Table Entry 12
+    // 385a  78 02
+    // 385c  14
+    " 50 pts"
+    // 3864  2f 9f 2f 80
 
-// 3868  5d 02
-// 386a  28 29
-// 386c  2a 2b 2c 2d 2e
-// 3871  2f 83 2f 80 
+    // 3868  5d 02
+    // 386a  28 29
+    // 386c  2a 2b 2c 2d 2e
+    // 3871  2f 83 2f 80 
 
-// 3875  c5 02
-" OIKAKE"
-// 387e  3b 3b 3b 3b
-// 3882  2f 81 2f 80 
+    // 3875  c5 02
+    " OIKAKE"
+    // 387e  3b 3b 3b 3b
+    // 3882  2f 81 2f 80 
 
-// 3886  c5 02 
-" URCHIN"
-// 388f  3b 3b 3b 3b 3b
-// 3894  2f 81 2f 80
+    // 3886  c5 02 
+    " URCHIN"
+    // 388f  3b 3b 3b 3b 3b
+    // 3894  2f 81 2f 80
 
-// 3898  c8 02
-" MACHIBUSE"
-// 38a4  3b 3b
-// 38a6  2f 83 2f 80 
+    // 3898  c8 02
+    " MACHIBUSE"
+    // 38a4  3b 3b
+    // 38a6  2f 83 2f 80 
 
-// 38aa  c8 02
-" BOMP"
-// 38b1  3b 3b 3b 3b 3b 3b 3b
-// 38b8  2f 83 2f 80
+    // 38aa  c8 02
+    " BOMP"
+    // 38b1  3b 3b 3b 3b 3b 3b 3b
+    // 38b8  2f 83 2f 80
 
-// 	;; 36a5 Table Entry 21
-// 38bc  12 02
-// 38be  81 85
-// 38c0  2f 83 2f 90
+    // 	;; 36a5 Table Entry 21
+    // 38bc  12 02
+    // 38be  81 85
+    // 38c0  2f 83 2f 90
 
-// 	;; 36a5 Table Entry 22
-// 38c4  32 02
-// 38c6  40 82 85 40
-// 38ca  2f 83 2f 90
+    // 	;; 36a5 Table Entry 22
+    // 38c4  32 02
+    // 38c6  40 82 85 40
+    // 38ca  2f 83 2f 90
 
-// 	;; 36a5 Table Entry 23
-// 38ce  32 02				; OFFSET 
-// 38d0  40 83 85 40
-// 38d4  2f 83 2f 90 
+    // 	;; 36a5 Table Entry 23
+    // 38ce  32 02				; OFFSET 
+    // 38d0  40 83 85 40
+    // 38d4  2f 83 2f 90 
 
-// 	;; 36a5 Table Entry 24
-// 38d8  3202
-// 38da  40 84 85 40 
-// 38de  2f 83 2f 90 
+    // 	;; 36a5 Table Entry 24
+    // 38d8  3202
+    // 38da  40 84 85 40 
+    // 38de  2f 83 2f 90 
 
-// 38e2  3202
-// 38e4  40 86 8d 8e 
-// 38e8  2f 83 2f 90 
+    // 38e2  3202
+    // 38e4  40 86 8d 8e 
+    // 38e8  2f 83 2f 90 
 
-// 38ec  3202
-// 38ee  87 88 8d 8e 
-// 38f2  2f 83 2f 90 
+    // 38ec  3202
+    // 38ee  87 88 8d 8e 
+    // 38f2  2f 83 2f 90 
 
-// 38f6  3202
-// 38f8  89 8a 8d 8e 
-// 38fc  2f 83 2f 90 
+    // 38f6  3202
+    // 38f8  89 8a 8d 8e 
+    // 38fc  2f 83 2f 90 
 
-// 3900  3202
-// 3902  8b 8c 8d 8e 
-// 3906  2f 83 2f 90 
+    // 3900  3202
+    // 3902  8b 8c 8d 8e 
+    // 3906  2f 83 2f 90 
 
-// 	;; 36a5 Table Entry 23
-// 390a  04 03 
-"MEMORY  OK"
-// 3916  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 23
+    // 390a  04 03 
+    "MEMORY  OK"
+    // 3916  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 24
-// 391a  04 
-// 391b  03 
-"BAD    R M"
-// 3926  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 24
+    // 391a  04 
+    // 391b  03 
+    "BAD    R M"
+    // 3926  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 26
-// 392a  08 03 
-"1 COIN  1 CREDIT "
-// 393d  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 26
+    // 392a  08 03 
+    "1 COIN  1 CREDIT "
+    // 393d  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 28
-// 3941  08 03 
-"2 COINS 1 CREDIT "
-// 3954  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 28
+    // 3941  08 03 
+    "2 COINS 1 CREDIT "
+    // 3954  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 27
-// 3958  08 03 
-"1 COIN  2 CREDITS"
-// 396b  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 27
+    // 3958  08 03 
+    "1 COIN  2 CREDITS"
+    // 396b  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 25
-// 396f  08 
-// 3970  03 
-"FREE  PLAY       "
-// 3982  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 25
+    // 396f  08 
+    // 3970  03 
+    "FREE  PLAY       "
+    // 3982  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 2a
-// 3986  0a 03 
-"BONUS  NONE"
-// 3993  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 2a
+    // 3986  0a 03 
+    "BONUS  NONE"
+    // 3993  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 2b
-// 3997  0a 03 
-"BONUS "
-// 399f  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 2b
+    // 3997  0a 03 
+    "BONUS "
+    // 399f  2f 8f 2f 80 
 
-// 39a3  0c 03 
-"PUCKMAN"
-// 39ac  2f 8f 2f 80 
+    // 39a3  0c 03 
+    "PUCKMAN"
+    // 39ac  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 2c
-// 39b0  0e03      ld      c,#03
-"TABLE  "
-// 39b9  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 2c
+    // 39b0  0e03      ld      c,#03
+    "TABLE  "
+    // 39b9  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 2d
-// 39bd  0e03      ld      c,#03
-"UPRIGHT"
-// 39c6  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 2d
+    // 39bd  0e03      ld      c,#03
+    "UPRIGHT"
+    // 39c6  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry 2e
-// 39ca  0a 02 
-"000"
-// 39cf  2f 8f 2f 80 
+    // 	;; 36a5 Table Entry 2e
+    // 39ca  0a 02 
+    "000"
+    // 39cf  2f 8f 2f 80 
 
-// 	;; 36a5 Table Entry
-// 39d3  6b 01 26
-"AOSUKE"
-// 39dc  26
-// 39dd  2f 85 2f 80 
+    // 	;; 36a5 Table Entry
+    // 39d3  6b 01 26
+    "AOSUKE"
+    // 39dc  26
+    // 39dd  2f 85 2f 80 
 
-// 39e1  4b
-// 39e2  0126
-"MUCKY"
-// 39e9  26
-// 39ea  2f 85 2f 80 
-// 39ee  6e
-// 39ef  0126
-"GUZUTA"
-// 39f7  26
-// 39f8  2f 87 2f 80 
+    // 39e1  4b
+    // 39e2  0126
+    "MUCKY"
+    // 39e9  26
+    // 39ea  2f 85 2f 80 
+    // 39ee  6e
+    // 39ef  0126
+    "GUZUTA"
+    // 39f7  26
+    // 39f8  2f 87 2f 80 
 
-// 39fc  4e
-// 39fd  0126
-"MOCKY"
-// 3a04  26
-// 3a05  2f 87 2f 80 
+    // 39fc  4e
+    // 39fd  0126
+    "MOCKY"
+    // 3a04  26
+    // 3a05  2f 87 2f 80 
 
-// 3a09  cb02
-" KIMAGURE"
-// 3a14  3b
-// 3a15  3b
-// 3a16  2f 85 2f 80 
+    // 3a09  cb02
+    " KIMAGURE"
+    // 3a14  3b
+    // 3a15  3b
+    // 3a16  2f 85 2f 80 
 
-// 3a1a  cb02
-" STYLIST"
-// 3a24  3b 3b 3b 3b 
-// 3a28  2f 85 2f 80 
+    // 3a1a  cb02
+    " STYLIST"
+    // 3a24  3b 3b 3b 3b 
+    // 3a28  2f 85 2f 80 
 
-// 3a2c  ce02
-" OTOBOKE"
-// 3a36  3b 3b 3b 
-// 3a39  2f 87 2f 80 
+    // 3a2c  ce02
+    " OTOBOKE"
+    // 3a36  3b 3b 3b 
+    // 3a39  2f 87 2f 80 
 
-// 3a3d  ce02
-" CRYBABY"
-// 3a47  3b 3b 3b 3b 
-// 3a4b  2f 87 2f 80 
+    // 3a3d  ce02
+    " CRYBABY"
+    // 3a47  3b 3b 3b 3b 
+    // 3a4b  2f 87 2f 80 
 
-// 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04  |.....b..........|
-// 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01  |................|
-// 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04  |................|
-// 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
-// 35f0  01 01 01 01 01 01 01 01  01 03 04 04 0f 03 06 04  |................|
-// 3600  04 0f 03 06 04 04 01 01  01 0c 03 01 01 01 03 04  |................|
-// 3610  04 03 0c 03 03 03 04 04  03 0c 03 03 03 04 01 01  |................|
-// 3620  01 01 03 0c 01 01 01 03  01 01 01 08 18 08 18 04  |................|
-// 3630  01 01 01 01 03 0c 01 01  01 03 01 01 01 04 04 03  |................|
-// 3640  0c 03 03 03 04 04 03 0c  03 03 03 04 04 01 01 01  |................|
-// 3650  0c 03 01 01 01 03 04 04  0f 03 06 04 04 0f 03 06  |................|
-// 3660  04 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
-// 3670  01 01 01 01 01 01 01 01  01 01 03 04 04 03 0c 06  |................|
-// 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03  |................|
-// 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01  |................|
-// 36a0  01 04 01 01 01 13 37 23  37 32 37 41 37 5a 37 6a  |......7#727A7Z7j|
-// 36b0  37 7a 37 86 37 9d 37 b1  37 00 3d 21 3d fd 37 67  |7z7.7.7.7.=!=.7g|
-// 36c0  3d e3 3d 86 3d 02 3e 4c  38 5a 38 3c 3d 57 3d d3  |=.=.=.>L8Z8<=W=.|
-// 36d0  3d 76 3d f2 3d 01 00 02  00 03 00 bc 38 c4 38 ce  |=v=.=.......8.8.|
-// 36e0  38 d8 38 e2 38 ec 38 f6  38 00 39 0a 39 1a 39 6f  |8.8.8.8.8.9.9.9o|
-// 36f0  39 2a 39 58 39 41 39 4f  3e 86 39 97 39 b0 39 bd  |9*9X9A9O>.9.9.9.|
-// 3700  39 ca 39 a5 3d 21 3e c4  3d 40 3e 95 3d 11 3e b4  |9.9.=!>.=@>.=.>.|
-// 3710  3d 30 3e d4 83 48 49 47  48 40 53 43 4f 52 45 2f  |=0>..HIGH@SCORE/|
-// 3720  8f 2f 80 3b 80 43 52 45  44 49 54 40 40 40 2f 8f  |./.;.CREDIT@@@/.|
-// 3730  2f 80 3b 80 46 52 45 45  40 50 4c 41 59 2f 8f 2f  |/.;.FREE@PLAY/./|
-// 3740  80 8c 02 50 4c 41 59 45  52 40 4f 4e 45 2f 85 2f  |...PLAYER@ONE/./|
-// 3750  10 10 1a 1a 1a 1a 1a 1a  10 10 8c 02 50 4c 41 59  |............PLAY|
-// 3760  45 52 40 54 57 4f 2f 85  2f 80 92 02 47 41 4d 45  |ER@TWO/./...GAME|
-// 3770  40 40 4f 56 45 52 2f 81  2f 80 52 02 52 45 41 44  |@@OVER/./.R.READ|
-// 3780  59 5b 2f 89 2f 90 ee 02  50 55 53 48 40 53 54 41  |Y[/./...PUSH@STA|
-// 3790  52 54 40 42 55 54 54 4f  4e 2f 87 2f 80 b2 02 31  |RT@BUTTON/./...1|
-// 37a0  40 50 4c 41 59 45 52 40  4f 4e 4c 59 40 2f 85 2f  |@PLAYER@ONLY@/./|
-// 37b0  80 b2 02 31 40 4f 52 40  32 40 50 4c 41 59 45 52  |...1@OR@2@PLAYER|
-// 37c0  53 2f 85 00 2f 00 80 00  96 03 42 4f 4e 55 53 40  |S/../.....BONUS@|
-// 37d0  50 55 43 4b 4d 41 4e 40  46 4f 52 40 40 40 30 30  |PUCKMAN@FOR@@@00|
-// 37e0  30 40 5d 5e 5f 2f 8e 2f  80 ba 02 5c 40 28 29 2a  |0@]^_/./...\@()*|
-// 37f0  2b 2c 2d 2e 40 31 39 38  30 2f 83 2f 80 c3 02 43  |+,-.@1980/./...C|
-// 3800  48 41 52 41 43 54 45 52  40 3a 40 4e 49 43 4b 4e  |HARACTER@:@NICKN|
-// 3810  41 4d 45 2f 8f 2f 80 65  01 26 41 4b 41 42 45 49  |AME/./.e.&AKABEI|
-// 3820  26 2f 81 2f 80 45 01 26  4d 41 43 4b 59 26 2f 81  |&/./.E.&MACKY&/.|
-// 3830  2f 80 48 01 26 50 49 4e  4b 59 26 2f 83 2f 80 48  |/.H.&PINKY&/./.H|
-// 3840  01 26 4d 49 43 4b 59 26  2f 83 2f 80 76 02 10 40  |.&MICKY&/./.v..@|
-// 3850  31 30 40 5d 5e 5f 2f 9f  2f 80 78 02 14 40 35 30  |10@]^_/./.x..@50|
-// 3860  40 5d 5e 5f 2f 9f 2f 80  5d 02 28 29 2a 2b 2c 2d  |@]^_/./.].()*+,-|
-// 3870  2e 2f 83 2f 80 c5 02 40  4f 49 4b 41 4b 45 3b 3b  |././...@OIKAKE;;|
-// 3880  3b 3b 2f 81 2f 80 c5 02  40 55 52 43 48 49 4e 3b  |;;/./...@URCHIN;|
-// 3890  3b 3b 3b 3b 2f 81 2f 80  c8 02 40 4d 41 43 48 49  |;;;;/./...@MACHI|
-// 38a0  42 55 53 45 3b 3b 2f 83  2f 80 c8 02 40 52 4f 4d  |BUSE;;/./...@ROM|
-// 38b0  50 3b 3b 3b 3b 3b 3b 3b  2f 83 2f 80 12 02 81 85  |P;;;;;;;/./.....|
-// 38c0  2f 83 2f 90 32 02 40 82  85 40 2f 83 2f 90 32 02  |/./.2.@..@/./.2.|
-// 38d0  40 83 85 40 2f 83 2f 90  32 02 40 84 85 40 2f 83  |@..@/./.2.@..@/.|
-// 38e0  2f 90 32 02 40 86 8d 8e  2f 83 2f 90 32 02 87 88  |/.2.@..././.2...|
-// 38f0  8d 8e 2f 83 2f 90 32 02  89 8a 8d 8e 2f 83 2f 90  |.././.2....././.|
-// 3900  32 02 8b 8c 8d 8e 2f 83  2f 90 04 03 4d 45 4d 4f  |2....././...MEMO|
-// 3910  52 59 40 40 4f 4b 2f 8f  2f 80 04 03 42 41 44 40  |RY@@OK/./...BAD@|
-// 3920  40 40 40 52 40 4d 2f 8f  2f 80 08 03 31 40 43 4f  |@@@R@M/./...1@CO|
-// 3930  49 4e 40 40 31 40 43 52  45 44 49 54 40 2f 8f 2f  |IN@@1@CREDIT@/./|
-// 3940  80 08 03 32 40 43 4f 49  4e 53 40 31 40 43 52 45  |...2@COINS@1@CRE|
-// 3950  44 49 54 40 2f 8f 2f 80  08 03 31 40 43 4f 49 4e  |DIT@/./...1@COIN|
-// 3960  40 40 32 40 43 52 45 44  49 54 53 2f 8f 2f 80 08  |@@2@CREDITS/./..|
-// 3970  03 46 52 45 45 40 40 50  4c 41 59 40 40 40 40 40  |.FREE@@PLAY@@@@@|
-// 3980  40 40 2f 8f 2f 80 0a 03  42 4f 4e 55 53 40 40 4e  |@@/./...BONUS@@N|
-// 3990  4f 4e 45 2f 8f 2f 80 0a  03 42 4f 4e 55 53 40 2f  |ONE/./...BONUS@/|
-// 39a0  8f 2f 80 0c 03 50 55 43  4b 4d 41 4e 2f 8f 2f 80  |./...PUCKMAN/./.|
-// 39b0  0e 03 54 41 42 4c 45 40  40 2f 8f 2f 80 0e 03 55  |..TABLE@@/./...U|
-// 39c0  50 52 49 47 48 54 2f 8f  2f 80 0a 02 30 30 30 2f  |PRIGHT/./...000/|
-// 39d0  8f 2f 80 6b 01 26 41 4f  53 55 4b 45 26 2f 85 2f  |./.k.&AOSUKE&/./|
-// 39e0  80 4b 01 26 4d 55 43 4b  59 26 2f 85 2f 80 6e 01  |.K.&MUCKY&/./.n.|
-// 39f0  26 47 55 5a 55 54 41 26  2f 87 2f 80 4e 01 26 4d  |&GUZUTA&/./.N.&M|
-// 3a00  4f 43 4b 59 26 2f 87 2f  80 cb 02 40 4b 49 4d 41  |OCKY&/./...@KIMA|
-// 3a10  47 55 52 45 3b 3b 2f 85  2f 80 cb 02 40 53 54 59  |GURE;;/./...@STY|
-// 3a20  4c 49 53 54 3b 3b 3b 3b  2f 85 2f 80 ce 02 40 4f  |LIST;;;;/./...@O|
-// 3a30  54 4f 42 4f 4b 45 3b 3b  3b 2f 87 2f 80 ce 02 40  |TOBOKE;;;/./...@|
-// 3a40  43 52 59 42 41 42 59 3b  3b 3b 3b 2f 87 2f 80 01  |CRYBABY;;;;/./..|
-// 3a50  01 03 01 01 01 03 02 02  02 01 01 01 01 02 04 04  |................|
-// 3a60  04 06 02 02 02 02 04 02  04 04 04 06 02 02 02 02  |................|
-// 3a70  01 01 01 01 02 04 04 04  06 02 02 02 02 06 04 05  |................|
-// 3a80  01 01 03 01 01 01 04 01  01 01 03 01 01 04 01 01  |................|
-// 3a90  01 6c 05 01 01 01 18 04  04 18 05 01 01 01 17 02  |.l..............|
-// 3aa0  03 04 16 04 03 01 01 01  76 01 01 01 01 03 01 01  |........v.......|
-// 3ab0  01 02 04 02 04 0e 02 04  02 04 02 04 0b 01 01 01  |................|
-// 3ac0  02 04 02 01 01 01 01 02  02 02 0e 02 04 02 04 02  |................|
-// 3ad0  01 02 01 0a 01 01 01 01  03 01 01 01 03 01 01 03  |................|
-// 3ae0  04 00 02 40 01 3e 3d 10  40 40 0e 3d 3e 10 c2 43  |...@.>=.@@.=>..C|
+    // 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04  |.....b..........|
+    // 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01  |................|
+    // 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04  |................|
+    // 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
+    // 35f0  01 01 01 01 01 01 01 01  01 03 04 04 0f 03 06 04  |................|
+    // 3600  04 0f 03 06 04 04 01 01  01 0c 03 01 01 01 03 04  |................|
+    // 3610  04 03 0c 03 03 03 04 04  03 0c 03 03 03 04 01 01  |................|
+    // 3620  01 01 03 0c 01 01 01 03  01 01 01 08 18 08 18 04  |................|
+    // 3630  01 01 01 01 03 0c 01 01  01 03 01 01 01 04 04 03  |................|
+    // 3640  0c 03 03 03 04 04 03 0c  03 03 03 04 04 01 01 01  |................|
+    // 3650  0c 03 01 01 01 03 04 04  0f 03 06 04 04 0f 03 06  |................|
+    // 3660  04 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
+    // 3670  01 01 01 01 01 01 01 01  01 01 03 04 04 03 0c 06  |................|
+    // 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03  |................|
+    // 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01  |................|
+    // 36a0  01 04 01 01 01 13 37 23  37 32 37 41 37 5a 37 6a  |......7#727A7Z7j|
+    // 36b0  37 7a 37 86 37 9d 37 b1  37 00 3d 21 3d fd 37 67  |7z7.7.7.7.=!=.7g|
+    // 36c0  3d e3 3d 86 3d 02 3e 4c  38 5a 38 3c 3d 57 3d d3  |=.=.=.>L8Z8<=W=.|
+    // 36d0  3d 76 3d f2 3d 01 00 02  00 03 00 bc 38 c4 38 ce  |=v=.=.......8.8.|
+    // 36e0  38 d8 38 e2 38 ec 38 f6  38 00 39 0a 39 1a 39 6f  |8.8.8.8.8.9.9.9o|
+    // 36f0  39 2a 39 58 39 41 39 4f  3e 86 39 97 39 b0 39 bd  |9*9X9A9O>.9.9.9.|
+    // 3700  39 ca 39 a5 3d 21 3e c4  3d 40 3e 95 3d 11 3e b4  |9.9.=!>.=@>.=.>.|
+    // 3710  3d 30 3e d4 83 48 49 47  48 40 53 43 4f 52 45 2f  |=0>..HIGH@SCORE/|
+    // 3720  8f 2f 80 3b 80 43 52 45  44 49 54 40 40 40 2f 8f  |./.;.CREDIT@@@/.|
+    // 3730  2f 80 3b 80 46 52 45 45  40 50 4c 41 59 2f 8f 2f  |/.;.FREE@PLAY/./|
+    // 3740  80 8c 02 50 4c 41 59 45  52 40 4f 4e 45 2f 85 2f  |...PLAYER@ONE/./|
+    // 3750  10 10 1a 1a 1a 1a 1a 1a  10 10 8c 02 50 4c 41 59  |............PLAY|
+    // 3760  45 52 40 54 57 4f 2f 85  2f 80 92 02 47 41 4d 45  |ER@TWO/./...GAME|
+    // 3770  40 40 4f 56 45 52 2f 81  2f 80 52 02 52 45 41 44  |@@OVER/./.R.READ|
+    // 3780  59 5b 2f 89 2f 90 ee 02  50 55 53 48 40 53 54 41  |Y[/./...PUSH@STA|
+    // 3790  52 54 40 42 55 54 54 4f  4e 2f 87 2f 80 b2 02 31  |RT@BUTTON/./...1|
+    // 37a0  40 50 4c 41 59 45 52 40  4f 4e 4c 59 40 2f 85 2f  |@PLAYER@ONLY@/./|
+    // 37b0  80 b2 02 31 40 4f 52 40  32 40 50 4c 41 59 45 52  |...1@OR@2@PLAYER|
+    // 37c0  53 2f 85 00 2f 00 80 00  96 03 42 4f 4e 55 53 40  |S/../.....BONUS@|
+    // 37d0  50 55 43 4b 4d 41 4e 40  46 4f 52 40 40 40 30 30  |PUCKMAN@FOR@@@00|
+    // 37e0  30 40 5d 5e 5f 2f 8e 2f  80 ba 02 5c 40 28 29 2a  |0@]^_/./...\@()*|
+    // 37f0  2b 2c 2d 2e 40 31 39 38  30 2f 83 2f 80 c3 02 43  |+,-.@1980/./...C|
+    // 3800  48 41 52 41 43 54 45 52  40 3a 40 4e 49 43 4b 4e  |HARACTER@:@NICKN|
+    // 3810  41 4d 45 2f 8f 2f 80 65  01 26 41 4b 41 42 45 49  |AME/./.e.&AKABEI|
+    // 3820  26 2f 81 2f 80 45 01 26  4d 41 43 4b 59 26 2f 81  |&/./.E.&MACKY&/.|
+    // 3830  2f 80 48 01 26 50 49 4e  4b 59 26 2f 83 2f 80 48  |/.H.&PINKY&/./.H|
+    // 3840  01 26 4d 49 43 4b 59 26  2f 83 2f 80 76 02 10 40  |.&MICKY&/./.v..@|
+    // 3850  31 30 40 5d 5e 5f 2f 9f  2f 80 78 02 14 40 35 30  |10@]^_/./.x..@50|
+    // 3860  40 5d 5e 5f 2f 9f 2f 80  5d 02 28 29 2a 2b 2c 2d  |@]^_/./.].()*+,-|
+    // 3870  2e 2f 83 2f 80 c5 02 40  4f 49 4b 41 4b 45 3b 3b  |././...@OIKAKE;;|
+    // 3880  3b 3b 2f 81 2f 80 c5 02  40 55 52 43 48 49 4e 3b  |;;/./...@URCHIN;|
+    // 3890  3b 3b 3b 3b 2f 81 2f 80  c8 02 40 4d 41 43 48 49  |;;;;/./...@MACHI|
+    // 38a0  42 55 53 45 3b 3b 2f 83  2f 80 c8 02 40 52 4f 4d  |BUSE;;/./...@ROM|
+    // 38b0  50 3b 3b 3b 3b 3b 3b 3b  2f 83 2f 80 12 02 81 85  |P;;;;;;;/./.....|
+    // 38c0  2f 83 2f 90 32 02 40 82  85 40 2f 83 2f 90 32 02  |/./.2.@..@/./.2.|
+    // 38d0  40 83 85 40 2f 83 2f 90  32 02 40 84 85 40 2f 83  |@..@/./.2.@..@/.|
+    // 38e0  2f 90 32 02 40 86 8d 8e  2f 83 2f 90 32 02 87 88  |/.2.@..././.2...|
+    // 38f0  8d 8e 2f 83 2f 90 32 02  89 8a 8d 8e 2f 83 2f 90  |.././.2....././.|
+    // 3900  32 02 8b 8c 8d 8e 2f 83  2f 90 04 03 4d 45 4d 4f  |2....././...MEMO|
+    // 3910  52 59 40 40 4f 4b 2f 8f  2f 80 04 03 42 41 44 40  |RY@@OK/./...BAD@|
+    // 3920  40 40 40 52 40 4d 2f 8f  2f 80 08 03 31 40 43 4f  |@@@R@M/./...1@CO|
+    // 3930  49 4e 40 40 31 40 43 52  45 44 49 54 40 2f 8f 2f  |IN@@1@CREDIT@/./|
+    // 3940  80 08 03 32 40 43 4f 49  4e 53 40 31 40 43 52 45  |...2@COINS@1@CRE|
+    // 3950  44 49 54 40 2f 8f 2f 80  08 03 31 40 43 4f 49 4e  |DIT@/./...1@COIN|
+    // 3960  40 40 32 40 43 52 45 44  49 54 53 2f 8f 2f 80 08  |@@2@CREDITS/./..|
+    // 3970  03 46 52 45 45 40 40 50  4c 41 59 40 40 40 40 40  |.FREE@@PLAY@@@@@|
+    // 3980  40 40 2f 8f 2f 80 0a 03  42 4f 4e 55 53 40 40 4e  |@@/./...BONUS@@N|
+    // 3990  4f 4e 45 2f 8f 2f 80 0a  03 42 4f 4e 55 53 40 2f  |ONE/./...BONUS@/|
+    // 39a0  8f 2f 80 0c 03 50 55 43  4b 4d 41 4e 2f 8f 2f 80  |./...PUCKMAN/./.|
+    // 39b0  0e 03 54 41 42 4c 45 40  40 2f 8f 2f 80 0e 03 55  |..TABLE@@/./...U|
+    // 39c0  50 52 49 47 48 54 2f 8f  2f 80 0a 02 30 30 30 2f  |PRIGHT/./...000/|
+    // 39d0  8f 2f 80 6b 01 26 41 4f  53 55 4b 45 26 2f 85 2f  |./.k.&AOSUKE&/./|
+    // 39e0  80 4b 01 26 4d 55 43 4b  59 26 2f 85 2f 80 6e 01  |.K.&MUCKY&/./.n.|
+    // 39f0  26 47 55 5a 55 54 41 26  2f 87 2f 80 4e 01 26 4d  |&GUZUTA&/./.N.&M|
+    // 3a00  4f 43 4b 59 26 2f 87 2f  80 cb 02 40 4b 49 4d 41  |OCKY&/./...@KIMA|
+    // 3a10  47 55 52 45 3b 3b 2f 85  2f 80 cb 02 40 53 54 59  |GURE;;/./...@STY|
+    // 3a20  4c 49 53 54 3b 3b 3b 3b  2f 85 2f 80 ce 02 40 4f  |LIST;;;;/./...@O|
+    // 3a30  54 4f 42 4f 4b 45 3b 3b  3b 2f 87 2f 80 ce 02 40  |TOBOKE;;;/./...@|
+    // 3a40  43 52 59 42 41 42 59 3b  3b 3b 3b 2f 87 2f 80 01  |CRYBABY;;;;/./..|
+    // 3a50  01 03 01 01 01 03 02 02  02 01 01 01 01 02 04 04  |................|
+    // 3a60  04 06 02 02 02 02 04 02  04 04 04 06 02 02 02 02  |................|
+    // 3a70  01 01 01 01 02 04 04 04  06 02 02 02 02 06 04 05  |................|
+    // 3a80  01 01 03 01 01 01 04 01  01 01 03 01 01 04 01 01  |................|
+    // 3a90  01 6c 05 01 01 01 18 04  04 18 05 01 01 01 17 02  |.l..............|
+    // 3aa0  03 04 16 04 03 01 01 01  76 01 01 01 01 03 01 01  |........v.......|
+    // 3ab0  01 02 04 02 04 0e 02 04  02 04 02 04 0b 01 01 01  |................|
+    // 3ac0  02 04 02 01 01 01 01 02  02 02 0e 02 04 02 04 02  |................|
+    // 3ad0  01 02 01 0a 01 01 01 01  03 01 01 01 03 01 01 03  |................|
+    // 3ae0  04 00 02 40 01 3e 3d 10  40 40 0e 3d 3e 10 c2 43  |...@.>=.@@.=>..C|
 
-// 3ae4  013e3d    ld      bc,#3d3e
+    // 3ae4  013e3d    ld      bc,#3d3e
 
-// 3ae7  1040      djnz    #3b29           ; (64)
-// 3ae9  40        ld      b,b
-// 3aea  0e3d      ld      c,#3d
-// 3aec  3e10      ld      a,#10
-// 3aee  c24301    jp      nz,#0143
-// 3af1  3e3d      ld      a,#3d
-// 3af3  1021      djnz    #3b16           ; (33)
-// 3af5  a2        and     d
-// 3af6  40        ld      b,b
+    // 3ae7  1040      djnz    #3b29           ; (64)
+    // 3ae9  40        ld      b,b
+    // 3aea  0e3d      ld      c,#3d
+    // 3aec  3e10      ld      a,#10
+    // 3aee  c24301    jp      nz,#0143
+    // 3af1  3e3d      ld      a,#3d
+    // 3af3  1021      djnz    #3b16           ; (33)
+    // 3af5  a2        and     d
+    // 3af6  40        ld      b,b
 
-// 3af7  114f3a    ld      de,#3a4f
+    // 3af7  114f3a    ld      de,#3a4f
 
-while (1)
-{
-// 3afa  3614      ld      (hl),#14
-// 3afc  1a        ld      a,(de)
-// 3afd  a7        and     a
-// 3afe  c8        ret     z
-MEM[hl]=0x14;
-if (MEM[de] == 0)
-    return;
-// 3aff  13        inc     de
-// 3b00  85        add     a,l
-// 3b01  6f        ld      l,a
-// 3b02  d2fa3a    jp      nc,#3afa
-// 3b05  24        inc     h
-// 3b06  18f2      jr      #3afa           ; (-14)
-}
+    while (1)
+    {
+    // 3afa  3614      ld      (hl),#14
+    // 3afc  1a        ld      a,(de)
+    // 3afd  a7        and     a
+    // 3afe  c8        ret     z
+    MEM[hl]=0x14;
+    if (MEM[de] == 0)
+        return;
+    // 3aff  13        inc     de
+    // 3b00  85        add     a,l
+    // 3b01  6f        ld      l,a
+    // 3b02  d2fa3a    jp      nc,#3afa
+    // 3b05  24        inc     h
+    // 3b06  18f2      jr      #3afa           ; (-14)
+    }
 
-// 3b08                           90 14 94 0f 98 15 98 15  |.o..:$..........|
-// 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16  |................|
-// 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16  |................|
-// 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00  |s ......r ......|
-// 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00  |6 ......6(......|
-// 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00  |60......6<......|
-// 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00  |6H......$.......|
-// 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00  |@p......p.......|
-// 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00  |B.......B.......|
-// 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00  |V.......... ....|
-// 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00  |A ......p.......|
-// 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b  |..... @..W\agmt{|
-// 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c  |.........;.;X<.<|
-// 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82  |.<.<.........pi.|
-// 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b  |pi.pj.pj.pi.pi..|
-// 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30  |...........gP0G0|
-// 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10  |gP0G0gP0G0K.L.M.|
-// 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47  |N.gP0G0gP0G0gP0G|
-// 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50  |0K.L.M.N.gP0G0gP|
-// 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10  |0G0gP0G0K.L.M.N.|
-// 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30  |w N.M.L.J.G.F.e0|
-// 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00  |f0g@p..;........|
-// 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f  |BPNPIPFPNIpfpCPO|
-// 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50  |PJPGPOJpgpBPNPIP|
-// 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49  |FPNIpfpEFGPGHIPI|
-// 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26  |JKPn.........&g&|
-// 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67  |g&g#DBG0g*.p&g&g|
-// 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26  |&g#DBG0g#.p&g&g&|
-// 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b  |g#DBG0g)j+l0,m@+|
-// 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00  |l)jg )j@&.p..<..|
-// 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    // 3b08                           90 14 94 0f 98 15 98 15  |.o..:$..........|
+    // 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16  |................|
+    // 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16  |................|
+    // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00  |s ......r ......|
+    // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00  |6 ......6(......|
+    // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00  |60......6<......|
+    // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00  |6H......$.......|
+    // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00  |@p......p.......|
+    // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00  |B.......B.......|
+    // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00  |V.......... ....|
+    // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00  |A ......p.......|
+    // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b  |..... @..W\agmt{|
+    // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c  |.........;.;X<.<|
+    // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82  |.<.<.........pi.|
+    // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b  |pi.pj.pj.pi.pi..|
+    // 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30  |...........gP0G0|
+    // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10  |gP0G0gP0G0K.L.M.|
+    // 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47  |N.gP0G0gP0G0gP0G|
+    // 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50  |0K.L.M.N.gP0G0gP|
+    // 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10  |0G0gP0G0K.L.M.N.|
+    // 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30  |w N.M.L.J.G.F.e0|
+    // 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00  |f0g@p..;........|
+    // 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f  |BPNPIPFPNIpfpCPO|
+    // 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50  |PJPGPOJpgpBPNPIP|
+    // 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49  |FPNIpfpEFGPGHIPI|
+    // 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26  |JKPn.........&g&|
+    // 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67  |g&g#DBG0g*.p&g&g|
+    // 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26  |&g#DBG0g#.p&g&g&|
+    // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b  |g#DBG0g)j+l0,m@+|
+    // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00  |l)jg )j@&.p..<..|
+    // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 
-// 	;; 36a5 Table Entry a
-// 3d00  96        sub     (hl)		
-// 3d01  03        inc     bc
-"BONUS@PAC;MAN@FOR@@@000@]^_"
-// 3d1d  2f        cpl     
-// 3d1e  8e        adc     a,(hl)
-// 3d1f  2f        cpl     
-// 3d20  80        add     a,b
-// 
-// 	;; 36a5 Table Entry b
-// 3d21  3a035c    ld      a,(#5c03)
-"@1980@MIDWAY@MFG%CO%"
-// 3d38  2f        cpl     
-// 3d39  83        add     a,e
-// 3d3a  2f        cpl     
-// 3d3b  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 13
-// 3d3c  3d        dec     a
-// 3d3d  03        inc     bc
-// 3d3e  5c        ld      e,h
-"@1980@MIDWAY@MFG%CO%"
-// 3d53  2f        cpl     
-// 3d54  83        add     a,e
-// 3d55  2f        cpl     
-// 3d56  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 14
-// 3d57  c5        push    bc
-// 3d58  02        ld      (bc),a
-// 3d59  3b        dec     sp
-"SHADOW@@@"
-// 3d63  2f        cpl     
-// 3d64  81        add     a,c
-// 3d65  2f        cpl     
-// 3d66  80        add     a,b
-// 
-// 	;; 36a5 Table Entry d
-// 3d67  65 01 26
-"BLINKY&@"
-// 3d72  2f        cpl     
-// 3d73  81        add     a,c
-// 3d74  2f        cpl     
-// 3d75  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 16
-// 3d76  c8        ret     z
-// 3d77  02        ld      (bc),a
-// 3d78  3b        dec     sp
-"SPEEDY@@@"
-// 3d82  2f        cpl     
-// 3d83  83        add     a,e
-// 3d84  2f        cpl     
-// 3d85  80        add     a,b
-// 
-// 	;; 36a5 Table Entry f
-// 3d86  68 01 26
-"PINKY&@@"
-// 3d91  2f 83 2f 80
-// 
-// 	;; 36a5 Table Entry 33
-// 3d95  cb 02 3b
-"BASHFUL@@"
-// 3da1  2f 85 2f 80
-// 
-// 	;; 36a5 Table Entry 2f
-// 3da5  6b 01 26
-"INKY&@@@"
-// 3db0  2f 85 2f 80
-// 
-// 	;; 36a5 Table Entry 35
-// 3db4  ce023b
-"POKEY@@@@"
-// 3dc0  2f 87 2f 80
-// 
-// 	;; 36a5 Table Entry 31
-// 3dc4  6e0126
-"CLYDE&@@"
-// 3dcf  2f 87 2f 80
-// 
-// 	;; 36a5 Table Entry 15
-// 3dd3  c5023b
-"AAAAAAAA;"
-// 3ddf  2f 81 2f 80
-// 
-// 	;; 36a5 Table Entry e
-// 3de3  650126
-"BBBBBBB"
-// 3ded  262f 812f 80
-// 
-// 	;; 36a5 Table Entry 17
-// 3df2  c8        ret     z
-// 3df3  02        ld      (bc),a
-// 3df4  3b        dec     sp
-"CCCCCCCC;"
-// 3dfe  2f        cpl     
-// 3dff  83        add     a,e
-// 3e00  2f        cpl     
-// 3e01  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 10
-// 3e02  68 01 26
-"DDDDDDD&"
-// 3e0d  2f 83 2f 80
-// 
-// 	;; 36a5 Table Entry 34
-// 3e11  cb 02 3b
-"EEEEEEEE"
-// 3e1c  3b        dec     sp
-// 3e1d  2f        cpl     
-// 3e1e  85        add     a,l
-// 3e1f  2f        cpl     
-// 3e20  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 30
-// 3e21  6b        ld      l,e
-// 3e22  012646    ld      bc,#4626
-"FFFFFF&"
-// 3e2c  2f      ld      h,#2f
-// 3e2d  85        add     a,l
-// 3e2e  2f        cpl     
-// 3e2f  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 36
-// 3e30  ce02      adc     a,#02
-// 3e32  3b        dec     sp
-"GGGGGGGG;"
-// 3e3c  2f        cpl     
-// 3e3d  87        add     a,a
-// 3e3e  2f        cpl     
-// 3e3f  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 32
-// 3e40  6e        ld      l,(hl)
-// 3e41  0126
-"HHHHHHH&"
-// 3e4a  2f      ld      h,#2f
-// 3e4c  87        add     a,a
-// 3e4d  2f        cpl     
-// 3e4e  80        add     a,b
-// 
-// 	;; 36a5 Table Entry 29
-// 3e4f  0c        inc     c
-// 3e50  03        inc     bc
-"PAC;MAN"
-// 3e58  2f        cpl     
-// 3e59  8f        adc     a,a
-// 3e5a  2f        cpl     
-// 3e5b  80        add     a,b
+    // 	;; 36a5 Table Entry a
+    // 3d00  96        sub     (hl)		
+    // 3d01  03        inc     bc
+    "BONUS@PAC;MAN@FOR@@@000@]^_"
+    // 3d1d  2f        cpl     
+    // 3d1e  8e        adc     a,(hl)
+    // 3d1f  2f        cpl     
+    // 3d20  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry b
+    // 3d21  3a035c    ld      a,(#5c03)
+    "@1980@MIDWAY@MFG%CO%"
+    // 3d38  2f        cpl     
+    // 3d39  83        add     a,e
+    // 3d3a  2f        cpl     
+    // 3d3b  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 13
+    // 3d3c  3d        dec     a
+    // 3d3d  03        inc     bc
+    // 3d3e  5c        ld      e,h
+    "@1980@MIDWAY@MFG%CO%"
+    // 3d53  2f        cpl     
+    // 3d54  83        add     a,e
+    // 3d55  2f        cpl     
+    // 3d56  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 14
+    // 3d57  c5        push    bc
+    // 3d58  02        ld      (bc),a
+    // 3d59  3b        dec     sp
+    "SHADOW@@@"
+    // 3d63  2f        cpl     
+    // 3d64  81        add     a,c
+    // 3d65  2f        cpl     
+    // 3d66  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry d
+    // 3d67  65 01 26
+    "BLINKY&@"
+    // 3d72  2f        cpl     
+    // 3d73  81        add     a,c
+    // 3d74  2f        cpl     
+    // 3d75  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 16
+    // 3d76  c8        ret     z
+    // 3d77  02        ld      (bc),a
+    // 3d78  3b        dec     sp
+    "SPEEDY@@@"
+    // 3d82  2f        cpl     
+    // 3d83  83        add     a,e
+    // 3d84  2f        cpl     
+    // 3d85  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry f
+    // 3d86  68 01 26
+    "PINKY&@@"
+    // 3d91  2f 83 2f 80
+    // 
+    // 	;; 36a5 Table Entry 33
+    // 3d95  cb 02 3b
+    "BASHFUL@@"
+    // 3da1  2f 85 2f 80
+    // 
+    // 	;; 36a5 Table Entry 2f
+    // 3da5  6b 01 26
+    "INKY&@@@"
+    // 3db0  2f 85 2f 80
+    // 
+    // 	;; 36a5 Table Entry 35
+    // 3db4  ce023b
+    "POKEY@@@@"
+    // 3dc0  2f 87 2f 80
+    // 
+    // 	;; 36a5 Table Entry 31
+    // 3dc4  6e0126
+    "CLYDE&@@"
+    // 3dcf  2f 87 2f 80
+    // 
+    // 	;; 36a5 Table Entry 15
+    // 3dd3  c5023b
+    "AAAAAAAA;"
+    // 3ddf  2f 81 2f 80
+    // 
+    // 	;; 36a5 Table Entry e
+    // 3de3  650126
+    "BBBBBBB"
+    // 3ded  262f 812f 80
+    // 
+    // 	;; 36a5 Table Entry 17
+    // 3df2  c8        ret     z
+    // 3df3  02        ld      (bc),a
+    // 3df4  3b        dec     sp
+    "CCCCCCCC;"
+    // 3dfe  2f        cpl     
+    // 3dff  83        add     a,e
+    // 3e00  2f        cpl     
+    // 3e01  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 10
+    // 3e02  68 01 26
+    "DDDDDDD&"
+    // 3e0d  2f 83 2f 80
+    // 
+    // 	;; 36a5 Table Entry 34
+    // 3e11  cb 02 3b
+    "EEEEEEEE"
+    // 3e1c  3b        dec     sp
+    // 3e1d  2f        cpl     
+    // 3e1e  85        add     a,l
+    // 3e1f  2f        cpl     
+    // 3e20  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 30
+    // 3e21  6b        ld      l,e
+    // 3e22  012646    ld      bc,#4626
+    "FFFFFF&"
+    // 3e2c  2f      ld      h,#2f
+    // 3e2d  85        add     a,l
+    // 3e2e  2f        cpl     
+    // 3e2f  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 36
+    // 3e30  ce02      adc     a,#02
+    // 3e32  3b        dec     sp
+    "GGGGGGGG;"
+    // 3e3c  2f        cpl     
+    // 3e3d  87        add     a,a
+    // 3e3e  2f        cpl     
+    // 3e3f  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 32
+    // 3e40  6e        ld      l,(hl)
+    // 3e41  0126
+    "HHHHHHH&"
+    // 3e4a  2f      ld      h,#2f
+    // 3e4c  87        add     a,a
+    // 3e4d  2f        cpl     
+    // 3e4e  80        add     a,b
+    // 
+    // 	;; 36a5 Table Entry 29
+    // 3e4f  0c        inc     c
+    // 3e50  03        inc     bc
+    "PAC;MAN"
+    // 3e58  2f        cpl     
+    // 3e59  8f        adc     a,a
+    // 3e5a  2f        cpl     
+    // 3e5b  80        add     a,b
 
-// 3e5c  00        nop     
-// .......
-// 3ff9  00        nop     
+    // 3e5c  00        nop     
+    // .......
+    // 3ff9  00        nop     
 
-// 3ffa  0030				; Interrupt Vector 3000 
-// 3ffc  8d00				; Interrupt Vector 008d 
+    // 3ffa  0030				; Interrupt Vector 3000 
+    // 3ffc  8d00				; Interrupt Vector 008d 
 
-// 3ffe  75 73 ; Checksum data 
+    // 3ffe  75 73 ; Checksum data 

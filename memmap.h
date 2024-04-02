@@ -92,8 +92,8 @@ memmap;
 #define SPRITE_POS ((uint8_t *)&memmap.mem[0x4c22])
 #define SPRITE_DATA ((uint8_t *)&memmap.mem[0x4c32])
 
-#define TASK_LIST_END (*(uint16_t*)&memmep.mem[0x4c80])
-#define TASK_LIST_BEGIN (*(uint16_t*)&memmep.mem[0x4c82])
+#define TASK_LIST_END (*(uint16_t*)&memmap.mem[0x4c80])
+#define TASK_LIST_BEGIN (*(uint16_t*)&memmap.mem[0x4c82])
 
 #define SOUND_COUNTER &memmap.mem[0x4c84]
 #define TIMER_HUNDREDTHS memmap.mem[0x4c86]
@@ -175,121 +175,133 @@ memmap;
 #define PACMAN_Y_TILE2 memmap.mem[0x4d39]
 #define PACMAN_X_TILE2 memmap.mem[0x4d3a]
 
-#define PACMAN_DESIRED_ORIENTATION  memmap.mem[0x4d3c]
+#define PACMAN_DESIRED_ORIENTATION      memmap.mem[0x4d3c]
 
-#define GHOST_HOUSE_MOVE_COUNT      memmap.mem[0x4d94];
-#define EATEN_PILLS_COUNT           memmap.mem[0x4d9f];
+#define DIFFICULTY_TABLE                (*(uint16_t*)&memmap.mem[0x4d86])
 
-#define BLINKY_SUBSTATE             memmap.mem[0x4da0];
-#define PINKY_SUBSTATE              memmap.mem[0x4da1];
-#define INKY_SUBSTATE               memmap.mem[0x4da2];
-#define CLYDE_SUBSTATE              memmap.mem[0x4da3];
+#define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94];
+#define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
+#define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
+#define EATEN_SINCE_MOVE                memmap.mem[0x4d9e];
+#define EATEN_PILLS_COUNT               memmap.mem[0x4d9f];
 
-#define KILLED_GHOST_INDEX          memmap.mem[0x4da4]
-#define PAC_DEAD_ANIM_STATE         memmap.mem[0x4da5]
-#define PILL_EFFECT                 memmap.mem[0x4da6]
-#define BLINKY_EDIBLE               memmap.mem[0x4da7];
-#define PINKY_EDIBLE                memmap.mem[0x4da8];
-#define INKY_EDIBLE                 memmap.mem[0x4da9];
-#define CLYDE_EDIBLE                memmap.mem[0x4daa];
-#define GHOST_STATE                 memmap.mem[0x4dab];
-#define BLINKY_STATE                memmap.mem[0x4dac]
-#define PINKY_STATE                 memmap.mem[0x4dad]
-#define INKY_STATE                  memmap.mem[0x4dae]
-#define CLYDE_STATE                 memmap.mem[0x4daf]
+#define BLINKY_SUBSTATE                 memmap.mem[0x4da0];
+#define PINKY_SUBSTATE                  memmap.mem[0x4da1];
+#define INKY_SUBSTATE                   memmap.mem[0x4da2];
+#define CLYDE_SUBSTATE                  memmap.mem[0x4da3];
+
+#define KILLED_GHOST_INDEX              memmap.mem[0x4da4]
+#define PAC_DEAD_ANIM_STATE             memmap.mem[0x4da5]
+#define PILL_EFFECT                     memmap.mem[0x4da6]
+#define BLINKY_EDIBLE                   memmap.mem[0x4da7];
+#define PINKY_EDIBLE                    memmap.mem[0x4da8];
+#define INKY_EDIBLE                     memmap.mem[0x4da9];
+#define CLYDE_EDIBLE                    memmap.mem[0x4daa];
+#define GHOST_STATE                     memmap.mem[0x4dab];
+#define BLINKY_STATE                    memmap.mem[0x4dac]
+#define PINKY_STATE                     memmap.mem[0x4dad]
+#define INKY_STATE                      memmap.mem[0x4dae]
+#define CLYDE_STATE                     memmap.mem[0x4daf]
 
 #define GHOST_ALIVE     0
 #define GHOST_DEAD      1
 
-#define REL_DIFF      memmap.mem[0x4db0];
-#define BLINKY_ORIENT_CHG_FLAG      memmap.mem[0x4db1];
-#define PINKY_ORIENT_CHG_FLAG       memmap.mem[0x4db2];
-#define INKY_ORIENT_CHG_FLAG        memmap.mem[0x4db3];
-#define CLYDE_ORIENT_CHG_FLAG       memmap.mem[0x4db4];
-#define PACMAN_ORIENT_CHG_FLAG      memmap.mem[0x4db5];
-#define DIFF_FLAG_1      memmap.mem[0x4db6];
-#define DIFF_FLAG_2      memmap.mem[0x4db7];
-#define PINKY_LEAVE_HOME_COUNTER      memmap.mem[0x4db8];
-#define INKY_LEAVE_HOME_COUNTER      memmap.mem[0x4db9];
-#define CLYDE_LEAVE_HOME_COUNTER      memmap.mem[0x4dba];
-#define PILLS_REM_DIFF_1      memmap.mem[0x4dbb];
-#define PILLS_REM_DIFF_2      memmap.mem[0x4dbc];
+#define REL_DIFF                        memmap.mem[0x4db0];
+#define BLINKY_ORIENT_CHG_FLAG          memmap.mem[0x4db1];
+#define PINKY_ORIENT_CHG_FLAG           memmap.mem[0x4db2];
+#define INKY_ORIENT_CHG_FLAG            memmap.mem[0x4db3];
+#define CLYDE_ORIENT_CHG_FLAG           memmap.mem[0x4db4];
+#define PACMAN_ORIENT_CHG_FLAG          memmap.mem[0x4db5];
+#define DIFF_FLAG_1                     memmap.mem[0x4db6];
+#define DIFF_FLAG_2                     memmap.mem[0x4db7];
+#define PINKY_LEAVE_HOME_COUNTER        memmap.mem[0x4db8];
+#define INKY_LEAVE_HOME_COUNTER         memmap.mem[0x4db9];
+#define CLYDE_LEAVE_HOME_COUNTER        memmap.mem[0x4dba];
+#define PILLS_REM_DIFF_1                memmap.mem[0x4dbb];
+#define PILLS_REM_DIFF_2                memmap.mem[0x4dbc];
+#define GHOST_EDIBLE_TIME               (*(uint16_t*)&memmap.mem[0x4dbd])
 
-#define GHOST_COL_POWERUP_COUNTER memmap.mem[0x4dc8]
-#define EDIBLE_REMAIN_COUNT     (*(uint16_t*)&memmap.mem[0x4dcb])
+#define GHOST_ANIMATION                 memmap.mem[0x4dc0]
+#define NONRANDOM_MOVEMENT              memmap.mem[0x4dc1]
+#define ORIENTATION_CHANGE_COUNT        (*(uint16_t*)&memmap.mem[0x4dc2])
+#define COUNTER_TO_8                    memmap.mem[0x4dc4]
+#define COUNT_SINCE_PAC_KILLED          (*(uint16_t*)&memmap.mem[0x4dc5])
+#define GHOST_COL_POWERUP_COUNTER       memmap.mem[0x4dc8]
+#define EDIBLE_REMAIN_COUNT             (*(uint16_t*)&memmap.mem[0x4dcb])
 
-#define PILL_CHANGE_COUNTER    memmap.mem[0x4dcf]
-#define KILLED_COUNT           memmap.mem[0x4dd0]
-#define KILLED_STATE           memmap.mem[0x4dd1]
+#define PILL_CHANGE_COUNTER             memmap.mem[0x4dcf]
+#define KILLED_COUNT                    memmap.mem[0x4dd0]
+#define KILLED_STATE                    memmap.mem[0x4dd1]
 
-#define FRUIT_POINTS memmap.mem[0x4dd4]
-#define FRUIT_POS ((uint8_t *)&memmap.mem[0x4dd2])
+#define FRUIT_POINTS                    memmap.mem[0x4dd4]
+#define FRUIT_POS                       ((uint8_t *)&memmap.mem[0x4dd2])
 
-#define MAIN_STATE memmap.mem[0x4e00]
-#define MAIN_STATE_SUB0 memmap.mem[0x4e01]
-#define MAIN_STATE_SUB1 memmap.mem[0x4e02]
-#define MAIN_STATE_SUB2 memmap.mem[0x4e03]
-#define LEVEL_STATE_SUBR memmap.mem[0x4e04]
-#define SCENE1_STATE memmap.mem[0x4e06]
-#define SCENE2_STATE memmap.mem[0x4e07]
-#define SCENE3_STATE memmap.mem[0x4e08]
+#define MAIN_STATE                      memmap.mem[0x4e00]
+#define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
+#define MAIN_STATE_SUB1                 memmap.mem[0x4e02]
+#define MAIN_STATE_SUB2                 memmap.mem[0x4e03]
+#define LEVEL_STATE_SUBR                memmap.mem[0x4e04]
+#define SCENE1_STATE                    memmap.mem[0x4e06]
+#define SCENE2_STATE                    memmap.mem[0x4e07]
+#define SCENE3_STATE                    memmap.mem[0x4e08]
 
 #define PLAYER memmap.mem[0x4e09]
 
-#define P1_CURR_DIFFICULTY           (*(uint16_t*)&memmap.mem[0x4e0a])
-#define P1_FIRST_FRUIT               memmap.mem[0x4e0c]
-#define P1_SECOND_FRUIT              memmap.mem[0x4e0d]
-#define P1_PILLS_EATEN               memmap.mem[0x4e0e]
-#define P1_PINKY_LEAVE_HOME_COUNTER  memmap.mem[0x4e0f]
-#define P1_INKY_LEAVE_HOME_COUNTER   memmap.mem[0x4e10]
-#define P1_CLYDE_LEAVE_HOME_COUNTER  memmap.mem[0x4e11]
-#define P1_DIED_IN_LEVEL             memmap.mem[0x4e12]
-#define P1_LEVEL                     memmap.mem[0x4e13]
-#define P1_REAL_LIVES                memmap.mem[0x4e14]
-#define P1_DISPLAY_LIVES             memmap.mem[0x4e15]
-#define P1_PILL_ARRAY                (&memmap.mem[0x4e16])      // 19 x 8 bits
-#define P1_POWERUP_ARRAY             (&memmap.mem[0x4e34])      // 4 entries 
+#define P1_CURR_DIFFICULTY               (*(uint16_t*)&memmap.mem[0x4e0a])
+#define P1_FIRST_FRUIT                  memmap.mem[0x4e0c]
+#define P1_SECOND_FRUIT                 memmap.mem[0x4e0d]
+#define P1_PILLS_EATEN_LEVEL            memmap.mem[0x4e0e]
+#define P1_PINKY_LEAVE_HOME_COUNTER     memmap.mem[0x4e0f]
+#define P1_INKY_LEAVE_HOME_COUNTER      memmap.mem[0x4e10]
+#define P1_CLYDE_LEAVE_HOME_COUNTER     memmap.mem[0x4e11]
+#define P1_DIED_IN_LEVEL                memmap.mem[0x4e12]
+#define P1_LEVEL                        memmap.mem[0x4e13]
+#define P1_REAL_LIVES                   memmap.mem[0x4e14]
+#define P1_DISPLAY_LIVES                memmap.mem[0x4e15]
+#define P1_PILL_ARRAY                   (&memmap.mem[0x4e16])      // 19 x 8 bits
+#define P1_POWERUP_ARRAY                (&memmap.mem[0x4e34])      // 4 entries 
 
 // 4e38-4e65 is P2 copy of 4e0a-4e37 (45 bytes)
 
-#define P2_CURR_DIFFICULTY           (*(uint16_t*)&memmap.mem[0x4e38])
-#define P2_FIRST_FRUIT               memmap.mem[0x4e3a]
-#define P2_SECOND_FRUIT              memmap.mem[0x4e3b]
-#define P2_PILLS_EATEN               memmap.mem[0x4e3c]
-#define P2_PINKY_LEAVE_HOME_COUNTER  memmap.mem[0x4e3d]
-#define P2_INKY_LEAVE_HOME_COUNTER   memmap.mem[0x4e3e]
-#define P2_CLYDE_LEAVE_HOME_COUNTER  memmap.mem[0x4e3f]
-#define P2_DIED_IN_LEVEL             memmap.mem[0x4e40]
-#define P2_LEVEL                     memmap.mem[0x4e41]
-#define P2_REAL_LIVES                memmap.mem[0x4e42]
-#define P2_DISPLAY_LIVES             memmap.mem[0x4e43]
-#define P2_PILL_ARRAY                (&memmap.mem[0x4e44])     // 19 x 8 bits
-#define P2_POWERUP_ARRAY             (&memmap.mem[0x4e42])     // 4 entries 
+#define P2_CURR_DIFFICULTY              (*(uint16_t*)&memmap.mem[0x4e38])
+#define P2_FIRST_FRUIT                  memmap.mem[0x4e3a]
+#define P2_SECOND_FRUIT                 memmap.mem[0x4e3b]
+#define P2_PILLS_EATEN_LEVEL            memmap.mem[0x4e3c]
+#define P2_PINKY_LEAVE_HOME_COUNTER     memmap.mem[0x4e3d]
+#define P2_INKY_LEAVE_HOME_COUNTER      memmap.mem[0x4e3e]
+#define P2_CLYDE_LEAVE_HOME_COUNTER     memmap.mem[0x4e3f]
+#define P2_DIED_IN_LEVEL                memmap.mem[0x4e40]
+#define P2_LEVEL                        memmap.mem[0x4e41]
+#define P2_REAL_LIVES                   memmap.mem[0x4e42]
+#define P2_DISPLAY_LIVES                memmap.mem[0x4e43]
+#define P2_PILL_ARRAY                   (&memmap.mem[0x4e44])     // 19 x 8 bits
+#define P2_POWERUP_ARRAY                (&memmap.mem[0x4e42])     // 4 entries 
 
-#define SERVICE1_DEBOUNCE memmap.mem[0x4e66]
-#define COIN2_DEBOUNCE memmap.mem[0x4e67]
-#define COIN1_DEBOUNCE memmap.mem[0x4e68]
-#define COIN_COUNTER memmap.mem[0x4e69]
-#define COIN_COUNTER_TIMEOUT memmap.mem[0x4e6a]
-#define COINS_PER_CREDIT memmap.mem[0x4e6b]
-#define PARTIAL_CREDIT memmap.mem[0x4e6c]
-#define CREDITS_PER_COIN memmap.mem[0x4e6d]
-#define CREDITS memmap.mem[0x4e6e]
-#define LIVES_PER_GAME memmap.mem[0x4e6f]
-#define TWO_PLAYERS memmap.mem[0x4e70]
-#define COCKTAIL_MODE memmap.mem[0x4e72]
-#define DIFFICULTY_PTR  (*(uint16_t*)&memmap.mem[0x4e73])
-#define GHOST_NAMES_MODE memmap.mem[0x4e75]
-#define P1_SCORE (*(uint32_t*)&memmap.mem[0x4e80])
-#define P2_SCORE (*(uint32_t*)&memmap.mem[0x4e84])
-#define HIGH_SCORE (*(uint32_t*)&memmap.mem[0x4e88])
+#define SERVICE1_DEBOUNCE               memmap.mem[0x4e66]
+#define COIN2_DEBOUNCE                  memmap.mem[0x4e67]
+#define COIN1_DEBOUNCE                  memmap.mem[0x4e68]
+#define COIN_COUNTER                    memmap.mem[0x4e69]
+#define COIN_COUNTER_TIMEOUT            memmap.mem[0x4e6a]
+#define COINS_PER_CREDIT                memmap.mem[0x4e6b]
+#define PARTIAL_CREDIT                  memmap.mem[0x4e6c]
+#define CREDITS_PER_COIN                memmap.mem[0x4e6d]
+#define CREDITS                         memmap.mem[0x4e6e]
+#define LIVES_PER_GAME                  memmap.mem[0x4e6f]
+#define TWO_PLAYERS                     memmap.mem[0x4e70]
+#define BONUS_LIFE                      memmap.mem[0x4e71]
+#define COCKTAIL_MODE                   memmap.mem[0x4e72]
+#define DIFFICULTY_PTR                  (*(uint16_t*)&memmap.mem[0x4e73])
+#define GHOST_NAMES_MODE                memmap.mem[0x4e75]
+#define P1_SCORE                        (*(uint32_t*)&memmap.mem[0x4e80])
+#define P2_SCORE                        (*(uint32_t*)&memmap.mem[0x4e84])
+#define HIGH_SCORE                      (*(uint32_t*)&memmap.mem[0x4e88])
 
-#define SND_CH1_EFF_NUM memmap.mem[0x4e9c];
-#define SND_CH2_EFF_NUM memmap.mem[0x4eac];
-#define SND_CH3_EFF_NUM memmap.mem[0x4ebc];
-#define SND_CH1_WAV_NUM memmap.mem[0x4ecc];
-#define SND_CH2_WAV_NUM memmap.mem[0x4edc];
-#define SND_CH3_WAV_NUM memmap.mem[0x4eec];
+#define SND_CH1_EFF_NUM                 memmap.mem[0x4e9c];
+#define SND_CH2_EFF_NUM                 memmap.mem[0x4eac];
+#define SND_CH3_EFF_NUM                 memmap.mem[0x4ebc];
+#define SND_CH1_WAV_NUM                 memmap.mem[0x4ecc];
+#define SND_CH2_WAV_NUM                 memmap.mem[0x4edc];
+#define SND_CH3_WAV_NUM                 memmap.mem[0x4eec];
 
 #define SWAP16(addr1,addr2)\
 { \
