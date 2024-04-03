@@ -108,6 +108,21 @@ memmap;
 /*  non-ISR tasks are 2 bytes each and there are 16 entries */
 #define NONISR_TASKS (&memmap.mem[0x4cc0])
 
+#define TASK_CLEAR_SCREEN       0x00
+#define TASK_FLASH_MAZE         0x01  // ????
+#define TASK_DRAW_MAZE         0x02
+#define TASK_DRAW_PILLS         0x03
+#define TASK_INIT_POSITIONS         0x04
+#define TASK_BLINKY_SUBSTATE 0x05
+#define TASK_CLEAR_COLOUR         0x06
+#define TASK_RESET_GAME_STATE         0x07
+#define TASK_CLEAR_PILLS 0x12
+#define TASK_UPDATE_PILLS 0x15
+#define TASK_DISPLAY_MSG 0x1c
+#define TASK_DISPLAY_CREDITS 0x1d
+#define TASK_RESET_POSITIONS 0x1e
+#define TASK_SHOW_BONUS_LIFE_SCORE 0x1f
+
 #define BLINKY_Y memmap.mem[0x4d00]
 #define BLINKY_X memmap.mem[0x4d01]
 #define PINKY_Y  memmap.mem[0x4d02]
