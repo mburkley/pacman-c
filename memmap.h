@@ -56,6 +56,11 @@ memmap;
 #define REGSWRITE memmap.regs.write
 #define SOUNDENABLE memmap.regs.write.soundEnable
 
+#define INPUT_UP        0x01
+#define INPUT_LEFT      0x02
+#define INPUT_RIGHT     0x04
+#define INPUT_DOWN      0x08
+
 #define IN0_UP          (memory.regs.read.in0 & 0x01)
 #define IN0_LEFT        (memory.regs.read.in0 & 0x02)
 #define IN0_RIGHT       (memory.regs.read.in0 & 0x04)
@@ -123,16 +128,32 @@ memmap;
 #define TASK_RESET_POSITIONS 0x1e
 #define TASK_SHOW_BONUS_LIFE_SCORE 0x1f
 
-#define BLINKY_Y memmap.mem[0x4d00]
-#define BLINKY_X memmap.mem[0x4d01]
-#define PINKY_Y  memmap.mem[0x4d02]
+/*  X and Y coords are frequently stored together and accessed as a single 16-
+ *  bit value (e.g. through the hl reg).  To simplify C code, declare a union of
+ *  y and x byte values with a 16 bit hl reg */
+typedef union
+{
+    struct
+    {
+        uint8_t y; // l
+        uint8_t x; // h
+    }
+    uint16_t hl;
+}
+XYPOS;
+
+#define BLINKY_POS (XYPOS*)(&memmap.mem[0x4d00])
+// #define BLINKY_X memmap.mem[0x4d01]
+#define PINKY_POS (XYPOS*)(&memmap.mem[0x4d02])
+// #define PINKY_Y  memmap.mem[0x4d02]
 #define PINKY_X  memmap.mem[0x4d03]
 #define INKY_Y   memmap.mem[0x4d04]
 #define INKY_X   memmap.mem[0x4d05]
 #define CLYDE_Y  memmap.mem[0x4d06]
 #define CLYDE_X  memmap.mem[0x4d07]
-#define PACMAN_Y memmap.mem[0x4d08]
-#define PACMAN_X memmap.mem[0x4d09]
+#define PACMAN_POS (XYPOS*)(&memmap.mem[0x4d08])
+// #define PACMAN_Y memmap.mem[0x4d08]
+// #define PACMAN_X memmap.mem[0x4d09]
 
 #define BLINKY_Y_TILE memmap.mem[0x4d0a]
 #define BLINKY_X_TILE memmap.mem[0x4d0b]
@@ -142,8 +163,8 @@ memmap;
 #define INKY_X_TILE   memmap.mem[0x4d0f]
 #define CLYDE_Y_TILE  memmap.mem[0x4d10]
 #define CLYDE_X_TILE  memmap.mem[0x4d11]
-#define PACMAN_Y_TILE memmap.mem[0x4d12]
-#define PACMAN_X_TILE memmap.mem[0x4d13]
+#define PACMAN_DEMO_TILE memmap.mem[0x4d12]
+// #define PACMAN_X_TILE memmap.mem[0x4d13]
 
 #define BLINKY_Y_TILE_CHANGE memmap.mem[0x4d14]
 #define BLINKY_X_TILE_CHANGE memmap.mem[0x4d15]
@@ -187,16 +208,23 @@ memmap;
 #define INKY_X_TILE2   memmap.mem[0x4d36]
 #define CLYDE_Y_TILE2  memmap.mem[0x4d37]
 #define CLYDE_X_TILE2  memmap.mem[0x4d38]
-#define PACMAN_Y_TILE2 memmap.mem[0x4d39]
-#define PACMAN_X_TILE2 memmap.mem[0x4d3a]
+#define PACMAN_TILE2 (XYPOS*)(&memmap.mem[0x4d39])
 
+#define BEST_ORIENTATION_FOUND memmap.mem[0x4d3b]
 #define PACMAN_DESIRED_ORIENTATION      memmap.mem[0x4d3c]
-
+#define OPPOSITE_ORIENTATION memmap.mem[0x4d3d]
+#define CURRENT_TILE_POS (XYPOS*)(&memmap.mem[0x4d3e])
+#define DEST_TILE_POS (XYPOS*)(&memmap.mem[0x4d40])
+#define PACMAN_MOVE_PAT_NORMAL1        memmap.mem[0x4d46]
+#define PACMAN_MOVE_PAT_NORMAL2        memmap.mem[0x4d48]
+#define PACMAN_MOVE_PAT_BIG_PILL1        memmap.mem[0x4d4a]
+#define PACMAN_MOVE_PAT_BIG_PILL2        memmap.mem[0x4d4c]
 #define DIFFICULTY_TABLE                (*(uint16_t*)&memmap.mem[0x4d86])
 
 #define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94];
 #define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
 #define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
+#define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d];
 #define EATEN_SINCE_MOVE                memmap.mem[0x4d9e];
 #define EATEN_PILLS_COUNT               memmap.mem[0x4d9f];
 
@@ -235,6 +263,7 @@ memmap;
 #define PILLS_REM_DIFF_1                memmap.mem[0x4dbb];
 #define PILLS_REM_DIFF_2                memmap.mem[0x4dbc];
 #define GHOST_EDIBLE_TIME               (*(uint16_t*)&memmap.mem[0x4dbd])
+#define PACMAN_ENTERING_TUNNEL          memmap.mem[0x4dbf];
 
 #define GHOST_ANIMATION                 memmap.mem[0x4dc0]
 #define NONRANDOM_MOVEMENT              memmap.mem[0x4dc1]
@@ -247,9 +276,9 @@ memmap;
 #define PILL_CHANGE_COUNTER             memmap.mem[0x4dcf]
 #define KILLED_COUNT                    memmap.mem[0x4dd0]
 #define KILLED_STATE                    memmap.mem[0x4dd1]
+#define FRUIT_POS                       (XYPOS *)(&memmap.mem[0x4dd2])
 
 #define FRUIT_POINTS                    memmap.mem[0x4dd4]
-#define FRUIT_POS                       ((uint8_t *)&memmap.mem[0x4dd2])
 
 #define MAIN_STATE                      memmap.mem[0x4e00]
 #define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
