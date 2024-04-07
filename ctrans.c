@@ -205,7 +205,7 @@ void addISRTask(uint8_t *ptr, int count, uint8_t* data)
     //-------------------------------
 }
 
-void func_0065(XY *pos)
+uint16_t func_0065(XY *pos)
 {
     //-------------------------------
     // 0065  c32d20    jp      #202d
@@ -6614,7 +6614,11 @@ void func_1806 (void)
     //-------------------------------
     PACMAN_Y_TILE_CHANGE2 = PACMAN_Y_TILE_CHANGE;
     b=1;
+    func_18e4(1);
+}
 
+void func_18e4 (int b)
+{
     //-------------------------------
     // 18e4  dd21264d  ld      ix,#4d26
     // 18e8  fd21394d  ld      iy,#4d39
@@ -6793,111 +6797,130 @@ jump_1950:
         }
     }
 
-    while (1)
+    func_1985();
+}
+
+void func_1985()
+{
+    //-------------------------------
+    // 1985  22084d    ld      (#4d08),hl
+    // 1988  cd1820    call    #2018
+    // 198b  22394d    ld      (#4d39),hl
+    //-------------------------------
+    PACMAN_XY = pacmanXY;
+    func_2018(pacmanXY);
+    PACMAN_Y_TILE2 = pacmanXY;
+
+    //-------------------------------
+    // 198e  dd21bf4d  ld      ix,#4dbf
+    // 1992  dd7e00    ld      a,(ix+#00)
+    // 1995  dd360000  ld      (ix+#00),#00
+    // 1999  a7        and     a
+    // 199a  c0        ret     nz
+    //-------------------------------
+    if (PACMAN_ENTERING_TUNNEL)
+    {
+        PACMAN_ENTERING_TUNNEL = 0;
+        return;
+    }
+
+    //-------------------------------
+    // 199b  3ad24d    ld      a,(#4dd2)
+    // 199e  a7        and     a
+    // 199f  282c      jr      z,#19cd         ; (44)
+    //-------------------------------
+    if (FRUIT_POS->y != 0)
     {
         //-------------------------------
-        // 1985  22084d    ld      (#4d08),hl
-        // 1988  cd1820    call    #2018
-        // 198b  22394d    ld      (#4d39),hl
+        // 19a1  3ad44d    ld      a,(#4dd4)
+        // 19a4  a7        and     a
+        // 19a5  2826      jr      z,#19cd         ; (38)
         //-------------------------------
-        PACMAN_XY = pacmanXY;
-        func_2018(pacmanXY);
-        PACMAN_Y_TILE2 = pacmanXY;
-
-        //-------------------------------
-        // 198e  dd21bf4d  ld      ix,#4dbf
-        // 1992  dd7e00    ld      a,(ix+#00)
-        // 1995  dd360000  ld      (ix+#00),#00
-        // 1999  a7        and     a
-        // 199a  c0        ret     nz
-        //-------------------------------
-        if (PACMAN_ENTERING_TUNNEL)
-        {
-            PACMAN_ENTERING_TUNNEL = 0;
-            return;
-        }
-
-        //-------------------------------
-        // 199b  3ad24d    ld      a,(#4dd2)
-        // 199e  a7        and     a
-        // 199f  282c      jr      z,#19cd         ; (44)
-        //-------------------------------
-        if (FRUIT_POS->y != 0)
+        if (FRUIT_POINTS != 0)
         {
             //-------------------------------
-            // 19a1  3ad44d    ld      a,(#4dd4)
-            // 19a4  a7        and     a
-            // 19a5  2826      jr      z,#19cd         ; (38)
+            // 19a7  2a084d    ld      hl,(#4d08)
+            // 19aa  119480    ld      de,#8094
+            // 19ad  a7        and     a
+            // 19ae  ed52      sbc     hl,de
+            // 19b0  201b      jr      nz,#19cd        ; (27)
             //-------------------------------
-            if (FRUIT_POINTS != 0)
+            if (PACMAN_POS->x == 0x80 && PACMAN_POS->y == 0x94)
             {
                 //-------------------------------
-                // 19a7  2a084d    ld      hl,(#4d08)
-                // 19aa  119480    ld      de,#8094
-                // 19ad  a7        and     a
-                // 19ae  ed52      sbc     hl,de
-                // 19b0  201b      jr      nz,#19cd        ; (27)
+                // 19b2  0619      ld      b,#19
+                // 19b4  4f        ld      c,a
+                // 19b5  cd4200    call    #0042
                 //-------------------------------
-                if (PACMAN_POS->x == 0x80 && PACMAN_POS->y == 0x94)
-                {
-                    //-------------------------------
-                    // 19b2  0619      ld      b,#19
-                    // 19b4  4f        ld      c,a
-                    // 19b5  cd4200    call    #0042
-                    //-------------------------------
-                    addTask (0x19, a);
+                addTask (0x19, FRUIT_POINTS);
 
-                    //-------------------------------
-                    // 19b8  0e15      ld      c,#15
-                    // 19ba  81        add     a,c
-                    // 19bb  4f        ld      c,a
-                    // 19bc  061c      ld      b,#1c
-                    // 19be  cd4200    call    #0042
-                    // 19c1  cd0410    call    #1004
-                    //-------------------------------
-                    addTask (TASK_DISPLAY_MSG, a+0x15);
-                    func_1004();
-                    //-------------------------------
-                    // 19c4  f7        rst     #30
-                    // 19c5  540500
-                    //-------------------------------
-                    schedISRTask (0x54, 0x05, 0x00);
-                    // 19c8  21bc4e    ld      hl,#4ebc
-                    // 19cb  cbd6      set     2,(hl)
-                    SND_CH3_EFF_NUM |= 0x4;
-                }
+                //-------------------------------
+                // 19b8  0e15      ld      c,#15
+                // 19ba  81        add     a,c
+                // 19bb  4f        ld      c,a
+                // 19bc  061c      ld      b,#1c
+                // 19be  cd4200    call    #0042
+                // 19c1  cd0410    call    #1004
+                //-------------------------------
+                addTask (TASK_DISPLAY_MSG, FRUIT_POINTS+0x15);
+                func_1004();
+                //-------------------------------
+                // 19c4  f7        rst     #30
+                // 19c5  540500
+                //-------------------------------
+                schedISRTask (0x54, 0x05, 0x00);
+                //-------------------------------
+                // 19c8  21bc4e    ld      hl,#4ebc
+                // 19cb  cbd6      set     2,(hl)
+                //-------------------------------
+                SND_CH3_EFF_NUM |= 0x4;
             }
         }
+    }
 
+    //-------------------------------
     // 19cd  3eff      ld      a,#ff
     // 19cf  329d4d    ld      (#4d9d),a
     // 19d2  2a394d    ld      hl,(#4d39)
     // 19d5  cd6500    call    #0065
+    //-------------------------------
     PACMAN_MOVE_DELAY=0xff;
-    XYPOS hl = func_0065(PACMAN_TILE2);
+    uint16_t addr = func_0065(PACMAN_TILE2);
 
+    //-------------------------------
     // 19d8  7e        ld      a,(hl)
-    a=MEM[hl];
     // 19d9  fe10      cp      #10
     // 19db  2803      jr      z,#19e0         ; (3)
+    //-------------------------------
+    uint8_t a = MEM[hl]; // Retrieve from video
     if(a!=0x10)
     {
+        //-------------------------------
         // 19dd  fe14      cp      #14
         // 19df  c0        ret     nz
+        //-------------------------------
         if(a!=0x14)
             return;
     }
 
-// 19e0  dd210e4e  ld      ix,#4e0e
-// 19e4  dd3400    inc     (ix+#00)
-P1_PILLS_EATEN_LEVEL++;
-// 19e7  e60f      and     #0f
-// 19e9  cb3f      srl     a
-a=(a>>1)&7;
+    //-------------------------------
+    // 19e0  dd210e4e  ld      ix,#4e0e
+    // 19e4  dd3400    inc     (ix+#00)
+    //-------------------------------
+    P1_PILLS_EATEN_LEVEL++;
 
+    //-------------------------------
+    // 19e7  e60f      and     #0f
+    // 19e9  cb3f      srl     a
+    //-------------------------------
+    a=(a&0xf)>>1;
+
+    //-------------------------------
     // 19eb  0640      ld      b,#40
     // 19ed  70        ld      (hl),b
+    //-------------------------------
     MEM[hl] = 0x40; // write space to screen
+
     //-------------------------------
     // 19ee  0619      ld      b,#19
     // 19f0  4f        ld      c,a
@@ -6906,73 +6929,89 @@ a=(a>>1)&7;
     //-------------------------------
     addTask (0x19, a>>1);
 
+    //-------------------------------
     // 19f6  3c        inc     a
     // 19f7  fe01      cp      #01
     // 19f9  cafd19    jp      z,#19fd
+
     if (a!=1)
     {
         // 19fc  87        add     a,a
         a*=2;
     }
+
     // 19fd  329d4d    ld      (#4d9d),a
-    PACMAN_MOVE_DELAY=a;
     // 1a00  cd081b    call    #1b08
     // 1a03  cd6a1a    call    #1a6a
+    PACMAN_MOVE_DELAY=a;
     func_1b08();
     func_1a6a();
-// 1a06  21bc4e    ld      hl,#4ebc
-// 1a09  3a0e4e    ld      a,(#4e0e)
-    a=P1_PILLS_EATEN_LEVEL;
-// 1a0c  0f        rrca    
-// 1a0d  3805      jr      c,#1a14         ; (5)
-if(a&1==0)
-{
-    // 1a0f  cbc6      set     0,(hl)
-    // 1a11  cb8e      res     1,(hl)
-    // 1a13  c9        ret     
-    SND_CH3_EFF_NUM|=1;
-    SND_CH3_EFF_NUM&=0xfd;
-    return;
-}
-else
-{
-    // 1a14  cb86      res     0,(hl)
-    // 1a16  cbce      set     1,(hl)
-    // 1a18  c9        ret     
-    SND_CH3_EFF_NUM&=0xfe;
-    SND_CH3_EFF_NUM|=2;
-    return;
+
+    // 1a06  21bc4e    ld      hl,#4ebc
+    // 1a09  3a0e4e    ld      a,(#4e0e)
+    // 1a0c  0f        rrca    
+    // 1a0d  3805      jr      c,#1a14         ; (5)
+    if ((P1_PILLS_EATEN_LEVEL & 1) == 0)
+    {
+        // 1a0f  cbc6      set     0,(hl)
+        // 1a11  cb8e      res     1,(hl)
+        // 1a13  c9        ret     
+        SND_CH3_EFF_NUM|=1;
+        SND_CH3_EFF_NUM&=0xfd;
+        return;
+    }
+    else
+    {
+        // 1a14  cb86      res     0,(hl)
+        // 1a16  cbce      set     1,(hl)
+        // 1a18  c9        ret     
+        SND_CH3_EFF_NUM&=0xfe;
+        SND_CH3_EFF_NUM|=2;
+        return;
+    }
 }
 
-// 1a19  211c4d    ld      hl,#4d1c
-// 1a1c  7e        ld      a,(hl)
-// 1a1d  a7        and     a
-// 1a1e  ca2e1a    jp      z,#1a2e
-if (PACMAN_TILE_CHANGE->y != 0)
+void func_1a19 ()
 {
-// 1a21  3a084d    ld      a,(#4d08)
-// 1a24  e607      and     #07
-// 1a26  fe04      cp      #04
-// 1a28  ca381a    jp      z,#1a38
+    // 1a19  211c4d    ld      hl,#4d1c
+    // 1a1c  7e        ld      a,(hl)
+    // 1a1d  a7        and     a
+    // 1a1e  ca2e1a    jp      z,#1a2e
+    if (PACMAN_TILE_CHANGE->y != 0)
+    {
+        // 1a21  3a084d    ld      a,(#4d08)
+        // 1a24  e607      and     #07
+        // 1a26  fe04      cp      #04
+        // 1a28  ca381a    jp      z,#1a38
         if ((PACMAN_POS->y & 7) != 4)
         {
-// 1a2b  c35c1a    jp      #1a5c
-// 1a2e  3a094d    ld      a,(#4d09)
-// 1a31  e607      and     #07
-// 1a33  fe04      cp      #04
-// 1a35  c25c1a    jp      nz,#1a5c
+            // 1a2b  c35c1a    jp      #1a5c
+            goto jump_1a5c;
+        }
+    }
+    else
+    {
+        // 1a2e  3a094d    ld      a,(#4d09)
+        // 1a31  e607      and     #07
+        // 1a33  fe04      cp      #04
+        // 1a35  c25c1a    jp      nz,#1a5c
         if ((PACMAN_POS->x & 7) != 4)
-}
-// 1a38  3e05      ld      a,#05
+            goto jump_1a5c;
+    }
+    // 1a38  3e05      ld      a,#05
     // 1a3a  cdd01e    call    #1ed0
-    func_1ed0();
-// 1a3d  3803      jr      c,#1a42         ; (3)
+    func_1ed0(5);
 
-    //-------------------------------
-    // 1a3f  ef        rst     #28
-    // 1a40  1700
-    //-------------------------------
-    schedTask (0x17, 0x00);
+    // 1a3d  3803      jr      c,#1a42         ; (3)
+    if ()
+    {
+
+        //-------------------------------
+        // 1a3f  ef        rst     #28
+        // 1a40  1700
+        //-------------------------------
+        schedTask (0x17, 0x00);
+    }
 
     //-------------------------------
     // 1a42  dd21264d  ld      ix,#4d26
@@ -6987,14 +7026,14 @@ if (PACMAN_TILE_CHANGE->y != 0)
     // 1a56  3a3c4d    ld      a,(#4d3c)
     // 1a59  32304d    ld      (#4d30),a
     PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
-    }
+
+jump_1a5c:
     // 1a5c  dd211c4d  ld      ix,#4d1c
     // 1a60  fd21084d  ld      iy,#4d08
     // 1a64  cd0020    call    #2000
-
     addXYOffset_2000(PACMAN_TILE_CHANGE, PACMAN_POS);
     // 1a67  c38519    jp      #1985
-    }
+    func_1985();
 }
 
 void func_1a6a ()
@@ -7085,8 +7124,9 @@ void func_1a70 ()
     PACMAN_Y_TILE_CHANGE2=0x00;
     PACMAN_X_TILE_CHANGE2=0x01;
 
-// 1ad4  0600      ld      b,#00
-// 1ad6  c3e418    jp      #18e4
+    // 1ad4  0600      ld      b,#00
+    // 1ad6  c3e418    jp      #18e4
+    func_18e4 (0);
 
     //-------------------------------
     // 1ad9  2aff32    ld      hl,(#32ff)
@@ -7098,8 +7138,9 @@ void func_1a70 ()
     PACMAN_Y_TILE_CHANGE2=0x00;
     PACMAN_X_TILE_CHANGE2=0xff;
 
-// 1ae3  0600      ld      b,#00
-// 1ae5  c3e418    jp      #18e4
+    // 1ae3  0600      ld      b,#00
+    // 1ae5  c3e418    jp      #18e4
+    func_18e4 (0);
 
     //-------------------------------
     // 1ae8  2a0533    ld      hl,(#3305)
@@ -7111,8 +7152,9 @@ void func_1a70 ()
     PACMAN_Y_TILE_CHANGE2=0xff;
     PACMAN_X_TILE_CHANGE2=0x00;
 
-// 1af3  0600      ld      b,#00
-// 1af5  c3e418    jp      #18e4
+    // 1af3  0600      ld      b,#00
+    // 1af5  c3e418    jp      #18e4
+    func_18e4 (0);
 
     //-------------------------------
     // 1af8  2a0133    ld      hl,(#3301)
@@ -7124,249 +7166,395 @@ void func_1a70 ()
     PACMAN_Y_TILE_CHANGE2=0x01;
     PACMAN_X_TILE_CHANGE2=0x00;
 
-// 1b03  0600      ld      b,#00
-// 1b05  c3e418    jp      #18e4
+    //-------------------------------
+    // 1b03  0600      ld      b,#00
+    // 1b05  c3e418    jp      #18e4
+    //-------------------------------
+    func_18e4 (0);
 
-// 1b08  3a124e    ld      a,(#4e12)
-// 1b0b  a7        and     a
-// 1b0c  ca141b    jp      z,#1b14
-// 1b0f  219f4d    ld      hl,#4d9f
+    //-------------------------------
+    // 1b08  3a124e    ld      a,(#4e12)
+    // 1b0b  a7        and     a
+    // 1b0c  ca141b    jp      z,#1b14
+    //-------------------------------
+    if (P1_DIED_IN_LEVEL != 0)
+    {
+        //-------------------------------
+        // 1b0f  219f4d    ld      hl,#4d9f
+        // 1b12  34        inc     (hl)
+        // 1b13  c9        ret     
+        //-------------------------------
+        EATEN_PILLS_COUNT++;
+    }
 
-// 1b12  34        inc     (hl)
-// 1b13  c9        ret     
-
+    //-------------------------------
     // 1b14  3aa34d    ld      a,(#4da3)
     // 1b17  a7        and     a
     // 1b18  c0        ret     nz
+    //-------------------------------
     if (CLYDE_SUBSTATE)
         return;
 
-// 1b19  3aa24d    ld      a,(#4da2)
+    //-------------------------------
+    // 1b19  3aa24d    ld      a,(#4da2)
+    // 1b1c  a7        and     a
+    // 1b1d  ca251b    jp      z,#1b25
+    //-------------------------------
     if (INKY_SUBSTATE)
-// 1b1c  a7        and     a
-// 1b1d  ca251b    jp      z,#1b25
-// 1b20  21114e    ld      hl,#4e11
-// 1b23  34        inc     (hl)
-// 1b24  c9        ret     
-// 
-// 1b25  3aa14d    ld      a,(#4da1)
-    if (PINKY_SUBSTATE)
-// 1b28  a7        and     a
-// 1b29  ca311b    jp      z,#1b31
-// 1b2c  21104e    ld      hl,#4e10
-// 1b2f  34        inc     (hl)
-// 1b30  c9        ret     
-// 
-// 1b31  210f4e    ld      hl,#4e0f
-// 1b34  34        inc     (hl)
-// 1b35  c9        ret     
+    {
+        //-------------------------------
+        // 1b20  21114e    ld      hl,#4e11
+        // 1b23  34        inc     (hl)
+        // 1b24  c9        ret     
+        //-------------------------------
+        P1_CLYDE_LEAVE_HOME_COUNTER++;
+        return;
+    }
 
+    //-------------------------------
+    // 1b25  3aa14d    ld      a,(#4da1)
+    // 1b28  a7        and     a
+    // 1b29  ca311b    jp      z,#1b31
+    //-------------------------------
+    if (PINKY_SUBSTATE)
+    {
+        //-------------------------------
+        // 1b2c  21104e    ld      hl,#4e10
+        // 1b2f  34        inc     (hl)
+        // 1b30  c9        ret     
+        //-------------------------------
+        P1_INKY_LEAVE_HOME_COUNTER++;
+        return;
+    }
+
+    //-------------------------------
+    // 1b31  210f4e    ld      hl,#4e0f
+    // 1b34  34        inc     (hl)
+    // 1b35  c9        ret     
+    //-------------------------------
+    P1_PINKY_LEAVE_HOME_COUNTER++;
+}
+
+void func_1b36()
+{
+    //-------------------------------
     // 1b36  3aa04d    ld      a,(#4da0)
     // 1b39  a7        and     a
     // 1b3a  c8        ret     z
+    //-------------------------------
     if (BLINKY_SUBSTATE == 0)
         return;
 
-// 1b3b  3aac4d    ld      a,(#4dac)
-// 1b3e  a7        and     a
-// 1b3f  c0        ret     nz
-// 
-// 1b40  cdd720    call    #20d7
-func_20d7();
-// 1b43  2a314d    ld      hl,(#4d31)
-// 1b46  01994d    ld      bc,#4d99
-// 1b49  cd5a20    call    #205a
-func_205a();
-// 1b4c  3a994d    ld      a,(#4d99)
-// 1b4f  a7        and     a
-// 1b50  ca6a1b    jp      z,#1b6a
-// 1b53  2a604d    ld      hl,(#4d60)
-// 1b56  29        add     hl,hl
-// 1b57  22604d    ld      (#4d60),hl
-// 1b5a  2a5e4d    ld      hl,(#4d5e)
-// 1b5d  ed6a      adc     hl,hl
-// 1b5f  225e4d    ld      (#4d5e),hl
-// 1b62  d0        ret     nc
-// 
-// 1b63  21604d    ld      hl,#4d60
-// 1b66  34        inc     (hl)
-// 1b67  c3d81b    jp      #1bd8
-// 1b6a  3aa74d    ld      a,(#4da7)
-// 1b6d  a7        and     a
-// 1b6e  ca881b    jp      z,#1b88
-// 1b71  2a5c4d    ld      hl,(#4d5c)
-// 1b74  29        add     hl,hl
-// 1b75  225c4d    ld      (#4d5c),hl
-// 1b78  2a5a4d    ld      hl,(#4d5a)
-// 1b7b  ed6a      adc     hl,hl
-// 1b7d  225a4d    ld      (#4d5a),hl
-// 1b80  d0        ret     nc
-// 
-// 1b81  215c4d    ld      hl,#4d5c
-// 1b84  34        inc     (hl)
-// 1b85  c3d81b    jp      #1bd8
-// 1b88  3ab74d    ld      a,(#4db7)
-// 1b8b  a7        and     a
-// 1b8c  caa61b    jp      z,#1ba6
-// 1b8f  2a504d    ld      hl,(#4d50)
-// 1b92  29        add     hl,hl
-// 1b93  22504d    ld      (#4d50),hl
-// 1b96  2a4e4d    ld      hl,(#4d4e)
-// 1b99  ed6a      adc     hl,hl
-// 1b9b  224e4d    ld      (#4d4e),hl
-// 1b9e  d0        ret     nc
-// 
-// 1b9f  21504d    ld      hl,#4d50
-// 1ba2  34        inc     (hl)
-// 1ba3  c3d81b    jp      #1bd8
-// 1ba6  3ab64d    ld      a,(#4db6)
-// 1ba9  a7        and     a
-// 1baa  cac41b    jp      z,#1bc4
-// 1bad  2a544d    ld      hl,(#4d54)
-// 1bb0  29        add     hl,hl
-// 1bb1  22544d    ld      (#4d54),hl
-// 1bb4  2a524d    ld      hl,(#4d52)
-// 1bb7  ed6a      adc     hl,hl
-// 1bb9  22524d    ld      (#4d52),hl
-// 1bbc  d0        ret     nc
-// 
-// 1bbd  21544d    ld      hl,#4d54
-// 1bc0  34        inc     (hl)
-// 1bc1  c3d81b    jp      #1bd8
-// 1bc4  2a584d    ld      hl,(#4d58)
-// 1bc7  29        add     hl,hl
-// 1bc8  22584d    ld      (#4d58),hl
-// 1bcb  2a564d    ld      hl,(#4d56)
-// 1bce  ed6a      adc     hl,hl
-// 1bd0  22564d    ld      (#4d56),hl
-// 1bd3  d0        ret     nc
-// 
-// 1bd4  21584d    ld      hl,#4d58
-// 1bd7  34        inc     (hl)
-// 1bd8  21144d    ld      hl,#4d14
-// 1bdb  7e        ld      a,(hl)
-// 1bdc  a7        and     a
-// 1bdd  caed1b    jp      z,#1bed
-// 1be0  3a004d    ld      a,(#4d00)
-// 1be3  e607      and     #07
-// 1be5  fe04      cp      #04
-// 1be7  caf71b    jp      z,#1bf7
-// 1bea  c3361c    jp      #1c36
-// 1bed  3a014d    ld      a,(#4d01)
-// 1bf0  e607      and     #07
-// 1bf2  fe04      cp      #04
-// 1bf4  c2361c    jp      nz,#1c36
-// 1bf7  3e01      ld      a,#01
+    // 1b3b  3aac4d    ld      a,(#4dac)
+    // 1b3e  a7        and     a
+    // 1b3f  c0        ret     nz
+    if (BLINKY_STATE == 0)
+        return;
+
+    // 1b40  cdd720    call    #20d7
+    func_20d7();
+
+    // 1b43  2a314d    ld      hl,(#4d31)
+    BLINKY_TILE2
+    // 1b46  01994d    ld      bc,#4d99
+    bc=BLINKY_AUX_POS;
+    // 1b49  cd5a20    call    #205a
+    func_205a();
+    // 1b4c  3a994d    ld      a,(#4d99)
+    // 1b4f  a7        and     a
+    // 1b50  ca6a1b    jp      z,#1b6a
+    if (BLINKY_AUX_POS != 0)
+    {
+        // 1b53  2a604d    ld      hl,(#4d60)
+        // 1b56  29        add     hl,hl
+        // 1b57  22604d    ld      (#4d60),hl
+        BLINKY_MOVE_PAT_TUNNEL2*=2;
+        // 1b5a  2a5e4d    ld      hl,(#4d5e)
+        // 1b5d  ed6a      adc     hl,hl
+        // 1b5f  225e4d    ld      (#4d5e),hl
+        // 1b62  d0        ret     nc
+        BLINKY_MOVE_PAT_TUNNEL1*=2;
+        // 1b63  21604d    ld      hl,#4d60
+        // 1b66  34        inc     (hl)
+        // 1b67  c3d81b    jp      #1bd8
+        BLINKY_MOVE_PAT_TUNNEL2++;
+        func_1bd8();
+    }
+
+    // 1b6a  3aa74d    ld      a,(#4da7)
+    // 1b6d  a7        and     a
+    // 1b6e  ca881b    jp      z,#1b88
+    if (BLINK_EDIBLE != 0)
+    {
+        // 1b71  2a5c4d    ld      hl,(#4d5c)
+        // 1b74  29        add     hl,hl
+        // 1b75  225c4d    ld      (#4d5c),hl
+        BLINKY_MOVE_PAT_EDIBLE2*=2;
+        // 1b78  2a5a4d    ld      hl,(#4d5a)
+        // 1b7b  ed6a      adc     hl,hl
+        // 1b7d  225a4d    ld      (#4d5a),hl
+        // 1b80  d0        ret     nc
+        BLINKY_MOVE_PAT_EDIBLE1*=2;
+        // 1b81  215c4d    ld      hl,#4d5c
+        // 1b84  34        inc     (hl)
+        // 1b85  c3d81b    jp      #1bd8
+        BLINKY_MOVE_PAT_EDIBLE2++;
+    }
+
+    // 1b88  3ab74d    ld      a,(#4db7)
+    // 1b8b  a7        and     a
+    // 1b8c  caa61b    jp      z,#1ba6
+    if (DIFF_FLAG_1 != 0)
+    {
+        // 1b8f  2a504d    ld      hl,(#4d50)
+        // 1b92  29        add     hl,hl
+        // 1b93  22504d    ld      (#4d50),hl
+        PACMAN_MOVE_PAT_DIFF2_2*=2;
+        // 1b96  2a4e4d    ld      hl,(#4d4e)
+        // 1b99  ed6a      adc     hl,hl
+        // 1b9b  224e4d    ld      (#4d4e),hl
+        // 1b9e  d0        ret     nc
+        PACMAN_MOVE_PAT_DIFF2_1*=2;
+        // 1b9f  21504d    ld      hl,#4d50
+        // 1ba2  34        inc     (hl)
+        // 1ba3  c3d81b    jp      #1bd8
+    }
+    else
+    {
+        // 1ba6  3ab64d    ld      a,(#4db6)
+        // 1ba9  a7        and     a
+        // 1baa  cac41b    jp      z,#1bc4
+        if (DIFF_FLAG_1 != 0)
+        {
+            // 1bad  2a544d    ld      hl,(#4d54)
+            // 1bb0  29        add     hl,hl
+            // 1bb1  22544d    ld      (#4d54),hl
+            PACMAN_MOVE_PAT_DIFF1_2*=2;
+            // 1bb4  2a524d    ld      hl,(#4d52)
+            // 1bb7  ed6a      adc     hl,hl
+            // 1bb9  22524d    ld      (#4d52),hl
+            // 1bbc  d0        ret     nc
+            PACMAN_MOVE_PAT_DIFF1_1*=2;
+            // 1bbd  21544d    ld      hl,#4d54
+            // 1bc0  34        inc     (hl)
+            // 1bc1  c3d81b    jp      #1bd8
+        }
+        else
+        {
+            // 1bc4  2a584d    ld      hl,(#4d58)
+            // 1bc7  29        add     hl,hl
+            // 1bc8  22584d    ld      (#4d58),hl
+            BLINKY_MOVE_PAT_NORMAL2 *= 2;
+            // 1bcb  2a564d    ld      hl,(#4d56)
+            // 1bce  ed6a      adc     hl,hl
+            // 1bd0  22564d    ld      (#4d56),hl
+            // 1bd3  d0        ret     nc
+            BLINKY_MOVE_PAT_NORMAL1 *= 2;
+            // 1bd4  21584d    ld      hl,#4d58
+            // 1bd7  34        inc     (hl)
+        }
+    }
+
+    // 1bd8  21144d    ld      hl,#4d14
+    // 1bdb  7e        ld      a,(hl)
+    // 1bdc  a7        and     a
+    // 1bdd  caed1b    jp      z,#1bed
+    if (BLINKY_TILE_CHANGE->y != 0)
+    {
+        // 1be0  3a004d    ld      a,(#4d00)
+        // 1be3  e607      and     #07
+        // 1be5  fe04      cp      #04
+        // 1be7  caf71b    jp      z,#1bf7
+        // 1bea  c3361c    jp      #1c36
+        if ((BLINKY_POS->y&7)==4)
+            goto jump_1c36;
+    }
+    else
+    {
+        // 1bed  3a014d    ld      a,(#4d01)
+        // 1bf0  e607      and     #07
+        // 1bf2  fe04      cp      #04
+        // 1bf4  c2361c    jp      nz,#1c36
+        if ((BLINKY_POS->x&7)==4)
+            goto jump_1c36;
+    }
+    // 1bf7  3e01      ld      a,#01
     // 1bf9  cdd01e    call    #1ed0
-    func_1ed0();
-// 1bfc  381b      jr      c,#1c19         ; (27)
-// 1bfe  3aa74d    ld      a,(#4da7)
-// 1c01  a7        and     a
-// 1c02  ca0b1c    jp      z,#1c0b
-    //-------------------------------
-    // 1c05  ef        rst     #28
-    // 1c06  0c00
-    //-------------------------------
-    schedTask (0x0c, 0x00);
-// 1c08  c3191c    jp      #1c19
-// 1c0b  2a0a4d    ld      hl,(#4d0a)
-    // 1c0e  cd5220    call    #2052
-    func_2052();
-// 1c11  7e        ld      a,(hl)
-// 1c12  fe1a      cp      #1a
-// 1c14  2803      jr      z,#1c19         ; (3)
-    //-------------------------------
-    // 1c16  ef        rst     #28
-    // 1c17  0800
-    //-------------------------------
-    schedTask (0x08, 0x00);
+    func_1ed0(1);
+
+    // 1bfc  381b      jr      c,#1c19         ; (27)
+    if ()
+    {
+        //-------------------------------
+        // 1bfe  3aa74d    ld      a,(#4da7)
+        // 1c01  a7        and     a
+        // 1c02  ca0b1c    jp      z,#1c0b
+        //-------------------------------
+        if (BLINKY_EDIBLE != 0)
+        {
+            //-------------------------------
+            // 1c05  ef        rst     #28
+            // 1c06  0c00
+            // 1c08  c3191c    jp      #1c19
+            //-------------------------------
+            schedTask (0x0c, 0x00);
+        }
+        else
+        {
+            //-------------------------------
+            // 1c0b  2a0a4d    ld      hl,(#4d0a)
+            // 1c0e  cd5220    call    #2052
+            //-------------------------------
+            func_2052(BLINKY_TILE);
+            //-------------------------------
+            // 1c11  7e        ld      a,(hl)
+            // 1c12  fe1a      cp      #1a
+            // 1c14  2803      jr      z,#1c19         ; (3)
+            //-------------------------------
+            if (BLINKY_TILE->y != 0x1a)
+            {
+                //-------------------------------
+                // 1c16  ef        rst     #28
+                // 1c17  0800
+                //-------------------------------
+                schedTask (0x08, 0x00);
+            }
+        }
+    }
+
     // 1c19  cdfe1e    call    #1efe
     func_1efe();
-// 1c1c  dd211e4d  ld      ix,#4d1e
-// 1c20  fd210a4d  ld      iy,#4d0a
+    // 1c1c  dd211e4d  ld      ix,#4d1e
+    // 1c20  fd210a4d  ld      iy,#4d0a
     // 1c24  cd0020    call    #2000
-    addXYOffset_2000();
-// 1c27  220a4d    ld      (#4d0a),hl
-// 1c2a  2a1e4d    ld      hl,(#4d1e)
-// 1c2d  22144d    ld      (#4d14),hl
-// 1c30  3a2c4d    ld      a,(#4d2c)
-// 1c33  32284d    ld      (#4d28),a
-// 1c36  dd21144d  ld      ix,#4d14
-// 1c3a  fd21004d  ld      iy,#4d00
+    // 1c27  220a4d    ld      (#4d0a),hl
+    BLINKY_TILE = addXYOffset_2000(BLINKY_TILE_CHANGE2, BLINKY_TILE);
+
+    // 1c2a  2a1e4d    ld      hl,(#4d1e)
+    // 1c2d  22144d    ld      (#4d14),hl
+    BLINKY_TILE_CHANGE = BLINKY_TILE_CHANGE2;
+
+    // 1c30  3a2c4d    ld      a,(#4d2c)
+    // 1c33  32284d    ld      (#4d28),a
+    BLINKY_REV_ORIENTATION = BLINK_ORIENTATION;
+
+    // 1c36  dd21144d  ld      ix,#4d14
+    // 1c3a  fd21004d  ld      iy,#4d00
     // 1c3e  cd0020    call    #2000
-    addXYOffset_2000();
-// 1c41  22004d    ld      (#4d00),hl
+    // 1c41  22004d    ld      (#4d00),hl
+    BLINKY_POS = addXYOffset_2000(BLINKY_TILE_CHANGE, BLINKY_POS);
     // 1c44  cd1820    call    #2018
-    func_2018();
-// 1c47  22314d    ld      (#4d31),hl
-// 1c4a  c9        ret     
-// 
-// 1c4b  3aa14d    ld      a,(#4da1)
-// 1c4e  fe01      cp      #01
-// 1c50  c0        ret     nz
-// 
-// 1c51  3aad4d    ld      a,(#4dad)
-// 1c54  a7        and     a
-// 1c55  c0        ret     nz
-// 
-// 1c56  2a334d    ld      hl,(#4d33)
-// 1c59  019a4d    ld      bc,#4d9a
+    // 1c47  22314d    ld      (#4d31),hl
+    // 1c4a  c9        ret     
+    BLINKY_TILE2 = func_2018(BLINKY_POS);
+}
+
+void func_1c4b ()
+{
+    // 1c4b  3aa14d    ld      a,(#4da1)
+    // 1c4e  fe01      cp      #01
+    // 1c50  c0        ret     nz
+    if (PINKY_SUBSTATE != 1)
+        return;
+    // 1c51  3aad4d    ld      a,(#4dad)
+    // 1c54  a7        and     a
+    // 1c55  c0        ret     nz
+    if (PINKY_STATE != 0)
+        return;
+
+    // 1c56  2a334d    ld      hl,(#4d33)
+    // 1c59  019a4d    ld      bc,#4d9a
     // 1c5c  cd5a20    call    #205a
-    func_205a();
-// 1c5f  3a9a4d    ld      a,(#4d9a)
-// 1c62  a7        and     a
-// 1c63  ca7d1c    jp      z,#1c7d
-// 1c66  2a6c4d    ld      hl,(#4d6c)
-// 1c69  29        add     hl,hl
-// 1c6a  226c4d    ld      (#4d6c),hl
-// 1c6d  2a6a4d    ld      hl,(#4d6a)
-// 1c70  ed6a      adc     hl,hl
-// 1c72  226a4d    ld      (#4d6a),hl
-// 1c75  d0        ret     nc
-// 
-// 1c76  216c4d    ld      hl,#4d6c
-// 1c79  34        inc     (hl)
-// 1c7a  c3af1c    jp      #1caf
-// 1c7d  3aa84d    ld      a,(#4da8)
-// 1c80  a7        and     a
-// 1c81  ca9b1c    jp      z,#1c9b
-// 1c84  2a684d    ld      hl,(#4d68)
-// 1c87  29        add     hl,hl
-// 1c88  22684d    ld      (#4d68),hl
-// 1c8b  2a664d    ld      hl,(#4d66)
-// 1c8e  ed6a      adc     hl,hl
-// 1c90  22664d    ld      (#4d66),hl
-// 1c93  d0        ret     nc
-// 
-// 1c94  21684d    ld      hl,#4d68
-// 1c97  34        inc     (hl)
-// 1c98  c3af1c    jp      #1caf
-// 1c9b  2a644d    ld      hl,(#4d64)
-// 1c9e  29        add     hl,hl
-// 1c9f  22644d    ld      (#4d64),hl
-// 1ca2  2a624d    ld      hl,(#4d62)
-// 1ca5  ed6a      adc     hl,hl
-// 1ca7  22624d    ld      (#4d62),hl
-// 1caa  d0        ret     nc
-// 
-// 1cab  21644d    ld      hl,#4d64
-// 1cae  34        inc     (hl)
-// 1caf  21164d    ld      hl,#4d16
-// 1cb2  7e        ld      a,(hl)
-// 1cb3  a7        and     a
-// 1cb4  cac41c    jp      z,#1cc4
-// 1cb7  3a024d    ld      a,(#4d02)
-// 1cba  e607      and     #07
-// 1cbc  fe04      cp      #04
-// 1cbe  cace1c    jp      z,#1cce
-// 1cc1  c30d1d    jp      #1d0d
-// 1cc4  3a034d    ld      a,(#4d03)
-// 1cc7  e607      and     #07
-// 1cc9  fe04      cp      #04
-// 1ccb  c20d1d    jp      nz,#1d0d
-// 1cce  3e02      ld      a,#02
+    func_205a(PINKY_TILE2, PINKY_AUX_POS);
+
+    // 1c5f  3a9a4d    ld      a,(#4d9a)
+    // 1c62  a7        and     a
+    // 1c63  ca7d1c    jp      z,#1c7d
+    if (PINKY_AUX_POS != 0)
+    {
+        // 1c66  2a6c4d    ld      hl,(#4d6c)
+        // 1c69  29        add     hl,hl
+        // 1c6a  226c4d    ld      (#4d6c),hl
+        PINKY_MOVE_PAT_TUNNEL2*=2;
+        // 1c6d  2a6a4d    ld      hl,(#4d6a)
+        // 1c70  ed6a      adc     hl,hl
+        // 1c72  226a4d    ld      (#4d6a),hl
+        // 1c75  d0        ret     nc
+        PINKY_MOVE_PAT_TUNNEL1*=2;
+        // 
+        // 1c76  216c4d    ld      hl,#4d6c
+        // 1c79  34        inc     (hl)
+        // 1c7a  c3af1c    jp      #1caf
+    }
+    else
+    {
+        // 1c7d  3aa84d    ld      a,(#4da8)
+        // 1c80  a7        and     a
+        // 1c81  ca9b1c    jp      z,#1c9b
+        if (PINKY_EDIBLE != 0)
+        {
+            // 1c84  2a684d    ld      hl,(#4d68)
+            // 1c87  29        add     hl,hl
+            // 1c88  22684d    ld      (#4d68),hl
+            PINKY_MOVE_PAT_EDIBLE2*=2;
+            // 1c8b  2a664d    ld      hl,(#4d66)
+            // 1c8e  ed6a      adc     hl,hl
+            // 1c90  22664d    ld      (#4d66),hl
+            // 1c93  d0        ret     nc
+            PINKY_MOVE_PAT_EDIBLE1*=2;
+            // 
+            // 1c94  21684d    ld      hl,#4d68
+            // 1c97  34        inc     (hl)
+            // 1c98  c3af1c    jp      #1caf
+        }
+        else
+        {
+            // 1c9b  2a644d    ld      hl,(#4d64)
+            // 1c9e  29        add     hl,hl
+            // 1c9f  22644d    ld      (#4d64),hl
+            PINKY_MOVE_PAT_NORMAL2*=2;
+            // 1ca2  2a624d    ld      hl,(#4d62)
+            // 1ca5  ed6a      adc     hl,hl
+            // 1ca7  22624d    ld      (#4d62),hl
+            // 1caa  d0        ret     nc
+            PINKY_MOVE_PAT_NORMAL1*=2;
+            // 
+            // 1cab  21644d    ld      hl,#4d64
+            // 1cae  34        inc     (hl)
+        }
+    }
+
+    // 1caf  21164d    ld      hl,#4d16
+    // 1cb2  7e        ld      a,(hl)
+    // 1cb3  a7        and     a
+    // 1cb4  cac41c    jp      z,#1cc4
+    if (PINKY_TILE_CHANGE != 0)
+    {
+        // 1cb7  3a024d    ld      a,(#4d02)
+        // 1cba  e607      and     #07
+        // 1cbc  fe04      cp      #04
+        // 1cbe  cace1c    jp      z,#1cce
+        if ((BLINKY_POS->y&7)==4)
+        {
+            // 1cc1  c30d1d    jp      #1d0d
+            goto jump_1d0d;
+        }
+    }
+    else
+    {
+        // 1cc4  3a034d    ld      a,(#4d03)
+        // 1cc7  e607      and     #07
+        // 1cc9  fe04      cp      #04
+        // 1ccb  c20d1d    jp      nz,#1d0d
+        if ((BLINKY_POS->x&7)==4)
+        {
+            // 1cc1  c30d1d    jp      #1d0d
+            goto jump_1d0d;
+        }
+    }
+    // 1cce  3e02      ld      a,#02
     // 1cd0  cdd01e    call    #1ed0
-    func_1ed0();
+    func_1ed0(2;
 // 1cd3  381b      jr      c,#1cf0         ; (27)
 // 1cd5  3aa84d    ld      a,(#4da8)
 // 1cd8  a7        and     a
@@ -7388,77 +7576,108 @@ func_205a();
     // 1cee  0900
     //-------------------------------
     schedTask (0x09, 0x00);
+
     // 1cf0  cd251f    call    #1f25
     func_1f25();
-// 1cf3  dd21204d  ld      ix,#4d20
-// 1cf7  fd210c4d  ld      iy,#4d0c
+
+    // 1cf3  dd21204d  ld      ix,#4d20
+    // 1cf7  fd210c4d  ld      iy,#4d0c
     // 1cfb  cd0020    call    #2000
-    addXYOffset_2000();
-// 1cfe  220c4d    ld      (#4d0c),hl
-// 1d01  2a204d    ld      hl,(#4d20)
-// 1d04  22164d    ld      (#4d16),hl
-// 1d07  3a2d4d    ld      a,(#4d2d)
-// 1d0a  32294d    ld      (#4d29),a
-// 1d0d  dd21164d  ld      ix,#4d16
-// 1d11  fd21024d  ld      iy,#4d02
+    // 1cfe  220c4d    ld      (#4d0c),hl
+    PINKY_TILE = addXYOffset_2000(PINKY_TILE_CHANGE2, PINKY_TILE);
+
+    // 1d01  2a204d    ld      hl,(#4d20)
+    // 1d04  22164d    ld      (#4d16),hl
+    PINKY_TILE_CHANGE = PINKY_TILE_CHANGE2;
+
+    // 1d07  3a2d4d    ld      a,(#4d2d)
+    // 1d0a  32294d    ld      (#4d29),a
+    PINKY_PREV_ORIENTATION = PINKY_ORIENTATION;
+
+    // 1d0d  dd21164d  ld      ix,#4d16
+    // 1d11  fd21024d  ld      iy,#4d02
     // 1d15  cd0020    call    #2000
-    addXYOffset_2000();
-// 1d18  22024d    ld      (#4d02),hl
+    // 1d18  22024d    ld      (#4d02),hl
+    PINKY_POS=addXYOffset_2000(PINKY_TILE_CHANGE, PINKY_POS);
+
     // 1d1b  cd1820    call    #2018
     func_2018();
-// 1d1e  22334d    ld      (#4d33),hl
-// 1d21  c9        ret     
-// 
-// 1d22  3aa24d    ld      a,(#4da2)
-// 1d25  fe01      cp      #01
-// 1d27  c0        ret     nz
-// 
-// 1d28  3aae4d    ld      a,(#4dae)
-// 1d2b  a7        and     a
-// 1d2c  c0        ret     nz
-// 
-// 1d2d  2a354d    ld      hl,(#4d35)
-// 1d30  019b4d    ld      bc,#4d9b
+
+    // 1d1e  22334d    ld      (#4d33),hl
+    // 1d21  c9        ret     
+    PINKY_TILE2 = hl;
+}
+
+void func_1d22()
+{
+    // 1d22  3aa24d    ld      a,(#4da2)
+    // 1d25  fe01      cp      #01
+    // 1d27  c0        ret     nz
+    if (INKY_SUBSTATE != 1)
+        return;
+    // 1d28  3aae4d    ld      a,(#4dae)
+    // 1d2b  a7        and     a
+    // 1d2c  c0        ret     nz
+    if (INKY_STATE != 0)
+        return;
+    // 1d2d  2a354d    ld      hl,(#4d35)
+    // 1d30  019b4d    ld      bc,#4d9b
     // 1d33  cd5a20    call    #205a
-    func_205a();
-// 1d36  3a9b4d    ld      a,(#4d9b)
-// 1d39  a7        and     a
-// 1d3a  ca541d    jp      z,#1d54
-// 1d3d  2a784d    ld      hl,(#4d78)
-// 1d40  29        add     hl,hl
-// 1d41  22784d    ld      (#4d78),hl
-// 1d44  2a764d    ld      hl,(#4d76)
-// 1d47  ed6a      adc     hl,hl
-// 1d49  22764d    ld      (#4d76),hl
-// 1d4c  d0        ret     nc
-// 
-// 1d4d  21784d    ld      hl,#4d78
-// 1d50  34        inc     (hl)
-// 1d51  c3861d    jp      #1d86
-// 1d54  3aa94d    ld      a,(#4da9)
-// 1d57  a7        and     a
-// 1d58  ca721d    jp      z,#1d72
-// 1d5b  2a744d    ld      hl,(#4d74)
-// 1d5e  29        add     hl,hl
-// 1d5f  22744d    ld      (#4d74),hl
-// 1d62  2a724d    ld      hl,(#4d72)
-// 1d65  ed6a      adc     hl,hl
-// 1d67  22724d    ld      (#4d72),hl
-// 1d6a  d0        ret     nc
-// 
-// 1d6b  21744d    ld      hl,#4d74
-// 1d6e  34        inc     (hl)
-// 1d6f  c3861d    jp      #1d86
-// 1d72  2a704d    ld      hl,(#4d70)
-// 1d75  29        add     hl,hl
-// 1d76  22704d    ld      (#4d70),hl
-// 1d79  2a6e4d    ld      hl,(#4d6e)
-// 1d7c  ed6a      adc     hl,hl
-// 1d7e  226e4d    ld      (#4d6e),hl
-// 1d81  d0        ret     nc
-// 
-// 1d82  21704d    ld      hl,#4d70
-// 1d85  34        inc     (hl)
+    func_205a(INKY_TILE2, INKY_AUX_POS);
+    // 1d36  3a9b4d    ld      a,(#4d9b)
+    // 1d39  a7        and     a
+    // 1d3a  ca541d    jp      z,#1d54
+    if (INKY_AUX_POS != 0)
+    {
+        // 1d3d  2a784d    ld      hl,(#4d78)
+        // 1d40  29        add     hl,hl
+        // 1d41  22784d    ld      (#4d78),hl
+        INKY_MOVE_PAT_TUNNEL2*=2;
+        // 1d44  2a764d    ld      hl,(#4d76)
+        // 1d47  ed6a      adc     hl,hl
+        // 1d49  22764d    ld      (#4d76),hl
+        // 1d4c  d0        ret     nc
+        INKY_MOVE_PAT_TUNNEL1*=2;
+        // 
+        // 1d4d  21784d    ld      hl,#4d78
+        // 1d50  34        inc     (hl)
+        // 1d51  c3861d    jp      #1d86
+    }
+    else
+    {
+        // 1d54  3aa94d    ld      a,(#4da9)
+        // 1d57  a7        and     a
+        // 1d58  ca721d    jp      z,#1d72
+        if (INKY_EDIBLE != 0)
+        {
+            // 1d5b  2a744d    ld      hl,(#4d74)
+            // 1d5e  29        add     hl,hl
+            // 1d5f  22744d    ld      (#4d74),hl
+            INKY_MOVE_PAT_EDIBLE2*=2;
+            // 1d62  2a724d    ld      hl,(#4d72)
+            // 1d65  ed6a      adc     hl,hl
+            // 1d67  22724d    ld      (#4d72),hl
+            // 1d6a  d0        ret     nc
+            INKY_MOVE_PAT_EDIBLE1*=2;
+            // 
+            // 1d6b  21744d    ld      hl,#4d74
+            // 1d6e  34        inc     (hl)
+            // 1d6f  c3861d    jp      #1d86
+        }
+        else
+        {
+            // 1d72  2a704d    ld      hl,(#4d70)
+            // 1d75  29        add     hl,hl
+            // 1d76  22704d    ld      (#4d70),hl
+            INKY_MOVE_PAT_NORMAL2*=2;
+            // 1d79  2a6e4d    ld      hl,(#4d6e)
+            // 1d7c  ed6a      adc     hl,hl
+            // 1d7e  226e4d    ld      (#4d6e),hl
+            // 1d81  d0        ret     nc
+            INKY_MOVE_PAT_NORMAL1*=2;
+            // 1d82  21704d    ld      hl,#4d70
+            // 1d85  34        inc     (hl)
+        }
 // 1d86  21184d    ld      hl,#4d18
 // 1d89  7e        ld      a,(hl)
 // 1d8a  a7        and     a
@@ -7624,7 +7843,9 @@ func_205a();
     func_2018();
 // 1ecc  22374d    ld      (#4d37),hl
 // 1ecf  c9        ret     
-// 
+
+void func_1ed0(int a)
+{
 // 1ed0  87        add     a,a
 // 1ed1  4f        ld      c,a
 // 1ed2  0600      ld      b,#00
@@ -7788,7 +8009,7 @@ void func_200f (int ix, int iy)
 // 2016  a7        and     a
 // 2017  c9        ret     
 
-void func_2018 (XYPOS *pos)
+XYPOS func_2018 (XYPOS pos)
 {
     //-------------------------------
     // 2018  7d        ld      a,l
@@ -7798,7 +8019,7 @@ void func_2018 (XYPOS *pos)
     // 201f  c620      add     a,#20
     // 2021  6f        ld      l,a
     //-------------------------------
-    pos->y=pos->y>>3+0x20;
+    pos.y=pos.y>>3+0x20;
     //-------------------------------
     // 2022  7c        ld      a,h
     // 2023  cb3f      srl     a
@@ -7808,7 +8029,8 @@ void func_2018 (XYPOS *pos)
     // 202b  67        ld      h,a
     // 202c  c9        ret     
     //-------------------------------
-    pos->x=pos->x>>3+0x1e;
+    pos.x=pos.x>>3+0x1e;
+    return pos;
 }
 
 /*  Convert x y to screen address ? */
@@ -7849,14 +8071,14 @@ uint16_t func_202d (XYPOS pos)
     // 204b  014040    ld      bc,#4040
     // 204e  09        add     hl,bc
     //-------------------------------
-    pos.x += 0x40;
-    pos.y += 0x40;
+    /*  TODO 0x4040 is probably video+0x40 */
+    int result = ((pos.x << 8) | pos.y) + 0x4040;
     //-------------------------------
     // 204f  c1        pop     bc
     // 2050  f1        pop     af
     // 2051  c9        ret     
     //-------------------------------
-    return pos;
+    return result;
 }
 
 void func_2052()
@@ -7949,7 +8171,10 @@ func_2052();
 // 20d1  3e03      ld      a,#03
 // 20d3  32a34d    ld      (#4da3),a
 // 20d6  c9        ret     
-// 
+}
+
+void func_4da3()
+{
 // 20d7  3aa34d    ld      a,(#4da3)
 // 20da  a7        and     a
 // 20db  c8        ret     z
