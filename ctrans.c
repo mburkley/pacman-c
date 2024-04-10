@@ -15,7 +15,7 @@ int main (void)
     // 0003  ed47      ld      i,a		; Interrupt page = 0x3f
     // 0005  c30b23    jp      #230b		; Run startup tests
     //-------------------------------
-    selfTest();
+    start_230b();
 }
 
 void setMemory (int addr, int count, uint8_t value)
@@ -37,7 +37,7 @@ void nothing (void)
 {
 }
 
-uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
+uint8_t fetchOffset (uint8_t **addr, uint8_t offset)
 {
     //-------------------------------
     // 	;; hl = hl + a, (hl) -> a
@@ -50,14 +50,13 @@ uint8_t fetchOffset (uint16_t *addr, uint8_t offset)
     // 0017  c9        ret     
     //-------------------------------
     (*addr) += offset;
-    return MEM[*addr];
+    return **addr;
 }
 
-uint16_t tableLookup (uint16_t *addr, uint8_t offset)
+uint16_t tableLookup (uint8_t **addr, uint8_t offset)
 {
     //-------------------------------
     // 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
-    // 	;; (Used to add up scores!)
     // 0018  78        ld      a,b		; b -> a 
     // 0019  87        add     a,a		; 2*a -> a 
     // 001a  d7        rst     #10
@@ -69,7 +68,7 @@ uint16_t tableLookup (uint16_t *addr, uint8_t offset)
     //-------------------------------
     int e = fetchOffset(addr, offset*2);
     (*addr)++;
-    int d = MEM[*addr];
+    int d = **addr;
     return e+d<<8;
 }
 
@@ -214,9 +213,9 @@ uint16_t getScreenOffset_0065(XY *pos)
 }
 
     //-------------------------------
-    // 0068                           00 01 02 03 04 05 06 07  |        ........|
-    // 0070  08 09 0a 0b 0c 0d 0e 0f  10 11 12 13 14 01 03 04  |................|
-    // 0080  06 07 08 09 0a 0b 0c 0d  0e 0f 10 11 14           |.............   |
+    // 0068                           00 01 02 03 04 05 06 07
+    // 0070  08 09 0a 0b 0c 0d 0e 0f  10 11 12 13 14 01 03 04
+    // 0080  06 07 08 09 0a 0b 0c 0d  0e 0f 10 11 14         
     //-------------------------------
 uint8_t data_68[] = { 0 };
 
@@ -610,7 +609,9 @@ void func_01dc()
     MEM[0x4c8c] = MEM[0x4c8c] * 5 + 1;
 }
  
-// 0219  06 a0 0a 60 0a 60 0a a0 
+    //-------------------------------
+    // 0219  06 a0 0a 60 0a 60 0a a0 
+    //-------------------------------
 uint8_t data_219[] = { 0x06, 0xa0, 0x0a, 0x60, 0x0a, 0x60, 0x0a, 0xa0 };
 
 void dispatchISRTasks_0221()
@@ -701,13 +702,13 @@ void dispatchISRTasks_0221()
     //-------------------------------
 }
 
-//-------------------------------
-// 0263  ef        rst     #28
-// 0264  1c86
-// 0266  c9        ret     
-//-------------------------------
 func_0263()
 {
+    //-------------------------------
+    // 0263  ef        rst     #28
+    // 0264  1c86
+    // 0266  c9        ret     
+    //-------------------------------
     schedTask(TASK_DISPLAY_MSG, 0x86);
 }
 
@@ -1489,7 +1490,7 @@ void func_051c()
     // 051f  0621      ld      b,#21
     // 0521  3a3a4d    ld      a,(#4d3a)
     //-------------------------------
-    func_0524 (0x4da0, 0x21, PACMAN_X_TILE2);
+    func_0524 (0x4da0, 0x21, PACMAN_TILE2);
 }
 
 void func_0524(int hl, int b, int a)
@@ -1544,7 +1545,7 @@ void func_054b()
     // 0550  3a324d    ld      a,(#4d32)
     // 0553  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da1, 0x20, BLINK_X_TILE2);
+    func_0524 (0x4da1, 0x20, BLINK_TILE2);
 }
 
 void func_0556()
@@ -1555,7 +1556,7 @@ void func_0556()
     // 055b  3a324d    ld      a,(#4d32)
     // 055e  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da2, 0x22, BLINKY_X_TILE2);
+    func_0524 (0x4da2, 0x22, BLINKY_TILE2);
 }
 
 void func_0561()
@@ -1566,7 +1567,7 @@ void func_0561()
     // 0566  3a324d    ld      a,(#4d32)
     // 0569  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da3, 0x24, BLINKY_X_TILE2);
+    func_0524 (0x4da3, 0x24, BLINKY_TILE2);
 }
 
 void func_056c()
@@ -1678,16 +1679,17 @@ void func_05a5 ()
     //-------------------------------
     PACMAN_DESIRED_ORIENTATON = PACMAN_ORIENTATION ^ 2;
 
-// 05b6  47        ld      b,a
-// 05b7  21ff32    ld      hl,#32ff
-// 05ba  df        rst     #18
-PACMAN_TILE_CHANGE2=tableLookup (moveData_32ff, PACMAN_DESIRED_ORIENTATON); // TODO
-// 05bb  22264d    ld      (#4d26),hl
-// PACMAN_Y_TILE_CHANGE2 = hl;
-// 05be  c9        ret     
+    //-------------------------------
+    // 05b6  47        ld      b,a
+    // 05b7  21ff32    ld      hl,#32ff
+    // 05ba  df        rst     #18
+    // 05bb  22264d    ld      (#4d26),hl
+    // 05be  c9        ret     
+    //-------------------------------
+    PACMAN_TILE_CHANGE2=tableLookup (moveData_32ff, PACMAN_DESIRED_ORIENTATON); // TODO
 }
 
-/*  hl = offset into video buffer, a = character */
+/*  hl = offset into video buffer, a = colour? */
 void func_05bf (int hl, int a)
 {
     //-------------------------------
@@ -1734,7 +1736,7 @@ void func_05bf (int hl, int a)
     // 05dc  a7        and     a
     // 05dd  ed42      sbc     hl,bc
     //-------------------------------
-    hl-=bc;
+    hl-=0x1e;
     //-------------------------------
     // 05df  77        ld      (hl),a
     // 05e0  2d        dec     l
@@ -2039,7 +2041,7 @@ void func_06be()
 }
 
 /*  Jump from addr 0x000d which doesn't look reachable */
-void func_070e()
+void func_070e(int b)
 {
     //-------------------------------
     // 070e  78        ld      a,b
@@ -2061,20 +2063,15 @@ void func_070e()
     // 071c  87        add     a,a
     // 071d  80        add     a,b
     // 071e  80        add     a,b
-    //-------------------------------
-    ix=0x796;
-    a*=6;
-
-    //-------------------------------
     // 071f  5f        ld      e,a
     // 0720  1600      ld      d,#00
     // 0722  dd19      add     ix,de
     //-------------------------------
-    ix+=a;
+    uint8_t *ix=&data_0796[b*6];
     //-------------------------------
     // 0724  dd7e00    ld      a,(ix+#00)
     //-------------------------------
-    a=MEM[ix];
+    a=ix[0];
     //-------------------------------
     // 0727  87        add     a,a
     // 0728  47        ld      b,a
@@ -2092,14 +2089,15 @@ void func_070e()
     // 0733  210f33    ld      hl,#330f
     // 0736  19        add     hl,de
     //-------------------------------
-    hl=0x330f+0x21 * a;
+    uint8_t *hl=data_330f[0x21 * a];
 
     // 0737  cd1408    call    #0814
-    func_0814();
+    func_0814(hl);
     // 073a  dd7e01    ld      a,(ix+#01)
     // 073d  32b04d    ld      (#4db0),a
-    DIFFICULTY=MEM[ix+1];
+    DIFFICULTY=ix[1];
 
+    //-------------------------------
     // 0740  dd7e02    ld      a,(ix+#02)
     // 0743  47        ld      b,a
     // 0744  87        add     a,a
@@ -2109,95 +2107,153 @@ void func_070e()
     // 0749  214308    ld      hl,#0843
     // 074c  19        add     hl,de
     // 074d  cd3a08    call    #083a
-    hl=0x843+3*MEM[ix+2];
-    func_083a();
+    //-------------------------------
+    hl=data_0843+3*ix[2];
+    initLeaveHomeCounters_083a(hl);
 
+    //-------------------------------
     // 0750  dd7e03    ld      a,(ix+#03)
     // 0753  87        add     a,a
     // 0754  5f        ld      e,a
     // 0755  1600      ld      d,#00
     // 0757  fd214f08  ld      iy,#084f
     // 075b  fd19      add     iy,de
-    iy=0x84f+2*MEM[ix+3];
+    //-------------------------------
+    iy=data_084f+2*ix[3];
 
+    //-------------------------------
     // 075d  fd6e00    ld      l,(iy+#00)
     // 0760  fd6601    ld      h,(iy+#01)
     // 0763  22bb4d    ld      (#4dbb),hl
-    MEM[0x4dbb]=MEM[iy];
-    MEM[0x4dbc]=MEM[iy+1];
+    //-------------------------------
+    PILLS_REM_DIFF_1=iy[0];
+    PILLS_REM_DIFF_2=iy[1];
+
+    //-------------------------------
     // 0766  dd7e04    ld      a,(ix+#04)
     // 0769  87        add     a,a
     // 076a  5f        ld      e,a
     // 076b  1600      ld      d,#00
     // 076d  fd216108  ld      iy,#0861
     // 0771  fd19      add     iy,de
-    iy=0x861+2*MEM[ix+4];
+    //-------------------------------
+    iy=data_0861+2*ix[4];
+
+    //-------------------------------
     // 0773  fd6e00    ld      l,(iy+#00)
     // 0776  fd6601    ld      h,(iy+#01)
     // 0779  22bd4d    ld      (#4dbd),hl
-    MEM[0x4dbd]=MEM[iy];
-    MEM[0x4dbe]=MEM[iy+1];
+    //-------------------------------
+    GHOST_EDIBLE_TIME = *(uint16_t*)iy;
+
+    //-------------------------------
     // 077c  dd7e05    ld      a,(ix+#05)
     // 077f  87        add     a,a
     // 0780  5f        ld      e,a
     // 0781  1600      ld      d,#00
     // 0783  fd217308  ld      iy,#0873
     // 0787  fd19      add     iy,de
-    iy=0x873+2*MEM[ix+5];
+    //-------------------------------
+    iy=data_0873+2*ix[5];
+    //-------------------------------
     // 0789  fd6e00    ld      l,(iy+#00)
     // 078c  fd6601    ld      h,(iy+#01)
     // 078f  22954d    ld      (#4d95),hl
-    MEM[0x4d95]=MEM[iy];
-    MEM[0x4d96]=MEM[iy+1];
+    //-------------------------------
+    UNITS_B4_GHOST_LEAVES_HOME = *(uint16_t*)iy;
 
+    //-------------------------------
     // 0792  cdea2b    call    #2bea
     // 0795  c9        ret     
+    //-------------------------------
     func_2bea ();
 }
 
-// 0796                    03 01  01 00 02 00 04 01 02 01  |.M..+...........|
-// 07a0  03 00 04 01 03 02 04 01  04 02 03 02 05 01 05 00  |................|
-// 07b0  03 02 06 02 05 01 03 03  03 02 05 02 03 03 06 02  |................|
-// 07c0  05 02 03 03 06 02 05 00  03 04 07 02 05 01 03 04  |................|
-// 07d0  03 02 05 02 03 04 06 02  05 02 03 05 07 02 05 00  |................|
-// 07e0  03 05 07 02 05 02 03 05  05 02 05 01 03 06 07 02  |................|
-// 07f0  05 02 03 06 07 02 05 02  03 06 08 02 05 02 03 06  |................|
-// 0800  07 02 05 02 03 07 08 02  05 02 03 07 08 02 06 02  |................|
-// 0810  03 07 08 02                                       |.....FM.........|
+    //-------------------------------
+    // 0796                    03 01  01 00 02 00 04 01 02 01
+    // 07a0  03 00 04 01 03 02 04 01  04 02 03 02 05 01 05 00
+    // 07b0  03 02 06 02 05 01 03 03  03 02 05 02 03 03 06 02
+    // 07c0  05 02 03 03 06 02 05 00  03 04 07 02 05 01 03 04
+    // 07d0  03 02 05 02 03 04 06 02  05 02 03 05 07 02 05 00
+    // 07e0  03 05 07 02 05 02 03 05  05 02 05 01 03 06 07 02
+    // 07f0  05 02 03 06 07 02 05 02  03 06 08 02 05 02 03 06
+    // 0800  07 02 05 02 03 07 08 02  05 02 03 07 08 02 06 02
+    // 0810  03 07 08 02                                    
+    //-------------------------------
+    uint8_t data_0796[];
 
+void func_0814(uint8_t *hl)
+{
+    //-------------------------------
+    // 0814  11464d    ld      de,#4d46
+    // 0817  011c00    ld      bc,#001c
+    // 081a  edb0      ldir    
+    //-------------------------------
+    memcpy (&PACMAN_MOV_PAT_NORMAL1, hl, 0x1c);
+    hl += 0x1c;
 
-// 0814  11464d    ld      de,#4d46
-// 0817  011c00    ld      bc,#001c
-// 081a  edb0      ldir    
-    memcpy (...);
-// 081c  010c00    ld      bc,#000c
-// 081f  a7        and     a
-// 0820  ed42      sbc     hl,bc
-// 0822  edb0      ldir    
+    //-------------------------------
+    // 081c  010c00    ld      bc,#000c
+    // 081f  a7        and     a
+    // 0820  ed42      sbc     hl,bc
+    // 0822  edb0      ldir    
+    //-------------------------------
 
-// 0824  010c00    ld      bc,#000c
-// 0827  a7        and     a
-// 0828  ed42      sbc     hl,bc
-// 082a  edb0      ldir    
+    /*  move pattern table + 0x1c is from PACMAN to PINKY but subtract 0xc from
+     *  hl causes data for BLINKY to be reused for PINKY */
+    hl-=0xc;
+    memcpy (&PINKY_MOV_PAT_NORMAL1, hl, 0xc);
 
-// 082c  010c00    ld      bc,#000c
-// 082f  a7        and     a
-// 0830  ed42      sbc     hl,bc
-// 0832  edb0      ldir    
+    //-------------------------------
+    // 0824  010c00    ld      bc,#000c
+    // 0827  a7        and     a
+    // 0828  ed42      sbc     hl,bc
+    // 082a  edb0      ldir    
+    //-------------------------------
 
-// 0834  010e00    ld      bc,#000e
-// 0837  edb0      ldir    
-// 0839  c9        ret     
+    /*  Reuse move data for INKY */
+    hl-=0xc;
+    memcpy (&INKY_MOV_PAT_NORMAL1, hl, 0xc);
 
-// 083a  11b84d    ld      de,#4db8
-// 083d  010300    ld      bc,#0003
-// 0840  edb0      ldir    
-// 0842  c9        ret     
+    //-------------------------------
+    // 082c  010c00    ld      bc,#000c
+    // 082f  a7        and     a
+    // 0830  ed42      sbc     hl,bc
+    // 0832  edb0      ldir    
+    //-------------------------------
 
-// 0843           14 1e 46 00 1e  3c 00 00 32 00 00 00 14  |.....F..<..2....|
-// 0850  0a 1e 0f 28 14 32 19 3c  1e 50 28 64 32 78 3c 8c  |...(.2.<.P(d2x<.|
-// 0860  46 c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78  |F..H...X...h...x|
-// 0870  00 01 00 f0 00 f0 00 b4  00                       |.........!.N....|
+    /*  Reuse move data for CLYDE */
+    hl-=0xc;
+    memcpy (&CLYDE_MOV_PAT_NORMAL1, hl, 0xc);
+
+    //-------------------------------
+    // 0834  010e00    ld      bc,#000e
+    // 0837  edb0      ldir    
+    // 0839  c9        ret     
+    //-------------------------------
+    memcpy (&DIFFICULTY_TABLE, hl, 0xe);
+
+void initLeaveHomeCounters_083a(uint8_t *hl)
+{
+    //-------------------------------
+    // 083a  11b84d    ld      de,#4db8
+    // 083d  010300    ld      bc,#0003
+    // 0840  edb0      ldir    
+    // 0842  c9        ret     
+    //-------------------------------
+    memcpy (&PINKY_LEAVE_HOME_COUNTER, hl, 3);
+}
+
+    // 0843           14 1e 46 00 1e  3c 00 00 32 00 00 00 14
+    // 0850  0a 1e 0f 28 14 32 19 3c  1e 50 28 64 32 78 3c 8c
+    // 0860  46 c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78
+    // 0870  00 01 00 f0 00 f0 00 b4  00                    
+
+    uint8_t data_0843[] = { 0x14, 0x1e, 0x46, 0x00, 0x1e, 0x3c, 0x00, 0x00,
+                            0x32, 0x00, 0x00, 0x00};
+    uint8_t data_084f[];
+    uint8_t data_0861[];
+    uint8_t data_0873[];
 
 /*  side-effect: Sets HL to 0x4e04 */
 void resetPlayerParams_0879()
@@ -3397,21 +3453,21 @@ void func_0c42()
         // 0c6f  fe64      cp      #64
         // 0c71  c2900c    jp      nz,#0c90
         //-------------------------------
-        if (BLINKY_Y == 0x64)
+        if (BLINKY_POS->y == 0x64)
         {
             //-------------------------------
             // 0c74  212c2e    ld      hl,#2e2c
             // 0c77  220a4d    ld      (#4d0a),hl
             //-------------------------------
-            BLINKY_Y_TILE = 0x2c;
-            BLINKY_X_TILE = 0x2e;
+            BLINKY_TILE->y = 0x2c;
+            BLINKY_TILE->x = 0x2e;
             //-------------------------------
             // 0c7a  210001    ld      hl,#0100
             // 0c7d  22144d    ld      (#4d14),hl
             // 0c80  221e4d    ld      (#4d1e),hl
             //-------------------------------
-            BLINKY_Y_TILE_CHANGE = BLINKY_Y_TILE_CHANGE2 = 0x00;
-            BLINKY_X_TILE_CHANGE = BLINKY_X_TILE_CHANGE2 = 0x01;
+            BLINKY_TILE_CHANGE->y = BLINKY_TILE_CHANGE2->y = 0x00;
+            BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
             //-------------------------------
             // 0c83  3e02      ld      a,#02
             // 0c85  32284d    ld      (#4d28),a
@@ -3446,7 +3502,7 @@ void func_0c42()
             // 0ca5  fe80      cp      #80
             // 0ca7  cc2e1f    call    z,#1f2e
             //-------------------------------
-            if (PINKY_Y == 0x78 || PINKY_Y == 0x80)
+            if (PINKY_POS->y == 0x78 || PINKY_POS->y == 0x80)
                 func_1f2e();
             //-------------------------------
             // 0caa  3a2d4d    ld      a,(#4d2d)
@@ -3486,21 +3542,21 @@ void func_0c42()
             // 0cda  fe64      cp      #64
             // 0cdc  c2fb0c    jp      nz,#0cfb
             //-------------------------------
-            if (PINKY_Y==0x64)
+            if (PINKY_POS->y==0x64)
             {
                 //-------------------------------
                 // 0cdf  212c2e    ld      hl,#2e2c
                 // 0ce2  220c4d    ld      (#4d0c),hl
                 //-------------------------------
-                PINKY_Y_TILE = 0x2c;
-                PINKY_X_TILE = 0x2e;
+                PINKY_TILE->y = 0x2c;
+                PINKY_POS_TILE->x = 0x2e;
                 //-------------------------------
                 // 0ce5  210001    ld      hl,#0100
                 // 0ce8  22164d    ld      (#4d16),hl
                 // 0ceb  22204d    ld      (#4d20),hl
                 //-------------------------------
-                PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x00;
-                PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x01;
+                PINKY_TILE_CHANGE->y = PINKY_TILE_CHANGE2->y = 0x00;
+                PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x01;
 
                 //-------------------------------
                 // 0cee  3e02      ld      a,#02
@@ -3537,7 +3593,7 @@ void func_0c42()
             // 0d10  fe80      cp      #80
             // 0d12  cc551f    call    z,#1f55
             //-------------------------------
-            if (INKY_Y == 0x78 || INKY_Y == 0x80)
+            if (INKY_POS->y == 0x78 || INKY_POS->y == 0x80)
                 func_1f55();
 
             //-------------------------------
@@ -3585,7 +3641,7 @@ void func_0c42()
                 // 0d4c  fe80      cp      #80
                 // 0d4e  c2930d    jp      nz,#0d93
                 //-------------------------------
-                if (INKY_X==0x80)
+                if (INKY_POS->x==0x80)
                 {
                     //-------------------------------
                     // 0d51  3e02      ld      a,#02
@@ -3617,21 +3673,21 @@ void func_0c42()
                 // 0d72  fe64      cp      #64
                 // 0d74  c2930d    jp      nz,#0d93
                 //-------------------------------
-                if (INKY_Y==0x64)
+                if (INKY_POS->y==0x64)
                 {
                     //-------------------------------
                     // 0d77  212c2e    ld      hl,#2e2c
                     // 0d7a  220e4d    ld      (#4d0e),hl
                     //-------------------------------
-                    INKY_Y_TILE = 0x2c;
-                    INKY_X_TILE = 0x2e;
+                    INKY_POS_TILE->y = 0x2c;
+                    INKY_POS_TILE->x = 0x2e;
                     //-------------------------------
                     // 0d7d  210001    ld      hl,#0100
                     // 0d80  22184d    ld      (#4d18),hl
                     // 0d83  22224d    ld      (#4d22),hl
                     //-------------------------------
-                    INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0x00;
-                    INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x01;
+                    INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0x00;
+                    INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x01;
                     //-------------------------------
                     // 0d86  3e02      ld      a,#02
                     // 0d88  322a4d    ld      (#4d2a),a
@@ -3668,7 +3724,7 @@ void func_0c42()
         // 0da6  fe80      cp      #80
         // 0da8  cc7c1f    call    z,#1f7c
         //-------------------------------
-        if (CLYDE_Y == 0x78 || CLYDE_Y == 0x80)
+        if (CLYDE_POS->y == 0x78 || CLYDE_POS->y == 0x80)
             func_1f7c();
         //-------------------------------
         // 0dab  3a2f4d    ld      a,(#4d2f)
@@ -3710,7 +3766,7 @@ void func_0c42()
         // 0de1  fe80      cp      #80
         // 0de3  c0        ret     nz
         //-------------------------------
-        if (CLYDE_X!=0x80)
+        if (CLYDE_POS->x != 0x80)
             return;
         //-------------------------------
         // 
@@ -3728,7 +3784,7 @@ void func_0c42()
     // 0df2  cd0020    call    #2000
     // 0df5  22064d    ld      (#4d06),hl
     //-------------------------------
-    CLYDE_Y=addXYOffset_2000 (MOVE_DATA_UP, CLYDE_Y);
+    CLYDE_POS->y=addXYOffset_2000 (MOVE_DATA_UP, CLYDE_POS);
     //-------------------------------
     // 0df8  3e03      ld      a,#03
     // 0dfa  322b4d    ld      (#4d2b),a
@@ -3740,21 +3796,21 @@ void func_0c42()
     // 0e03  fe64      cp      #64
     // 0e05  c0        ret     nz
     //-------------------------------
-    if (CLYDE_Y!=0x64)
+    if (CLYDE_POS->y!=0x64)
         return;
     //-------------------------------
     // 0e06  212c2e    ld      hl,#2e2c
     // 0e09  22104d    ld      (#4d10),hl
     //-------------------------------
-    CLYDE_Y_TILE = 0x2c;
-    CLYDE_X_TILE = 0x2e;
+    CLYDE_POS_TILE->y = 0x2c;
+    CLYDE_POS_TILE->x = 0x2e;
     //-------------------------------
     // 0e0c  210001    ld      hl,#0100
     // 0e0f  221a4d    ld      (#4d1a),hl
     // 0e12  22244d    ld      (#4d24),hl
     //-------------------------------
-    CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0x00;
-    CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x01;
+    CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0x00;
+    CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x01;
     //-------------------------------
     // 0e15  3e02      ld      a,#02
     // 0e17  322b4d    ld      (#4d2b),a
@@ -4041,23 +4097,23 @@ void func_0ead()
     //-------------------------------
 }
 
-    // 0efd                                          00 14 06  |2.L#~2.M........|
-    // 0f00  01 0f 07 02 15 08 02 15  08 04 14 09 04 14 09 05  |................|
-    // 0f10  17 0a 05 17 0a 06 09 0b  06 09 0b 03 16 0c 03 16  |................|
-    // 0f20  0c 07 16 0d 07 16 0d 07  16 0d 07 16 0d 07 16 0d  |................|
-    // 0f30  07 16 0d 07 16 0d 07 16  0d 07 16 0d 00 00 00 00  |................|
-    // 0f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36  |..............H6|
+    // 0efd                                          00 14 06
+    // 0f00  01 0f 07 02 15 08 02 15  08 04 14 09 04 14 09 05
+    // 0f10  17 0a 05 17 0a 06 09 0b  06 09 0b 03 16 0c 03 16
+    // 0f20  0c 07 16 0d 07 16 0d 07  16 0d 07 16 0d 07 16 0d
+    // 0f30  07 16 0d 07 16 0d 07 16  0d 07 16 0d 00 00 00 00
+    // 0f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36
 
 void func_1000()
 {
@@ -4310,7 +4366,7 @@ void func_10c0()
     // 10cc  c0        ret     nz
     //-------------------------------
     func_1bd8();
-    if (BLINKY_Y!=0x80 || BLINKY_X!=0x64)
+    if (BLINKY_POS->y!=0x80 || BLINKY_POS->x !=0x64)
         return;
 
     //-------------------------------
@@ -4342,15 +4398,15 @@ void func_10d2()
     // 10eb  fe80      cp      #80
     // 10ed  c0        ret     nz
     //-------------------------------
-    if (BLINKY_Y!=0x80)
+    if (BLINKY_POS->y!=0x80)
         return;
     //-------------------------------
     // 10ee  212f2e    ld      hl,#2e2f
     // 10f1  220a4d    ld      (#4d0a),hl
     // 10f4  22314d    ld      (#4d31),hl
     //-------------------------------
-    BLINKY_Y_TILE = 0x2e;
-    BLINKY_Y_TILE2 = 0x2f;
+    BLINKY_POS_TILE->y = 0x2e;
+    BLINKY_POS_TILE2->y = 0x2f;
     //-------------------------------
     // 10f7  af        xor     a
     // 10f8  32a04d    ld      (#4da0),a
@@ -4395,7 +4451,7 @@ void func_1118()
     // 1124  c0        ret     nz
     //-------------------------------
     func_1caf();
-    if (PINKY_Y!=0x80 || PINKY_X!=0x64)
+    if (PINKY_POS->y!=0x80 || PINKY_POS->x !=0x64)
         return;
 
     //-------------------------------
@@ -4427,15 +4483,15 @@ void func_112a()
     // 1143  fe80      cp      #80
     // 1145  c0        ret     nz
     //-------------------------------
-    if (PINKY_Y != 0x80)
+    if (PINKY_POS->y != 0x80)
         return;
     //-------------------------------
     // 1146  212f2e    ld      hl,#2e2f
     // 1149  220c4d    ld      (#4d0c),hl
     // 114c  22334d    ld      (#4d33),hl
     //-------------------------------
-    PINKY_Y_TILE = PINKY_Y_TILE2 = 0x2f;
-    PINKY_X_TILE = PINKY_X_TILE2 = 0x2e;
+    PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x2f;
+    PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x2e;
     //-------------------------------
     // 114f  af        xor     a
     // 1150  32a14d    ld      (#4da1),a
@@ -4464,7 +4520,7 @@ void func_11fc()
     // 1166  ed52      sbc     hl,de
     // 1168  c0        ret     nz
     //-------------------------------
-    if (INKY_Y != 0x64 || INKY_X != 0x80)
+    if (INKY_POS->y != 0x64 || INKY_POS->x != 0x80)
         return;
     //-------------------------------
     // 1169  21ae4d    ld      hl,#4dae
@@ -4494,7 +4550,7 @@ void func_116e()
     // 1187  fe80      cp      #80
     // 1189  c0        ret     nz
     //-------------------------------
-    if (INKY_Y != 0x80)
+    if (INKY_POS->y != 0x80)
         return;
     //-------------------------------
     // 118a  21ae4d    ld      hl,#4dae
@@ -4526,7 +4582,7 @@ void func_118f()
     // 11a8  fe90      cp      #90
     // 11aa  c0        ret     nz
     //-------------------------------
-    if (INKY_X!=0x90)
+    if (INKY_POS->x !=0x90)
         return;
 
     //-------------------------------
@@ -4534,8 +4590,8 @@ void func_118f()
     // 11ae  220e4d    ld      (#4d0e),hl
     // 11b1  22354d    ld      (#4d35),hl
     //-------------------------------
-    INKY_Y_TILE = INKY_Y_TILE2 = 0x2f;
-    INKY_X_TILE = INKY_X_TILE2 = 0x30;
+    INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x2f;
+    INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x30;
     //-------------------------------
     // 11b4  3e01      ld      a,#01
     // 11b6  322a4d    ld      (#4d2a),a
@@ -4571,7 +4627,7 @@ void func_11c9()
     // 11d3  ed52      sbc     hl,de
     // 11d5  c0        ret     nz
     //-------------------------------
-    if (CLYDE_Y != 0x64 || CLYDE_X != 0x80)
+    if (CLYDE_POS->y != 0x64 || CLYDE_POS->x != 0x80)
         return;
     //-------------------------------
     // 11d6  21af4d    ld      hl,#4daf
@@ -4602,7 +4658,7 @@ void func_11db()
     // 11f4  fe80      cp      #80
     // 11f6  c0        ret     nz
     //-------------------------------
-    if (CLYDE_Y != 0x80)
+    if (CLYDE_POS->y != 0x80)
         return;
     //-------------------------------
     // 11f7  21af4d    ld      hl,#4daf
@@ -4632,15 +4688,15 @@ void func_11fc()
     // 1214  fe70      cp      #70
     // 1216  c0        ret     nz
     //-------------------------------
-    if (CLYDE_X!=0x70)
+    if (CLYDE_POS->x !=0x70)
         return;
     //-------------------------------
     // 1217  212f2c    ld      hl,#2c2f
     // 121a  22104d    ld      (#4d10),hl
     // 121d  22374d    ld      (#4d37),hl
     //-------------------------------
-    CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x2f;
-    CLYDE_X_TILE = CLYDE_X_TILE2 = 0x2c;
+    CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x2f;
+    CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x2c;
     //-------------------------------
     // 1220  3e01      ld      a,#01
     // 1222  322b4d    ld      (#4d2b),a
@@ -5220,59 +5276,59 @@ void func_141f (void)
     // 1436  83        add     a,e
     // 1437  dd7713    ld      (ix+#13),a
     //-------------------------------
-    MEM[0x4c13]=BLINKY_Y+8;
+    MEM[0x4c13]=BLINKY_POS->y+8;
     //-------------------------------
     // 143a  3a014d    ld      a,(#4d01)
     // 143d  2f        cpl     
     // 143e  82        add     a,d
     // 143f  dd7712    ld      (ix+#12),a
     //-------------------------------
-    MEM[0x4c12]=7-BLINKY_X;
+    MEM[0x4c12]=7-BLINKY_POS->x;
     //-------------------------------
     // 1442  3a024d    ld      a,(#4d02)
     // 1445  83        add     a,e
     // 1446  dd7715    ld      (ix+#15),a
     //-------------------------------
-    MEM[0x4c15]=PINKY_Y+8;
+    MEM[0x4c15]=PINKY_POS->y+8;
     //-------------------------------
     // 1449  3a034d    ld      a,(#4d03)
     // 144c  2f        cpl     
     // 144d  82        add     a,d
     // 144e  dd7714    ld      (ix+#14),a
     //-------------------------------
-    MEM[0x4c14]=7-PINKY_X;
+    MEM[0x4c14]=7-PINKY_POS->x;
     //-------------------------------
     // 1451  3a044d    ld      a,(#4d04)
     // 1454  83        add     a,e
     // 1455  dd7717    ld      (ix+#17),a
     //-------------------------------
-    MEM[0x4c17]=INKY_Y+8;
+    MEM[0x4c17]=INKY_POS->y+8;
     //-------------------------------
     // 1458  3a054d    ld      a,(#4d05)
     // 145b  2f        cpl     
     // 145c  81        add     a,c
     // 145d  dd7716    ld      (ix+#16),a
     //-------------------------------
-    MEM[0x4c16]=7-INKY_X;
+    MEM[0x4c16]=7-INKY_POS->x;
     //-------------------------------
     // 1460  3a064d    ld      a,(#4d06)
     // 1463  83        add     a,e
     // 1464  dd7719    ld      (ix+#19),a
     //-------------------------------
-    MEM[0x4c19]=CLYDE_Y+8;
+    MEM[0x4c19]=CLYDE_POS->y+8;
     //-------------------------------
     // 1467  3a074d    ld      a,(#4d07)
     // 146a  2f        cpl     
     // 146b  81        add     a,c
     // 146c  dd7718    ld      (ix+#18),a
     //-------------------------------
-    MEM[0x4c18]=7-CLYDE_X;
+    MEM[0x4c18]=7-CLYDE_POS->x;
     //-------------------------------
     // 146f  3a084d    ld      a,(#4d08)
     // 1472  83        add     a,e
     // 1473  dd771b    ld      (ix+#1b),a
     //-------------------------------
-    MEM[0x4c1b]=PACMAN_Y+8;
+    MEM[0x4c1b]=PACMAN_POS->y+8;
 
     //-------------------------------
     // 1476  3a094d    ld      a,(#4d09)
@@ -5280,7 +5336,7 @@ void func_141f (void)
     // 147a  81        add     a,c
     // 147b  dd771a    ld      (ix+#1a),a
     //-------------------------------
-    MEM[0x4c1a]=8-PACMAN_X;
+    MEM[0x4c1a]=8-PACMAN_POS->x;
     //-------------------------------
     // 147e  3ad24d    ld      a,(#4dd2)
     // 1481  83        add     a,e
@@ -5321,14 +5377,14 @@ void func_1490()
     // 14a8  83        add     a,e
     // 14a9  dd7713    ld      (ix+#13),a
     //-------------------------------
-    MEM[0x4c13]=9-BLINKY_Y;
+    MEM[0x4c13]=9-BLINKY_POS->y;
 
     //-------------------------------
     // 14ac  3a014d    ld      a,(#4d01)
     // 14af  82        add     a,d
     // 14b0  dd7712    ld      (ix+#12),a
     //-------------------------------
-    MEM[0x4c12]=BLINKY_X+6;
+    MEM[0x4c12]=BLINKY_POS->x+6;
 
     //-------------------------------
     // 14b3  3a024d    ld      a,(#4d02)
@@ -5336,14 +5392,14 @@ void func_1490()
     // 14b7  83        add     a,e
     // 14b8  dd7715    ld      (ix+#15),a
     //-------------------------------
-    MEM[0x4c15]=9-PINKY_Y;
+    MEM[0x4c15]=9-PINKY_POS->y;
 
     //-------------------------------
     // 14bb  3a034d    ld      a,(#4d03)
     // 14be  82        add     a,d
     // 14bf  dd7714    ld      (ix+#14),a
     //-------------------------------
-    MEM[0x4c14]=PINKY_X+6;
+    MEM[0x4c14]=PINKY_POS->x+6;
 
     //-------------------------------
     // 14c2  3a044d    ld      a,(#4d04)
@@ -5351,14 +5407,14 @@ void func_1490()
     // 14c6  83        add     a,e
     // 14c7  dd7717    ld      (ix+#17),a
     //-------------------------------
-    MEM[0x4c17]=9-INKY_Y;
+    MEM[0x4c17]=9-INKY_POS->y;
 
     //-------------------------------
     // 14ca  3a054d    ld      a,(#4d05)
     // 14cd  81        add     a,c
     // 14ce  dd7716    ld      (ix+#16),a
     //-------------------------------
-    MEM[0x4c16]=INKY_X+6;
+    MEM[0x4c16]=INKY_POS->x+6;
 
     //-------------------------------
     // 14d1  3a064d    ld      a,(#4d06)
@@ -5366,14 +5422,14 @@ void func_1490()
     // 14d5  83        add     a,e
     // 14d6  dd7719    ld      (ix+#19),a
     //-------------------------------
-    MEM[0x4c19]=9-CLYDE_Y;
+    MEM[0x4c19]=9-CLYDE_POS->y;
 
     //-------------------------------
     // 14d9  3a074d    ld      a,(#4d07)
     // 14dc  81        add     a,c
     // 14dd  dd7718    ld      (ix+#18),a
     //-------------------------------
-    MEM[0x4c18]=CLYDE_X+6;
+    MEM[0x4c18]=CLYDE_POS->x+6;
 
     //-------------------------------
     // 14e0  3a084d    ld      a,(#4d08)
@@ -5381,14 +5437,14 @@ void func_1490()
     // 14e4  83        add     a,e
     // 14e5  dd771b    ld      (ix+#1b),a
     //-------------------------------
-    MEM[0x4c1b]=9-PACMAN_Y;
+    MEM[0x4c1b]=9-PACMAN_POS->y;
 
     //-------------------------------
     // 14e8  3a094d    ld      a,(#4d09)
     // 14eb  81        add     a,c
     // 14ec  dd771a    ld      (ix+#1a),a
     //-------------------------------
-    MEM[0x4c1a]=PACMAN_X+6;
+    MEM[0x4c1a]=PACMAN_POS->x+6;
 
     //-------------------------------
     // 14ef  3ad24d    ld      a,(#4dd2)
@@ -5662,7 +5718,7 @@ void func_15e6()
     // 15f1  fe0c      cp      #0c
     // 15f3  3804      jr      c,#15f9         ; (4)
     //-------------------------------
-    int a = PACMAN_X&0xf;
+    int a = PACMAN_POS->x &0xf;
     int d;
     if (a>=0xc)
     {
@@ -5746,7 +5802,7 @@ void func_162d()
     // 1636  d63d      sub     #3d
     // 1638  2004      jr      nz,#163e        ; (4)
     //-------------------------------
-    if (PACMAN_X_TILE2 == 0x3d)
+    if (PACMAN_TILE2->x == 0x3d)
     {
         //-------------------------------
         // 163a  dd360b00  ld      (ix+#0b),#00
@@ -5799,7 +5855,7 @@ void func_1562()
     // 165b  d63d      sub     #3d
     // 165d  2004      jr      nz,#1663        ; (4)
     //-------------------------------
-    if (PACMAN_X_TILE2 == 0x3d)
+    if (PACMAN_TILE2->x == 0x3d)
     {
         //-------------------------------
         // 165f  dd360b00  ld      (ix+#0b),#00
@@ -5840,7 +5896,7 @@ void func_1562()
     // 167e  83        add     a,e
     // 167f  dd770c    ld      (ix+#0c),a
     //-------------------------------
-    FRUIT_SPRITE=((BLINKY_X&8)>>3)+0xa;
+    FRUIT_SPRITE=((BLINKY_POS->x &8)>>3)+0xa;
     //-------------------------------
     // 1682  3c        inc     a
     // 1683  3c        inc     a
@@ -5862,7 +5918,7 @@ void selectPacmanXSprite_168c()
     // 1691  fe06      cp      #06
     // 1693  3805      jr      c,#169a         ; (5)
     //-------------------------------
-    int a = PACMAN_X & 7;
+    int a = PACMAN_POS->x & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -5918,7 +5974,7 @@ void selectPacmanYSprite_16b1()
     // 16b6  fe06      cp      #06
     // 16b8  3805      jr      c,#16bf         ; (5)
     //-------------------------------
-    int a = PACMAN_Y & 7;
+    int a = PACMAN_POS->y & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -5971,7 +6027,7 @@ void func_16d6()
     // 16db  fe06      cp      #06
     // 16dd  3808      jr      c,#16e7         ; (8)
     //-------------------------------
-    int a = PACMAN_X & 7;
+    int a = PACMAN_POS->x & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -6019,7 +6075,7 @@ void func_16f7()
     // 16fc  fe06      cp      #06
     // 16fe  3805      jr      c,#1705         ; (5)
     //-------------------------------
-    int a = PACMAN_Y & 7;
+    int a = PACMAN_POS->y & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -6084,8 +6140,8 @@ void checkPacmanGhostCoincidence_171d()
     // 172f  ca6317    jp      z,#1763
     //-------------------------------
     if (CLYDE_STATE == 0 &&
-        CLYDE_Y_TILE2==PACMAN_Y_TILE2 &&
-        CLYDE_X_TILE2==PACMAN_X_TILE2)
+        CLYDE_POS_TILE2->y==PACMAN_POS_TILE2->y &&
+        CLYDE_POS_TILE2->x ==PACMAN_TILE2->x)
     {
         func_1763 (b);
         return;
@@ -6105,8 +6161,8 @@ void checkPacmanGhostCoincidence_171d()
     // 173f  ca6317    jp      z,#1763
     //-------------------------------
     if (INKY_STATE == 0 && 
-        INKY_Y_TILE2==PACMAN_Y_TILE2 &&
-        INKY_X_TILE2==PACMAN_X_TILE2)
+        INKY_POS_TILE2->y==PACMAN_POS_TILE2->y &&
+        INKY_POS_TILE2->x==PACMAN_TILE2->x)
     {
         func_1763 (b);
         return;
@@ -6126,8 +6182,8 @@ void checkPacmanGhostCoincidence_171d()
     // 174f  ca6317    jp      z,#1763
     //-------------------------------
     if (PINKY_STATE == 0 &&
-        PINKY_Y_TILE2==PACMAN_Y_TILE2 &&
-        PINKY_X_TILE2==PACMAN_X_TILE2)
+        PINKY_POS_TILE2->y==PACMAN_POS_TILE2->y &&
+        PINKY_POS_TILE->x2==PACMAN_TILE2->x)
     {
         func_1763 (b);
         return;
@@ -6147,8 +6203,8 @@ void checkPacmanGhostCoincidence_171d()
     // 175f  ca6317    jp      z,#1763
     //-------------------------------
     if (BLINKY_STATE == 0 &&
-        BLINKY_Y_TILE2==PACMAN_Y_TILE2&&
-        BLINKY_X_TILE2==PACMAN_X_TILE2)
+        BLINKY_POS_TILE2->y==PACMAN_POS_TILE2->y&&
+        BLINKY_POS_TILE->x2==PACMAN_TILE2->x)
     {
         func_1763 (b);
         return;
@@ -6247,8 +6303,8 @@ void func_1789 ()
     // 17b1  da6317    jp      c,#1763
     //-------------------------------
     if (CLYDE_STATE != 0 &&
-        CLYDE_Y-PACMAN_Y < 4 &&
-        CLYDE_X-PACMAN_X < 4)
+        CLYDE_POS->y-PACMAN_POS->y < 4 &&
+        CLYDE_POS->x - PACMAN_POS->x < 4)
     {
         func_1763 (b);
         return;
@@ -6272,8 +6328,8 @@ void func_1789 ()
     // 17cb  da6317    jp      c,#1763
     //-------------------------------
     if (INKY_STATE != 0 && 
-        INKY_Y-PACMAN_Y < 4 &&
-        INKY_X-PACMAN_X < 4)
+        INKY_POS->y-PACMAN_POS->y < 4 &&
+        INKY_POS->x-PACMAN_POS->x < 4)
     {
         func_1763 (b);
         return;
@@ -6297,8 +6353,8 @@ void func_1789 ()
     // 17e5  da6317    jp      c,#1763
     //-------------------------------
     if (PINKY_STATE != 0 &&
-        PINKY_Y-PACMAN_Y < 4 &&
-        PINKY_X-PACMAN_X < 4)
+        PINKY_POS->y-PACMAN_POS->y < 4 &&
+        PINKY_POS->x -PACMAN_POS->x < 4)
     {
         func_1763 (b);
         return;
@@ -6322,8 +6378,8 @@ void func_1789 ()
     // 17ff  da6317    jp      c,#1763
     //-------------------------------
     if (BLINKY_STATE != 0 &&
-        BLINKY_Y-PACMAN_Y < 4 &&
-        BLINKY_X-PACMAN_X < 4)
+        BLINKY_POS->y-PACMAN_POS->y < 4 &&
+        BLINKY_POS->x -PACMAN_POS->x < 4)
     {
         func_1763 (b);
         return;
@@ -6429,8 +6485,8 @@ void func_1806 (void)
     // 185f  3003      jr      nc,#1864        ; (3)
     // 1861  c3ab18    jp      #18ab
     //-------------------------------
-    if (PACMAN_X_TILE2 < 0x21 &&
-        PACMAN_X_TILE2 >= 0x3b)
+    if (PACMAN_TILE2->x < 0x21 &&
+        PACMAN_TILE2->x >= 0x3b)
     {
         //-------------------------------
         // 1864  3e01      ld      a,#01
@@ -6493,8 +6549,8 @@ void func_1806 (void)
             // 1893  221c4d    ld      (#4d1c),hl
             //-------------------------------
             PACMAN_ORIENTATION=2;
-            PACMAN_Y_TILE_CHANGE = data_32ff[4];
-            PACMAN_X_TILE_CHANGE = data_32ff[5];
+            PACMAN_POS_TILE_CHANGE->y = data_32ff[4];
+            PACMAN_TILE_CHANGE->x = data_32ff[5];
 
             //-------------------------------
             // 1896  c35019    jp      #1950
@@ -6521,8 +6577,8 @@ void func_1806 (void)
             //-------------------------------
             // 18a5  221c4d    ld      (#4d1c),hl
             //-------------------------------
-            PACMAN_Y_TILE_CHANGE = h;
-            PACMAN_X_TILE_CHANGE = l;
+            PACMAN_POS_TILE_CHANGE->y = h;
+            PACMAN_TILE_CHANGE->x = l;
             //-------------------------------
             // 18a8  c35019    jp      #1950
             //-------------------------------
@@ -6612,7 +6668,7 @@ void func_1806 (void)
     // 18df  22264d    ld      (#4d26),hl
     // 18e2  0601      ld      b,#01
     //-------------------------------
-    PACMAN_Y_TILE_CHANGE2 = PACMAN_Y_TILE_CHANGE;
+    PACMAN_POS_TILE_CHANGE2->y = PACMAN_POS_TILE_CHANGE->y;
     b=1;
     func_18e4(1);
 }
@@ -6652,7 +6708,7 @@ void func_18e4 (int b)
                 // 1905  fe04      cp      #04
                 // 1907  c8        ret     z
                 //-------------------------------
-                if ((PACMAN_X & 7) == 4)
+                if ((PACMAN_POS->x & 7) == 4)
                     return;
 
                 // 1908  c34019    jp      #1940
@@ -6666,7 +6722,7 @@ void func_18e4 (int b)
                 // 1910  fe04      cp      #04
                 // 1912  c8        ret     z
                 //-------------------------------
-                if ((PACMAN_Y & 7) == 4)
+                if ((PACMAN_POS->y & 7) == 4)
                     return;
 
                 // 1913  c34019    jp      #1940
@@ -6700,7 +6756,7 @@ void func_18e4 (int b)
             // 192f  fe04      cp      #04
             // 1931  c8        ret     z
             //-------------------------------
-            if ((PACMAN_X & 7) == 4)
+            if ((PACMAN_POS->x & 7) == 4)
                 return;
             //-------------------------------
             // 1932  c35019    jp      #1950
@@ -6714,7 +6770,7 @@ void func_18e4 (int b)
         // 193a  fe04      cp      #04
         // 193c  c8        ret     z
         //-------------------------------
-        if ((PACMAN_Y & 7) == 4)
+        if ((PACMAN_POS->y & 7) == 4)
             return;
         //-------------------------------
         // 193d  c35019    jp      #1950
@@ -6731,7 +6787,7 @@ jump_1940:
     // 194a  3a3c4d    ld      a,(#4d3c)
     // 194d  32304d    ld      (#4d30),a
     //-------------------------------
-    PACMAN_Y_TILE_CHANGE = PACMAN_Y_TILE_CHANGE2;
+    PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y;
 
     if (--b != 0)
         PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
@@ -6800,16 +6856,16 @@ jump_1950:
     func_1985();
 }
 
-void func_1985()
+void func_1985(XYPOS pos)
 {
     //-------------------------------
     // 1985  22084d    ld      (#4d08),hl
     // 1988  cd1820    call    #2018
     // 198b  22394d    ld      (#4d39),hl
     //-------------------------------
-    PACMAN_XY = pacmanXY;
-    func_2018(pacmanXY);
-    PACMAN_Y_TILE2 = pacmanXY;
+    PACMAN_POS = pos;
+    pos = pixelToTile_2018(pos);
+    PACMAN_POS_TILE2->y = pos;
 
     //-------------------------------
     // 198e  dd21bf4d  ld      ix,#4dbf
@@ -7119,8 +7175,8 @@ void func_1a70 ()
     // 1ad1  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION=2;
-    PACMAN_Y_TILE_CHANGE2=0x00;
-    PACMAN_X_TILE_CHANGE2=0x01;
+    PACMAN_POS_TILE_CHANGE2->y=0x00;
+    PACMAN_TILE_CHANGE2->x =0x01;
 
     // 1ad4  0600      ld      b,#00
     // 1ad6  c3e418    jp      #18e4
@@ -7133,8 +7189,8 @@ void func_1a70 ()
     // 1ae0  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION=0;
-    PACMAN_Y_TILE_CHANGE2=0x00;
-    PACMAN_X_TILE_CHANGE2=0xff;
+    PACMAN_POS_TILE_CHANGE2->y=0x00;
+    PACMAN_TILE_CHANGE2->x =0xff;
 
     // 1ae3  0600      ld      b,#00
     // 1ae5  c3e418    jp      #18e4
@@ -7147,8 +7203,8 @@ void func_1a70 ()
     // 1af0  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION=3;
-    PACMAN_Y_TILE_CHANGE2=0xff;
-    PACMAN_X_TILE_CHANGE2=0x00;
+    PACMAN_POS_TILE_CHANGE2->y=0xff;
+    PACMAN_TILE_CHANGE2->x =0x00;
 
     // 1af3  0600      ld      b,#00
     // 1af5  c3e418    jp      #18e4
@@ -7161,8 +7217,8 @@ void func_1a70 ()
     // 1b00  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION=1;
-    PACMAN_Y_TILE_CHANGE2=0x01;
-    PACMAN_X_TILE_CHANGE2=0x00;
+    PACMAN_POS_TILE_CHANGE2->y=0x01;
+    PACMAN_TILE_CHANGE2->x =0x00;
 
     //-------------------------------
     // 1b03  0600      ld      b,#00
@@ -7253,11 +7309,9 @@ void func_1b36()
     func_20d7();
 
     // 1b43  2a314d    ld      hl,(#4d31)
-    BLINKY_TILE2
     // 1b46  01994d    ld      bc,#4d99
-    bc=BLINKY_AUX_POS;
     // 1b49  cd5a20    call    #205a
-    func_205a();
+    func_205a(BLINKY_TILE2, BLINKY_AUX_POS);
     // 1b4c  3a994d    ld      a,(#4d99)
     // 1b4f  a7        and     a
     // 1b50  ca6a1b    jp      z,#1b6a
@@ -7449,7 +7503,7 @@ void func_1b36()
     // 1c47  22314d    ld      (#4d31),hl
     // 1c4a  c9        ret     
     //-------------------------------
-    BLINKY_TILE2 = func_2018(BLINKY_POS);
+    BLINKY_TILE2 = pixelToTile_2018(BLINKY_POS);
 }
 
 void func_1c4b ()
@@ -7639,7 +7693,7 @@ void func_1c4b ()
     // 1d1e  22334d    ld      (#4d33),hl
     // 1d21  c9        ret     
     //-------------------------------
-    func_2018();
+    pixelToTile_2018();
     PINKY_TILE2 = hl;
 }
 
@@ -7827,7 +7881,7 @@ void func_1d22()
     // 1df5  22354d    ld      (#4d35),hl
     // 1df8  c9        ret     
     //-------------------------------
-    INKY_TILE2 = func_2018(INKY_POS);
+    INKY_TILE2 = pixelToTile_2018(INKY_POS);
 }
 
 void func_1df9()
@@ -8030,7 +8084,7 @@ void func_1df9()
     // 1ecc  22374d    ld      (#4d37),hl
     // 1ecf  c9        ret     
     //-------------------------------
-    CLYDE_TILE2 = func_2018(CLYDE_POS);
+    CLYDE_TILE2 = pixelToTile_2018(CLYDE_POS);
 }
 
 /*  Ghost number 1-4 or 5 for pacman.  Checking if in tunnel ? */
@@ -8297,8 +8351,14 @@ void func_1f73()
     //-------------------------------
     
 /*  Adds a pair of bytes together representing X and Y coords and return the
- *  result */
-XYPOS addXYOffset_2000 (XYPOS offset, XYPOS pos)
+ *  result
+ *
+ *  ix = position
+ *  iy = translation
+ *
+ *  returns new position
+ */
+XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy)
 {
     //-------------------------------
     // 2000  fd7e00    ld      a,(iy+#00)
@@ -8309,24 +8369,28 @@ XYPOS addXYOffset_2000 (XYPOS offset, XYPOS pos)
     // 200d  67        ld      h,a
     // 200e  c9        ret     
     //-------------------------------
-    pos.x+=offset.x;
-    pos.y+=offset.y;
+    ix.x+=iy.x;
+    ix.y+=iy.y;
     return pos;
 }
 
 uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos)
 {
+    //-------------------------------
     // 200f  cd0020    call    #2000
     // 2012  cd6500    call    #0065
+    //-------------------------------
     pos = addXYOffset_2000(offset, pos);
     uint16_t addr = getScreenOffset_0065(pos);
+    //-------------------------------
     // 2015  7e        ld      a,(hl)
     // 2016  a7        and     a
     // 2017  c9        ret     
+    //-------------------------------
     return VIDEO[addr];
 }
 
-XYPOS func_2018 (XYPOS pos)
+XYPOS pixelToTile_2018 (XYPOS pos)
 {
     //-------------------------------
     // 2018  7d        ld      a,l
@@ -8351,7 +8415,7 @@ XYPOS func_2018 (XYPOS pos)
 }
 
 /*  Convert x y to screen address ? */
-uint16_t getScreenOffset_202d (XYPOS pos)
+uint16_t getScreenOffset_202d (XYPOS hl)
 {
     //-------------------------------
     // 202d  f5        push    af
@@ -8363,8 +8427,8 @@ uint16_t getScreenOffset_202d (XYPOS pos)
     // 2034  d620      sub     #20
     // 2036  67        ld      h,a
     //-------------------------------
-    pos.y -= 0x20;
-    pos.x -= 0x20;
+    hl.y -= 0x20;
+    hl.x -= 0x20;
     //-------------------------------
     // 2037  0600      ld      b,#00
     // 2039  cb24      sla     h
@@ -8376,19 +8440,19 @@ uint16_t getScreenOffset_202d (XYPOS pos)
     // 2045  cb10      rl      b
     // 2047  4c        ld      c,h
     //-------------------------------
-    b=(pos.x&0x18)>>3;
-    c = pos.x<<5;
+    b=(hl.x&0x18)>>3;
+    c = hl.x<<5;
     //-------------------------------
     // 2048  2600      ld      h,#00
     // 204a  09        add     hl,bc
     //-------------------------------
-    pos.x += b;
-    pos.y += c;
+    hl.x += b;
+    hl.y += c;
     //-------------------------------
     // 204b  014040    ld      bc,#4040
     // 204e  09        add     hl,bc
     //-------------------------------
-    /*  TODO 0x4040 is probably video+0x40 */
+    /*  0x4040 is video+0x40 so just add 0x40 to get an offset into VIDEO */
     int result = ((pos.x << 8) | pos.y) + 0x4040;
     //-------------------------------
     // 204f  c1        pop     bc
@@ -8410,135 +8474,252 @@ uint16_t getColourOffset_2052(XYPOS pos)
     return addr + 0x400;
 }
 
-void func_205a(XYPOS pos)
+void func_205a(XYPOS pos, uint8_t *aux)
 {
+    //-------------------------------
     // 205a  cd5220    call    #2052
-    uint16_t addr = getColourOffset_2052();
+    //-------------------------------
+    uint16_t addr = getColourOffset_2052(pos);
 
+    //-------------------------------
     // 205d  7e        ld      a,(hl)
     // 205e  fe1b      cp      #1b
     // 2060  2004      jr      nz,#2066        ; (4)
+    //-------------------------------
     if (MEM[addr] == 0x1b)
     {
-// 2062  3e01      ld      a,#01
-// 2064  02        ld      (bc),a
-// 2065  c9        ret     
-// 
-// 2066  af        xor     a
-// 2067  02        ld      (bc),a
-// 2068  c9        ret     
-// 
-// 2069  3aa14d    ld      a,(#4da1)
-// 206c  a7        and     a
-// 206d  c0        ret     nz
-// 
-// 206e  3a124e    ld      a,(#4e12)
-// 2071  a7        and     a
-// 2072  ca7e20    jp      z,#207e
-// 2075  3a9f4d    ld      a,(#4d9f)
-// 2078  fe07      cp      #07
-// 207a  c0        ret     nz
-// 
-// 207b  c38620    jp      #2086
-// 207e  21b84d    ld      hl,#4db8
-// 2081  3a0f4e    ld      a,(#4e0f)
-// 2084  be        cp      (hl)
-// 2085  d8        ret     c
-// 
-// 2086  3e02      ld      a,#02
-// 2088  32a14d    ld      (#4da1),a
-// 208b  c9        ret     
-// 
-// 208c  3aa24d    ld      a,(#4da2)
-// 208f  a7        and     a
-// 2090  c0        ret     nz
-// 
-// 2091  3a124e    ld      a,(#4e12)
-// 2094  a7        and     a
-// 2095  caa120    jp      z,#20a1
-// 2098  3a9f4d    ld      a,(#4d9f)
-// 209b  fe11      cp      #11
-// 209d  c0        ret     nz
-// 
-// 209e  c3a920    jp      #20a9
-// 20a1  21b94d    ld      hl,#4db9
-// 20a4  3a104e    ld      a,(#4e10)
-// 20a7  be        cp      (hl)
-// 20a8  d8        ret     c
-// 
-// 20a9  3e03      ld      a,#03
-// 20ab  32a24d    ld      (#4da2),a
-// 20ae  c9        ret     
-// 
-// 20af  3aa34d    ld      a,(#4da3)
-// 20b2  a7        and     a
-// 20b3  c0        ret     nz
-// 
-// 20b4  3a124e    ld      a,(#4e12)
-// 20b7  a7        and     a
-// 20b8  cac920    jp      z,#20c9
-// 20bb  3a9f4d    ld      a,(#4d9f)
-// 20be  fe20      cp      #20
-// 20c0  c0        ret     nz
-// 
-// 20c1  af        xor     a
-// 20c2  32124e    ld      (#4e12),a
-// 20c5  329f4d    ld      (#4d9f),a
-// 20c8  c9        ret     
-// 
-// 20c9  21ba4d    ld      hl,#4dba
-// 20cc  3a114e    ld      a,(#4e11)
-// 20cf  be        cp      (hl)
-// 20d0  d8        ret     c
-// 
-// 20d1  3e03      ld      a,#03
-// 20d3  32a34d    ld      (#4da3),a
-// 20d6  c9        ret     
+        //-------------------------------
+        // 2062  3e01      ld      a,#01
+        // 2064  02        ld      (bc),a
+        // 2065  c9        ret     
+        //-------------------------------
+        *aux=1;
+    }
+    else
+    {
+        //-------------------------------
+        // 2066  af        xor     a
+        // 2067  02        ld      (bc),a
+        // 2068  c9        ret     
+        //-------------------------------
+        *aux=0;
+    }
+
+    //-------------------------------
+    // 2069  3aa14d    ld      a,(#4da1)
+    // 206c  a7        and     a
+    // 206d  c0        ret     nz
+    //-------------------------------
+    if (PINKY_SUBSTATE != 0)
+        return;
+
+    //-------------------------------
+    // 206e  3a124e    ld      a,(#4e12)
+    // 2071  a7        and     a
+    // 2072  ca7e20    jp      z,#207e
+    //-------------------------------
+    if (P1_DIED_IN_LEVEL)
+    {
+        //-------------------------------
+        // 2075  3a9f4d    ld      a,(#4d9f)
+        // 2078  fe07      cp      #07
+        // 207a  c0        ret     nz
+        // 207b  c38620    jp      #2086
+        //-------------------------------
+        if (EATEN_PILLS_COUNT != 7)
+            return;
+    }
+    else
+    {
+        //-------------------------------
+        // 207e  21b84d    ld      hl,#4db8
+        // 2081  3a0f4e    ld      a,(#4e0f)
+        // 2084  be        cp      (hl)
+        // 2085  d8        ret     c
+        //-------------------------------
+        if (P1_PINKY_LEAVE_HOME_COUNTER < PINKY_LEAVE_HOME_COUNTER)
+            return;
+    }
+    //-------------------------------
+    // 2086  3e02      ld      a,#02
+    // 2088  32a14d    ld      (#4da1),a
+    // 208b  c9        ret     
+    //-------------------------------
+    PINKY_SUBSTATE = 2;
+}
+
+void func_208c()
+{
+    //-------------------------------
+    // 208c  3aa24d    ld      a,(#4da2)
+    // 208f  a7        and     a
+    // 2090  c0        ret     nz
+    //-------------------------------
+    if (INKY_SUBSTATE != 0)
+        return;
+
+    //-------------------------------
+    // 2091  3a124e    ld      a,(#4e12)
+    // 2094  a7        and     a
+    // 2095  caa120    jp      z,#20a1
+    //-------------------------------
+    if (P1_DIED_IN_LEVEL)
+    {
+    //-------------------------------
+        // 2098  3a9f4d    ld      a,(#4d9f)
+        // 209b  fe11      cp      #11
+        // 209d  c0        ret     nz
+        // 209e  c3a920    jp      #20a9
+        //-------------------------------
+        if (EATEN_PILLS_COUNT != 0x11)
+            return;
+    }
+    else
+    {
+        //-------------------------------
+        // 20a1  21b94d    ld      hl,#4db9
+        // 20a4  3a104e    ld      a,(#4e10)
+        // 20a7  be        cp      (hl)
+        // 20a8  d8        ret     c
+        //-------------------------------
+        if (P1_INKY_LEAVE_HOME_COUNTER < INKY_LEAVE_HOME_COUNTER)
+            return;
+    }
+
+    //-------------------------------
+    // 20a9  3e03      ld      a,#03
+    // 20ab  32a24d    ld      (#4da2),a
+    // 20ae  c9        ret     
+    //-------------------------------
+    INKY_SUBSTATE = 3;
+}
+
+void func_20af()
+{
+    //-------------------------------
+    // 20af  3aa34d    ld      a,(#4da3)
+    // 20b2  a7        and     a
+    // 20b3  c0        ret     nz
+    //-------------------------------
+    if (CLYDE_SUBSTATE != 0)
+        return;
+
+    //-------------------------------
+    // 20b4  3a124e    ld      a,(#4e12)
+    // 20b7  a7        and     a
+    // 20b8  cac920    jp      z,#20c9
+    //-------------------------------
+    if (P1_DIED_IN_LEVEL)
+    {
+        //-------------------------------
+        // 20bb  3a9f4d    ld      a,(#4d9f)
+        // 20be  fe20      cp      #20
+        // 20c0  c0        ret     nz
+        //-------------------------------
+        if (EATEN_PILLS_COUNT != 0x20)
+            return;
+
+        //-------------------------------
+        // 20c1  af        xor     a
+        // 20c2  32124e    ld      (#4e12),a
+        // 20c5  329f4d    ld      (#4d9f),a
+        // 20c8  c9        ret     
+        //-------------------------------
+        P1_DIED_IN_LEVEL =
+        EATEN_PILLS_COUNT = 0;
+        return;
+    }
+
+    //-------------------------------
+    // 20c9  21ba4d    ld      hl,#4dba
+    // 20cc  3a114e    ld      a,(#4e11)
+    // 20cf  be        cp      (hl)
+    // 20d0  d8        ret     c
+    //-------------------------------
+    if (P1_CLYDE_LEAVE_HOME_COUNTER < CLYDE_LEAVE_HOME_COUNTER)
+        return;
+
+    //-------------------------------
+    // 20d1  3e03      ld      a,#03
+    // 20d3  32a34d    ld      (#4da3),a
+    // 20d6  c9        ret     
+    //-------------------------------
+    CLYDE_SUBSTATE = 2;
 }
 
 void func_4da3()
 {
-// 20d7  3aa34d    ld      a,(#4da3)
-// 20da  a7        and     a
-// 20db  c8        ret     z
-// 
-// 20dc  210e4e    ld      hl,#4e0e
-// 20df  3ab64d    ld      a,(#4db6)
-// 20e2  a7        and     a
-// 20e3  c2f420    jp      nz,#20f4
-// 20e6  3ef4      ld      a,#f4
-// 20e8  96        sub     (hl)
-// 20e9  47        ld      b,a
-// 20ea  3abb4d    ld      a,(#4dbb)
-// 20ed  90        sub     b
-// 20ee  d8        ret     c
-// 
-// 20ef  3e01      ld      a,#01
-// 20f1  32b64d    ld      (#4db6),a
-// 20f4  3ab74d    ld      a,(#4db7)
-// 20f7  a7        and     a
-// 20f8  c0        ret     nz
-// 
-// 20f9  3ef4      ld      a,#f4
-// 20fb  96        sub     (hl)
-// 20fc  47        ld      b,a
-// 20fd  3abc4d    ld      a,(#4dbc)
-// 2100  90        sub     b
-// 2101  d8        ret     c
-// 
-// 2102  3e01      ld      a,#01
-// 2104  32b74d    ld      (#4db7),a
-// 2107  c9        ret     
-// 
-// 2108  3a064e    ld      a,(#4e06)
+    //-------------------------------
+    // 20d7  3aa34d    ld      a,(#4da3)
+    // 20da  a7        and     a
+    // 20db  c8        ret     z
+    //-------------------------------
+    if (CLYDE_SUBSTATE == 0)
+        return;
 
+    //-------------------------------
+    // 20dc  210e4e    ld      hl,#4e0e
+    // 20df  3ab64d    ld      a,(#4db6)
+    // 20e2  a7        and     a
+    // 20e3  c2f420    jp      nz,#20f4
+    //-------------------------------
+    if (DIFF_FLAG_1 == 0)
+    {
+        //-------------------------------
+        // 20e6  3ef4      ld      a,#f4
+        // 20e8  96        sub     (hl)
+        // 20e9  47        ld      b,a
+        // 20ea  3abb4d    ld      a,(#4dbb)
+        // 20ed  90        sub     b
+        // 20ee  d8        ret     c
+        //-------------------------------
+        if (PILLS_REM_DIFF_1 < 0xf4 - P1_PILLS_EATEN_LEVEL)
+            return;
+
+        //-------------------------------
+        // 20ef  3e01      ld      a,#01
+        // 20f1  32b64d    ld      (#4db6),a
+        //-------------------------------
+        DIFF_FLAG_1 = 1;
+    }
+
+    //-------------------------------
+    // 20f4  3ab74d    ld      a,(#4db7)
+    // 20f7  a7        and     a
+    // 20f8  c0        ret     nz
+    //-------------------------------
+    if (DIFF_FLAG_2 == 0)
+        return;
+
+    //-------------------------------
+    // 20f9  3ef4      ld      a,#f4
+    // 20fb  96        sub     (hl)
+    // 20fc  47        ld      b,a
+    // 20fd  3abc4d    ld      a,(#4dbc)
+    // 2100  90        sub     b
+    // 2101  d8        ret     c
+    //-------------------------------
+    if (PILLS_REM_DIFF_2 < 0xf4 - P1_PILLS_EATEN_LEVEL)
+        return;
+
+    //-------------------------------
+    // 2102  3e01      ld      a,#01
+    // 2104  32b74d    ld      (#4db7),a
+    // 2107  c9        ret     
+    //-------------------------------
+    DIFF_FLAG_2 = 1;
+}
+
+void func_2108()
+{
+    // 2108  3a064e    ld      a,(#4e06)
     // 210b  e7        rst     #20
 
     // 2100                                       1a 21 40 21
     // 2110  4b 21 0c 00 70 21 7b 21  86 21 
     void (*func)(int param)[] = 
     { func_211a, func_2140, func_214b, nothing, func_2170, func_217b, func_2186 };
-    tableCall (func, task, param);
+    tableCall (func, SCENE1_STATE, param);
 }
 
 void func_211a()
@@ -8571,12 +8752,17 @@ void func_2130()
 {
     // 2130  cd0618    call    #1806
     // 2133  cd0618    call    #1806
+    func_1806();
+    func_1806();
+    func_2136();
+}
+
+void func_2136()
+{
     // 2136  cd361b    call    #1b36
     // 2139  cd361b    call    #1b36
     // 213c  cd230e    call    #0e23
     // 213f  c9        ret     
-    func_1806();
-    func_1806();
     func_1b36();
     func_1b36();
     func_0e23();
@@ -8596,85 +8782,144 @@ void func_2140()
 
 void func_214b()
 {
-// 214b  3a324d    ld      a,(#4d32)
-// 214e  d61e      sub     #1e
-// 2150  c23621    jp      nz,#2136
+    // 214b  3a324d    ld      a,(#4d32)
+    // 214e  d61e      sub     #1e
+    // 2150  c23621    jp      nz,#2136
+    if (BLINKY_TILE2->x != 0x1e)
+    {
+        func_2136();
+        return;
+    }
+
     // 2153  cd701a    call    #1a70
+    // 2156  af        xor     a
+    // 2157  32ac4e    ld      (#4eac),a
+    // 215a  32bc4e    ld      (#4ebc),a
     func_1a70();
-// 2156  af        xor     a
-// 2157  32ac4e    ld      (#4eac),a
-// 215a  32bc4e    ld      (#4ebc),a
+    SND_CH2_EFF_NUM =
+    SND_CH3_EFF_NUM = 0;
+
     // 215d  cda505    call    #05a5
+    // 2160  221c4d    ld      (#4d1c),hl
+    // 2163  3a3c4d    ld      a,(#4d3c)
+    // 2166  32304d    ld      (#4d30),a
     func_05a5();
-// 2160  221c4d    ld      (#4d1c),hl
-// 2163  3a3c4d    ld      a,(#4d3c)
-// 2166  32304d    ld      (#4d30),a
-// 2169  f7        rst     #30
-// 216a  450700
-                schedISRTask (0x45, 0x07, 0x00);
-// 216d  c32b21    jp      #212b
-// 2170  3a324d    ld      a,(#4d32)
-// 2173  d62f      sub     #2f
-// 2175  c23621    jp      nz,#2136
-// 2178  c32b21    jp      #212b
-// 217b  3a324d    ld      a,(#4d32)
-// 217e  d63d      sub     #3d
-// 2180  c23021    jp      nz,#2130
-// 2183  c32b21    jp      #212b
+    PACMAN_TILE_CHANGE=hl; // TODO, prob 32ff
+    PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
+
+    // 2169  f7        rst     #30
+    // 216a  450700
+    schedISRTask (0x45, 0x07, 0x00);
+
+    // 216d  c32b21    jp      #212b
+    SCENE1_STATE++;
+}
+
+void func_2170()
+{
+    // 2170  3a324d    ld      a,(#4d32)
+    // 2173  d62f      sub     #2f
+    // 2175  c23621    jp      nz,#2136
+    if (BLINKY_TILE2->x != 0x2f)
+    {
+        func_2136();
+        return;
+    }
+    // 2178  c32b21    jp      #212b
+    SCENE1_STATE++;
+}
+
+void func_217b()
+{
+    // 217b  3a324d    ld      a,(#4d32)
+    // 217e  d63d      sub     #3d
+    // 2180  c23021    jp      nz,#2130
+    if (BLINKY_TILE2->x != 0x3d)
+    {
+        func_2130();
+        return;
+    }
+    // 2183  c32b21    jp      #212b
+    SCENE1_STATE++;
+}
+
+void func_2186()
+{
     // 2186  cd0618    call    #1806
     // 2189  cd0618    call    #1806
     func_1806();
     func_1806();
-// 218c  3a3a4d    ld      a,(#4d3a)
-// 218f  d63d      sub     #3d
-// 2191  c0        ret     nz
-// 
-// 2192  32064e    ld      (#4e06),a
+
+    // 218c  3a3a4d    ld      a,(#4d3a)
+    // 218f  d63d      sub     #3d
+    // 2191  c0        ret     nz
+    if (PACMAN_TILE2->x != 0x3d)
+        return;
+
+    // 2192  32064e    ld      (#4e06),a
     // 2195  f7        rst     #30
     // 2196  450000
-                schedISRTask (0x45, 0x00, 0x00);
-// 2199  21044e    ld      hl,#4e04
-// 219c  34        inc     (hl)
-// 219d  c9        ret     
-// 
-// 219e  3a074e    ld      a,(#4e07)
-// 21a1  fd21d241  ld      iy,#41d2
+    SCENE1_STATE = 0x3d;
+    schedISRTask (0x45, 0x00, 0x00);
 
+    // 2199  21044e    ld      hl,#4e04
+    // 219c  34        inc     (hl)
+    // 219d  c9        ret     
+    LEVEL_STATE_SUBR++;
+}
+
+void func_219e()
+{
+    //-------------------------------
+    // 219e  3a074e    ld      a,(#4e07)
+    // 21a1  fd21d241  ld      iy,#41d2
     // 21a5  e7        rst     #20
-
     // 21a0                    c2 21  0c 00 e1 21 f5 21 0c 22
     // 21b0  1e 22 44 22 5d 22 0c 00  6a 22 0c 00 86 22 0c 00
     // 21c0  8d 22 3e 01 32 d2 45 32  d3 45 32 f2 45 32 f3 45
+    //-------------------------------
     void (*func)(int param)[] = 
     {
-    func_21c2, nothing, func_21e1, func_21f5, func_220c, func_221e, func_2244,
-    func_225d, nothing, func_226a, nothing, func_2286, nothing, func_228d };
+        func_21c2, nothing, func_21e1, func_21f5, func_220c, func_221e, func_2244,
+        func_225d, nothing, func_226a, nothing, func_2286, nothing, func_228d };
+    tableCall (func, SCENE2_STATE, 0x41d2);
+}
 
-void func_21c2()
+void func_21c2(uint16_t iy)
 {
+    //-------------------------------
     // 21c2  3e01      ld      a,#01
     // 21c4  32d245    ld      (#45d2),a
     // 21c7  32d345    ld      (#45d3),a
     // 21ca  32f245    ld      (#45f2),a
     // 21cd  32f345    ld      (#45f3),a
+    //-------------------------------
     COLOUR[0x1d2]=
     COLOUR[0x1d3]=
     COLOUR[0x1f2]=
     COLOUR[0x1f3]=1;
+    //-------------------------------
     // 21d0  cd0605    call    #0506
+    //-------------------------------
     func_0506();
+    //-------------------------------
     // 21d3  fd360060  ld      (iy+#00),#60
     // 21d7  fd360161  ld      (iy+#01),#61
+    //-------------------------------
     MEM[iy]=0x60;
     MEM[iy+1]=0x61;
+    //-------------------------------
     // 21db  f7        rst     #30
     // 21dc  430800
+    //-------------------------------
     schedISRTask (0x43, 0x08, 0x00);
+    //-------------------------------
     // 21df  180f      jr      #21f0           ; (15)
+    //-------------------------------
     func_21f0();
 }
 
-void func_21e1()
+void func_21e1(uint16_t iy)
 {
     //-------------------------------
     // 21e1  3a3a4d    ld      a,(#4d3a)
@@ -8698,7 +8943,7 @@ void func_21e1()
     func_21f0();
 }
 
-void func_21f0()
+void func_21f0(uint16_t iy)
 {
     //-------------------------------
     // 21f0  21074e    ld      hl,#4e07
@@ -8708,15 +8953,19 @@ void func_21f0()
     SCENE2_STATE++;
 }
 
-void func_21f5()
+void func_21f5(uint16_t iy)
 {
+    //-------------------------------
     // 21f5  3a014d    ld      a,(#4d01)
     // 21f8  fe77      cp      #77
     // 21fa  2805      jr      z,#2201         ; (5)
+    //-------------------------------
     if (BLINKY_POS->x != 0x77)
     {
+        //-------------------------------
         // 21fc  fe78      cp      #78
         // 21fe  c23021    jp      nz,#2130
+        //-------------------------------
         if (BLINKY_POS->x != 0x78)
         {
             func_2130();
@@ -8724,166 +8973,342 @@ void func_21f5()
         }
     }
 
+    //-------------------------------
     // 2201  218420    ld      hl,#2084
     // 2204  224e4d    ld      (#4d4e),hl
     // 2207  22504d    ld      (#4d50),hl
+    //-------------------------------
     PACMAN_MOVE_PAT_DIFF2_1=
     PACMAN_MOVE_PAT_DIFF2_2=0x2084;
+    //-------------------------------
     // 220a  18e4      jr      #21f0           ; (-28)
+    //-------------------------------
     func_21f0();
 }
 
-void func_220c()
+void func_220c(uint16_t iy)
 {
+    //-------------------------------
     // 220c  3a014d    ld      a,(#4d01)
     // 220f  d678      sub     #78
     // 2211  c23722    jp      nz,#2237
+    //-------------------------------
     if (BLINKY_POS->x == 0x77)
     {
+        //-------------------------------
         // 2214  fd360062  ld      (iy+#00),#62
         // 2218  fd360163  ld      (iy+#01),#63
+        //-------------------------------
         MEM[iy]=0x62;
         MEM[iy+1]=0x63;
+        //-------------------------------
         // 221c  18d2      jr      #21f0           ; (-46)
+        //-------------------------------
         func_21f0();
         return;
 
+    //-------------------------------
     // 221e  3a014d    ld      a,(#4d01)
     // 2221  d67b      sub     #7b
     // 2223  2012      jr      nz,#2237        ; (18)
+    //-------------------------------
     if (BLINKY_POS->x == 0x7b)
     {
+        //-------------------------------
         // 2225  fd360064  ld      (iy+#00),#64
         // 2229  fd360165  ld      (iy+#01),#65
         // 222d  fd362066  ld      (iy+#20),#66
         // 2231  fd362167  ld      (iy+#21),#67
+        //-------------------------------
         MEM[iy]=0x64;
         MEM[iy+1]=0x65;
         MEM[iy+0x20]=0x66;
         MEM[iy+0x21]=0x67;
+        //-------------------------------
         // 2235  18b9      jr      #21f0           ; (-71)
+        //-------------------------------
         func_21f0();
         return;
     }
+    func_2237();
+}
 
+void func_2237()
+{
+    //-------------------------------
     // 2237  cd0618    call    #1806
     // 223a  cd0618    call    #1806
     // 223d  cd361b    call    #1b36
     // 2240  cd230e    call    #0e23
     // 2243  c9        ret     
+    //-------------------------------
     func_1806();
     func_1806();
     func_1b36();
     func_0e23();
 }
 
-// 2244  3a014d    ld      a,(#4d01)
-// 2247  d67e      sub     #7e
-// 2249  20ec      jr      nz,#2237        ; (-20)
-// 224b  fd360068  ld      (iy+#00),#68
-// 224f  fd360169  ld      (iy+#01),#69
-// 2253  fd36206a  ld      (iy+#20),#6a
-// 2257  fd36216b  ld      (iy+#21),#6b
-// 225b  1893      jr      #21f0           ; (-109)
-// 225d  3a014d    ld      a,(#4d01)
-// 2260  d680      sub     #80
-// 2262  20d3      jr      nz,#2237        ; (-45)
+void func_2244(uint16_t iy)
+{
+    //-------------------------------
+    // 2244  3a014d    ld      a,(#4d01)
+    // 2247  d67e      sub     #7e
+    // 2249  20ec      jr      nz,#2237        ; (-20)
+    //-------------------------------
+    if (BLINKY_POS->x != 0x7e)
+    {
+        func_2237 ();
+        return;
+    }
+
+    //-------------------------------
+    // 224b  fd360068  ld      (iy+#00),#68
+    // 224f  fd360169  ld      (iy+#01),#69
+    // 2253  fd36206a  ld      (iy+#20),#6a
+    // 2257  fd36216b  ld      (iy+#21),#6b
+    // 225b  1893      jr      #21f0           ; (-109)
+    //-------------------------------
+    MEM[iy]=0x68;
+    MEM[iy+1]=0x69;
+    MEM[iy+0x20]=0x6a;
+    MEM[iy+0x21]=0x6b;
+    func_21f0();
+}
+
+void func_225d(uint16_t iy)
+{
+    //-------------------------------
+    // 225d  3a014d    ld      a,(#4d01)
+    // 2260  d680      sub     #80
+    // 2262  20d3      jr      nz,#2237        ; (-45)
+    //-------------------------------
+    if (BLINKY_POS->x != 0x80)
+    {
+        func_2237 ();
+        return;
+    }
+    //-------------------------------
     // 2264  f7        rst     #30
     // 2265  4f0800
-                schedISRTask (0x4f, 0x08, 0x00);
-// 2268  1886      jr      #21f0           ; (-122)
-// 226a  21014d    ld      hl,#4d01
-// 226d  34        inc     (hl)
-// 226e  34        inc     (hl)
-// 226f  fd36006c  ld      (iy+#00),#6c
-// 2273  fd36016d  ld      (iy+#01),#6d
-// 2277  fd362040  ld      (iy+#20),#40
-// 227b  fd362140  ld      (iy+#21),#40
+    // 2268  1886      jr      #21f0           ; (-122)
+    //-------------------------------
+    schedISRTask (0x4f, 0x08, 0x00);
+    func_21f0();
+}
+
+void func_226a(uint16_t iy)
+{
+    //-------------------------------
+    // 226a  21014d    ld      hl,#4d01
+    // 226d  34        inc     (hl)
+    // 226e  34        inc     (hl)
+    //-------------------------------
+    BLINKY_POS->x += 2;
+    //-------------------------------
+    // 226f  fd36006c  ld      (iy+#00),#6c
+    // 2273  fd36016d  ld      (iy+#01),#6d
+    // 2277  fd362040  ld      (iy+#20),#40
+    // 227b  fd362140  ld      (iy+#21),#40
+    //-------------------------------
+    MEM[iy]=0x6c;
+    MEM[iy+1]=0x6d;
+    MEM[iy+0x20]=0x40;
+    MEM[iy+0x21]=0x40;
+    //-------------------------------
     // 227f  f7        rst     #30
     // 2280  4a0800
-                schedISRTask (0x4a, 0x08, 0x00);
-// 2283  c3f021    jp      #21f0
+    //-------------------------------
+    schedISRTask (0x4a, 0x08, 0x00);
+    //-------------------------------
+    // 2283  c3f021    jp      #21f0
+    //-------------------------------
+    func_21f0();
+}
+
+void func_2286(uint16_t iy)
+{
+    //-------------------------------
     // 2286  f7        rst     #30
     // 2287  540800
-                schedISRTask (0x54, 0x08, 0x00);
-// 228a  c3f021    jp      #21f0
-// 228d  af        xor     a
-// 228e  32074e    ld      (#4e07),a
-// 2291  21044e    ld      hl,#4e04
-// 2294  34        inc     (hl)
-// 2295  34        inc     (hl)
-// 2296  c9        ret     
-// 
-// 2297  3a084e    ld      a,(#4e08)
+    //-------------------------------
+    schedISRTask (0x54, 0x08, 0x00);
+    //-------------------------------
+    // 228a  c3f021    jp      #21f0
+    //-------------------------------
+    func_21f0();
+}
 
+void func_228d(uint16_t iy)
+{
+    //-------------------------------
+    // 228d  af        xor     a
+    // 228e  32074e    ld      (#4e07),a
+    //-------------------------------
+    SCENE2_STATE = 0;
+    //-------------------------------
+    // 2291  21044e    ld      hl,#4e04
+    // 2294  34        inc     (hl)
+    // 2295  34        inc     (hl)
+    // 2296  c9        ret     
+    //-------------------------------
+    LEVEL_STATE_SUBR+=2;
+}
+
+void func_2297()
+{
+    //-------------------------------
+    // 2297  3a084e    ld      a,(#4e08)
     // 229a  e7        rst     #20
     // 229b                                    a7 22 be 22 0c
     // 22a0  00 dd 22 f5 22 fe 22 
-    void (*func)(int param)[] = 
+    //-------------------------------
+    void (*func)()[] = 
         { func_22a7, func_22be, nothing, func_22dd, func_22f5, func_22fe };
 
+    tableCall (func, SCENE3_STATE);
 
-// 22a7  3a3a4d    ld      a,(#4d3a)
-// 22aa  d625      sub     #25
-// 22ac  c23021    jp      nz,#2130
-// 22af  3c        inc     a
-// 22b0  32a04d    ld      (#4da0),a
-// 22b3  32b74d    ld      (#4db7),a
+    //-------------------------------
+    // 22a7  3a3a4d    ld      a,(#4d3a)
+    // 22aa  d625      sub     #25
+    // 22ac  c23021    jp      nz,#2130
+    //-------------------------------
+    if (PACMAN_TILE2->x != 0x25)
+    {
+        func_2130();
+        return;
+    }
+
+    //-------------------------------
+    // 22af  3c        inc     a
+    // 22b0  32a04d    ld      (#4da0),a
+    // 22b3  32b74d    ld      (#4db7),a
     // 22b6  cd0605    call    #0506
+    //-------------------------------
+    BLINKY_SUBSTATE = DIFF_FLAG_2 = 0x26;
     func_0506();
-// 22b9  21084e    ld      hl,#4e08
-// 22bc  34        inc     (hl)
-// 22bd  c9        ret     
-// 
-// 22be  3a014d    ld      a,(#4d01)
-// 22c1  feff      cp      #ff
-// 22c3  2805      jr      z,#22ca         ; (5)
-// 22c5  fefe      cp      #fe
-// 22c7  c23021    jp      nz,#2130
-// 22ca  3c        inc     a
-// 22cb  3c        inc     a
-// 22cc  32014d    ld      (#4d01),a
-// 22cf  3e01      ld      a,#01
-// 22d1  32b14d    ld      (#4db1),a
+
+    //-------------------------------
+    // 22b9  21084e    ld      hl,#4e08
+    // 22bc  34        inc     (hl)
+    // 22bd  c9        ret     
+    //-------------------------------
+    SCENE3_STATE++;
+}
+
+void func_22be()
+{
+    //-------------------------------
+    // 22be  3a014d    ld      a,(#4d01)
+    // 22c1  feff      cp      #ff
+    // 22c3  2805      jr      z,#22ca         ; (5)
+    // 22c5  fefe      cp      #fe
+    // 22c7  c23021    jp      nz,#2130
+    //-------------------------------
+    if (BLINKY_POS->x != 0xff && BLINKY_POS->x != 0xfe)
+    {
+        func_2130 ();
+        return;
+    }
+
+    //-------------------------------
+    // 22ca  3c        inc     a
+    // 22cb  3c        inc     a
+    // 22cc  32014d    ld      (#4d01),a
+    //-------------------------------
+    BLINKY_POS->x += 2;
+
+    //-------------------------------
+    // 22cf  3e01      ld      a,#01
+    // 22d1  32b14d    ld      (#4db1),a
     // 22d4  cdfe1e    call    #1efe
+    //-------------------------------
+    BLINKY_ORIENT_CHG_FLAG = 1;
     func_1efe();
+
+    //-------------------------------
     // 22d7  f7        rst     #30
     // 22d8  4a0900
-                schedISRTask (0x4a, 0x09, 0x00);
-// 22db  18dc      jr      #22b9           ; (-36)
-// 22dd  3a324d    ld      a,(#4d32)
-// 22e0  d62d      sub     #2d
-// 22e2  28d5      jr      z,#22b9         ; (-43)
-// 22e4  3a004d    ld      a,(#4d00)
-// 22e7  32d24d    ld      (#4dd2),a
-// 22ea  3a014d    ld      a,(#4d01)
-// 22ed  d608      sub     #08
-// 22ef  32d34d    ld      (#4dd3),a
-// 22f2  c33021    jp      #2130
-// 22f5  3a324d    ld      a,(#4d32)
-// 22f8  d61e      sub     #1e
-// 22fa  28bd      jr      z,#22b9         ; (-67)
-// 22fc  18e6      jr      #22e4           ; (-26)
-// 22fe  af        xor     a
-// 22ff  32084e    ld      (#4e08),a
+    //-------------------------------
+    schedISRTask (0x4a, 0x09, 0x00);
+
+    //-------------------------------
+    // 22db  18dc      jr      #22b9           ; (-36)
+    //-------------------------------
+    SCENE3_STATE++;
+}
+
+void func_22dd()
+{
+    // 22dd  3a324d    ld      a,(#4d32)
+    // 22e0  d62d      sub     #2d
+    // 22e2  28d5      jr      z,#22b9         ; (-43)
+    if (BLINKY_TILE2->x == 0x2d)
+    {
+        SCENE3_STATE++;
+        return;
+    }
+    func_22e4 ()
+}
+
+void func_22e4()
+{
+    // 22e4  3a004d    ld      a,(#4d00)
+    // 22e7  32d24d    ld      (#4dd2),a
+    FRUIT_POS->y = BLINKY_POS->y;
+
+    // 22ea  3a014d    ld      a,(#4d01)
+    // 22ed  d608      sub     #08
+    // 22ef  32d34d    ld      (#4dd3),a
+    FRUIT_POS->x = BLINKY_POS->x - 8;
+
+    // 22f2  c33021    jp      #2130
+    func_2130();
+}
+
+void func_22f5()
+{
+    // 22f5  3a324d    ld      a,(#4d32)
+    // 22f8  d61e      sub     #1e
+    // 22fa  28bd      jr      z,#22b9         ; (-67)
+    if (BLINKY_TILE2->x == 0x1e)
+    {
+        SCENE3_STATE++;
+        return;
+    }
+
+    // 22fc  18e6      jr      #22e4           ; (-26)
+    func_22e4();
+}
+
+void func_22fe()
+{
+    //-------------------------------
+    // 22fe  af        xor     a
+    // 22ff  32084e    ld      (#4e08),a
     // 2302  f7        rst     #30
     // 2303  450000
-                schedISRTask (0x45, 0x00, 0x00);
-// 2306  21044e    ld      hl,#4e04
-// 2309  34        inc     (hl)
-// 230a  c9        ret     
-// 
-void selfTest ()
+    //-------------------------------
+    SCENE3_STATE = 0;
+    schedISRTask (0x45, 0x00, 0x00);
+
+    //-------------------------------
+    // 2306  21044e    ld      hl,#4e04
+    // 2309  34        inc     (hl)
+    // 230a  c9        ret     
+    //-------------------------------
+    LEVEL_STATE_SUBR++;
+}
+
+void start_230b ()
 {
-// 	;; RAM/ROM test
-// 
-// 	;; Clear 74ls259 contents (irq off, sound off, flip off, etc...)
-// 230b  210050    ld      hl,#5000
-// 230e  0608      ld      b,#08
-// 2310  af        xor     a		; a=0
-// 2311  77        ld      (hl),a
-// 2312  2c        inc     l
-// 2313  10fc      djnz    #2311           ; (-4)
+    //-------------------------------
+    // 230b  210050    ld      hl,#5000
+    // 230e  0608      ld      b,#08
+    // 2310  af        xor     a		; a=0
+    // 2311  77        ld      (hl),a
+    // 2312  2c        inc     l
+    // 2313  10fc      djnz    #2311           ; (-4)
+    //-------------------------------
 
     intEnable =
     soundEnable =
@@ -8894,98 +9319,106 @@ void selfTest ()
     coinLockout =
     coinCounter = 0;
 
-// 	;; Set 4000-43ff to 0x40 (video ram)
-// 2315  210040    ld      hl,#4000
-// 2318  0604      ld      b,#04
-    // 231a  32c050    ld      (#50c0),a	; Kick the dog
+    //-------------------------------
+    // 2315  210040    ld      hl,#4000
+    // 2318  0604      ld      b,#04
+    //-------------------------------
+    int hl = 0;
+    for (int b = 0; b <= 4; b++)
+    {
+        //-------------------------------
+        // 231a  32c050    ld      (#50c0),a	; Kick the dog
+        // 231d  320750    ld      (#5007),a	; Clear coin
+        //-------------------------------
         kickWatchdog();
-    // 231d  320750    ld      (#5007),a	; Clear coin
         regsWrite.coinCounter = 0;
-// 2320  3e40      ld      a,#40
-// 2322  77        ld      (hl),a
-// 2323  2c        inc     l
-// 2324  20fc      jr      nz,#2322        ; (-4)
-// 2326  24        inc     h
-// 2327  10f1      djnz    #231a           ; (-15)
 
-    for (int i = 0; i <= 0x3ff; i++)
-        VIDEO(i) = 0x40;
+        // 2320  3e40      ld      a,#40
+        // 2322  77        ld      (hl),a
+        // 2323  2c        inc     l
+        // 2324  20fc      jr      nz,#2322        ; (-4)
+        for (int l = 0; ; < 0x100; l++)
+            VIDEO[hl++] = 0x40;
+        // 2326  24        inc     h
+        // 2327  10f1      djnz    #231a           ; (-15)
+    }
 
-// 	;; Set 4400-47ff to 0x0f (color ram)
-// 2329  0604      ld      b,#04
-// 232b  32c050    ld      (#50c0),a	; Kick the dog
-    kickWatchdog();
-// 232e  af        xor     a		; a=0
-// 232f  320750    ld      (#5007),a	; Clear coin
-    regsWrite.coinCounter = 0;
-// 2332  3e0f      ld      a,#0f
-// 2334  77        ld      (hl),a
-// 2335  2c        inc     l
-// 2336  20fc      jr      nz,#2334        ; (-4)
-// 2338  24        inc     h
-// 2339  10f0      djnz    #232b           ; (-16)
+    // 	;; Set 4400-47ff to 0x0f (color ram)
+    // 2329  0604      ld      b,#04
+    // 232b  32c050    ld      (#50c0),a	; Kick the dog
+        kickWatchdog();
+    // 232e  af        xor     a		; a=0
+    // 232f  320750    ld      (#5007),a	; Clear coin
+        regsWrite.coinCounter = 0;
+    // 2332  3e0f      ld      a,#0f
+    // 2334  77        ld      (hl),a
+    // 2335  2c        inc     l
+    // 2336  20fc      jr      nz,#2334        ; (-4)
+    // 2338  24        inc     h
+    // 2339  10f0      djnz    #232b           ; (-16)
 
     for (int i = 0; i < 0x3ff; i++)
         COLOUR(i) = 0x0f;
 
-// 233b  ed5e      im      2		; interrupt mode 2
+    // 233b  ed5e      im      2		; interrupt mode 2
     interruptMode (2);
 
-// 233d  3efa      ld      a,#fa		
-// 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
+    // 233d  3efa      ld      a,#fa		
+    // 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
     interruptVector (0xfa);
 
-// 2341  af        xor     a		; a=0
-// 2342  320750    ld      (#5007),a	; Clear coin
+    // 2341  af        xor     a		; a=0
+    // 2342  320750    ld      (#5007),a	; Clear coin
     coinCounter = 0;
-// 2345  3c        inc     a		; a=1 
-// 2346  320050    ld      (#5000),a	; Enable interrupts
+    // 2345  3c        inc     a		; a=1 
+    // 2346  320050    ld      (#5000),a	; Enable interrupts
     INTENABLE = 1;
-// 2349  fb        ei			; Enable interrupts
-// 234a  76        halt			; Wait for interrupt
+
+    // 2349  fb        ei			; Enable interrupts
+    // 234a  76        halt			; Wait for interrupt
     while (!interrupt())
         ;
-// 	
-// 	;; Start the game ?
-// 234b  32c050    ld      (#50c0),a	; Kick the dog
+    // 	
+    // 	;; Start the game ?
+    // 234b  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
-// 234e  31c04f    ld      sp,#4fc0	; Set stack pointer to 0x4fc0
-// 
-// 2351  af        xor     a		; a=0
-// 2352  210050    ld      hl,#5000	
-// 2355  010808    ld      bc,#0808
-// 2358  cf        rst     #8		; Restart at 0x08 (disable all)
+    // 234e  31c04f    ld      sp,#4fc0	; Set stack pointer to 0x4fc0
+    // 
+    // 2351  af        xor     a		; a=0
+    // 2352  210050    ld      hl,#5000	
+    // 2355  010808    ld      bc,#0808
+    // 2358  cf        rst     #8		; Restart at 0x08 (disable all)
     /*  Clear all write registers */
     memset (&REGSWRITE, 0, 8);
 
-// 	;; Clear ram
-// 2359  21004c    ld      hl,#4c00
-// 235c  06be      ld      b,#be
-// 235e  cf        rst     #8
-// 235f  cf        rst     #8
-// 2360  cf        rst     #8
-// 2361  cf        rst     #8
+    // 	;; Clear ram
+    // 2359  21004c    ld      hl,#4c00
+    // 235c  06be      ld      b,#be
+    // 235e  cf        rst     #8
+    // 235f  cf        rst     #8
+    // 2360  cf        rst     #8
+    // 2361  cf        rst     #8
     memset (&MEM[0x4c00], 0, 0x4be);
 
-// 	;; Clear sound registers, sprite positions
-// 2362  214050    ld      hl,#5040
-// 2365  0640      ld      b,#40
-// 2367  cf        rst     #8
+    // 	;; Clear sound registers, sprite positions
+    // 2362  214050    ld      hl,#5040
+    // 2365  0640      ld      b,#40
+    // 2367  cf        rst     #8
     memset (&SOUND(0), 0, 0x40);
 
-// 2368  32c050    ld      (#50c0),a	; Kick the dog
+    // 2368  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
 
     // 236b  cd0d24    call    #240d		; Clear color ram
     clearColour_240d();
 
-// 236e  32c050    ld      (#50c0),a	; Kick the dog
+    // 236e  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
-// 2371  0600      ld      b,#00
-// 2373  cded23    call    #23ed
+    // 2371  0600      ld      b,#00
+    // 2373  cded23    call    #23ed
     jumpClearScreen_23ed (0);
 
-// 2376  32c050    ld      (#50c0),a	; Kick the dog 
+    // 2376  32c050    ld      (#50c0),a	; Kick the dog 
     kickWatchdog();
 
     //-------------------------------
@@ -9060,9 +9493,9 @@ void selfTest ()
         void (*func)(int param)[] = 
             { jumpClearScreen_23ed, func_24d7, drawMazeTBD_2419, drawPills_2448, initialisePositions_25d3, 
               blinkySubstateTBD_268b, clearColour_240d, resetGameState_2698, func_2730,
-              func_276c, func_27a9, func_27f1, func_283b,
-              func_2865, func_288f, func_28b9, func_000d,
-              func_26a2, clearPills_24c9, func_2a35, func_26d0,
+              func_276c, func_27a9, func_27f1, tileChangeBlinky_283b,
+              tileChangePinky_2865, tileChangeInky_288f, tileChangeClyde_28b9, func_000d,
+              func_26a2, clearPills_24c9, func_2a35, setConfig_26d0,
               updatePillsFromScreen_2487, func_23e8, func_28e3, func_2ae0,
               addToScore_2a5a, func_2b6a, func_2bea, displayMsg_2c5e,
               displayCredits, resetPositions_2675, showBonusLifeScore_26b2 };
@@ -9519,102 +9952,102 @@ initialisePositions_25d3()
         // 2576  216480    ld      hl,#8064
         // 2579  22004d    ld      (#4d00),hl
         //-------------------------------
-        BLINKY_Y = 0x64;
-        BLINKY_X = 0x80;
+        BLINKY_POS->y = 0x64;
+        BLINKY_POS->x = 0x80;
         //-------------------------------
         // 257c  217c80    ld      hl,#807c
         // 257f  22024d    ld      (#4d02),hl
         //-------------------------------
-        PINKY_Y = 0x7c;
-        PINKY_X = 0x80;
+        PINKY_POS->y = 0x7c;
+        PINKY_POS->x = 0x80;
         //-------------------------------
         // 2582  217c90    ld      hl,#907c
         // 2585  22044d    ld      (#4d04),hl
         //-------------------------------
-        INKY_Y = 0x7c;
-        INKY_X = 0x90;
+        INKY_POS->y = 0x7c;
+        INKY_POS->x = 0x90;
         //-------------------------------
         // 2588  217c70    ld      hl,#707c
         // 258b  22064d    ld      (#4d06),hl
         //-------------------------------
-        CLYDE_Y = 0x7c;
-        CLYDE_X = 0x70;
+        CLYDE_POS->y = 0x7c;
+        CLYDE_POS->x = 0x70;
         //-------------------------------
         // 258e  21c480    ld      hl,#80c4
         // 2591  22084d    ld      (#4d08),hl
         //-------------------------------
-        PACMAN_Y = 0xc4;
-        PACMAN_X = 0x80;
+        PACMAN_POS->y = 0xc4;
+        PACMAN_POS->x = 0x80;
         //-------------------------------
         // 2594  212c2e    ld      hl,#2e2c
         // 2597  220a4d    ld      (#4d0a),hl
         // 259a  22314d    ld      (#4d31),hl
         //-------------------------------
-        BLINKY_Y_TILE = BLINKY_Y_TILE2 = 0x2c;
-        BLINKY_X_TILE = BLINKY_X_TILE2 = 0x2e;
+        BLINKY_POS_TILE->y = BLINKY_POS_TILE2->y = 0x2c;
+        BLINKY_POS_TILE->x = BLINKY_POS_TILE2->x = 0x2e;
         //-------------------------------
         // 259d  212f2e    ld      hl,#2e2f
         // 25a0  220c4d    ld      (#4d0c),hl
         // 25a3  22334d    ld      (#4d33),hl
         //-------------------------------
-        PINKY_Y_TILE = PINKY_Y_TILE2 = 0x2f;
-        PINKY_X_TILE = PINKY_X_TILE2 = 0x2e;
+        PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x2f;
+        PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x2e;
         //-------------------------------
         // 25a6  212f30    ld      hl,#302f
         // 25a9  220e4d    ld      (#4d0e),hl
         // 25ac  22354d    ld      (#4d35),hl
         //-------------------------------
-        INKY_Y_TILE = INKY_Y_TILE2 = 0x2f;
-        INKY_X_TILE = INKY_X_TILE2 = 0x30;
+        INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x2f;
+        INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x30;
         //-------------------------------
         // 25af  212f2c    ld      hl,#2c2f
         // 25b2  22104d    ld      (#4d10),hl
         // 25b5  22374d    ld      (#4d37),hl
         //-------------------------------
-        CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x2f;
-        CLYDE_X_TILE = CLYDE_X_TILE2 = 0x2c;
+        CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x2f;
+        CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x2c;
         //-------------------------------
         // 25b8  21382e    ld      hl,#2e38
         // 25bb  22124d    ld      (#4d12),hl
         // 25be  22394d    ld      (#4d39),hl
         //-------------------------------
-        PACMAN_Y_TILE = PACMAN_Y_TILE2 = 0x38;
-        PACMAN_X_TILE = PACMAN_X_TILE2 = 0x2e;
+        PACMAN_POS_TILE->y = PACMAN_POS_TILE2->y = 0x38;
+        PACMAN_TILE->x = PACMAN_TILE2->x = 0x2e;
         //-------------------------------
         // 25c1  210001    ld      hl,#0100
         // 25c4  22144d    ld      (#4d14),hl
         // 25c7  221e4d    ld      (#4d1e),hl
         //-------------------------------
-        BLINKY_Y_TILE_CHANGE = BLINKY_Y_TILE_CHANGE2 = 0x00;
-        BLINKY_X_TILE_CHANGE = BLINKY_X_TILE_CHANGE2 = 0x01;
+        BLINKY_POS_TILE_CHANGE->y = BLINKY_POS_TILE_CHANGE2->y = 0x00;
+        BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
         //-------------------------------
         // 25ca  210100    ld      hl,#0001
         // 25cd  22164d    ld      (#4d16),hl
         // 25d0  22204d    ld      (#4d20),hl
         //-------------------------------
-        PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x01;
-        PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x00;
+        PINKY_POS_TILE_CHANGE->y = PINKY_POS_TILE_CHANGE2->y = 0x01;
+        PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x00;
         //-------------------------------
         // 25d3  21ff00    ld      hl,#00ff
         // 25d6  22184d    ld      (#4d18),hl
         // 25d9  22224d    ld      (#4d22),hl
         //-------------------------------
-        INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0xff;
-        INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x00;
+        INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0xff;
+        INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x00;
         //-------------------------------
         // 25dc  21ff00    ld      hl,#00ff
         // 25df  221a4d    ld      (#4d1a),hl
         // 25e2  22244d    ld      (#4d24),hl
         //-------------------------------
-        CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0xff;
-        CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x00;
+        CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0xff;
+        CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x00;
         //-------------------------------
         // 25e5  210001    ld      hl,#0100
         // 25e8  221c4d    ld      (#4d1c),hl
         // 25eb  22264d    ld      (#4d26),hl
         //-------------------------------
-        PACMAN_Y_TILE_CHANGE = PACMAN_Y_TILE_CHANGE2 = 0x00;
-        PACMAN_X_TILE_CHANGE = PACMAN_X_TILE_CHANGE2 = 0x01;
+        PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y = 0x00;
+        PACMAN_TILE_CHANGE->x = PACMAN_TILE_CHANGE2->x = 0x01;
         //-------------------------------
         // 25ee  210201    ld      hl,#0102
         // 25f1  22284d    ld      (#4d28),hl
@@ -9651,14 +10084,14 @@ initialisePositions_25d3()
         // 2618  22044d    ld      (#4d04),hl
         // 261b  22064d    ld      (#4d06),hl
         //-------------------------------
-        BLINKY_Y = 0x94;
-        BLINKY_X = 0x00;
-        PINKY_Y = 0x94;
-        PINKY_X = 0x00;
-        INKY_Y = 0x94;
-        INKY_X = 0x00;
-        CLYDE_Y = 0x94;
-        CLYDE_X = 0x00;
+        BLINKY_POS->y = 0x94;
+        BLINKY_POS->x = 0x00;
+        PINKY_POS->y = 0x94;
+        PINKY_POS->x = 0x00;
+        INKY_POS->y = 0x94;
+        INKY_POS->x = 0x00;
+        CLYDE_POS->y = 0x94;
+        CLYDE_POS->x = 0x00;
         //-------------------------------
         // 261e  21321e    ld      hl,#1e32
         // 2621  220a4d    ld      (#4d0a),hl
@@ -9670,14 +10103,14 @@ initialisePositions_25d3()
         // 2633  22354d    ld      (#4d35),hl
         // 2636  22374d    ld      (#4d37),hl
         //-------------------------------
-        BLINKY_Y_TILE = BLINKY_Y_TILE2 = 0x32;
-        BLINKY_X_TILE = BLINKY_X_TILE2 = 0x1e;
-        PINKY_Y_TILE = PINKY_Y_TILE2 = 0x32;
-        PINKY_X_TILE = PINKY_X_TILE2 = 0x1e;
-        INKY_Y_TILE = INKY_Y_TILE2 = 0x32;
-        INKY_X_TILE = INKY_X_TILE2 = 0x1e;
-        CLYDE_Y_TILE = CLYDE_Y_TILE2 = 0x32;
-        CLYDE_X_TILE = CLYDE_X_TILE2 = 0x1e;
+        BLINKY_POS_TILE->y = BLINKY_POS_TILE2->y = 0x32;
+        BLINKY_POS_TILE->x = BLINKY_POS_TILE2->x = 0x1e;
+        PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x32;
+        PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x1e;
+        INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x32;
+        INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x1e;
+        CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x32;
+        CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x1e;
         //-------------------------------
         // 2639  210001    ld      hl,#0100
         // 263c  22144d    ld      (#4d14),hl
@@ -9691,16 +10124,16 @@ initialisePositions_25d3()
         // 2654  221c4d    ld      (#4d1c),hl
         // 2657  22264d    ld      (#4d26),hl
         //-------------------------------
-        BLINKY_Y_TILE_CHANGE = BLINKY_Y_TILE_CHANGE2 = 0x00;
-        BLINKY_X_TILE_CHANGE = BLINKY_X_TILE_CHANGE2 = 0x01;
-        PINKY_Y_TILE_CHANGE = PINKY_Y_TILE_CHANGE2 = 0x00;
-        PINKY_X_TILE_CHANGE = PINKY_X_TILE_CHANGE2 = 0x01;
-        INKY_Y_TILE_CHANGE = INKY_Y_TILE_CHANGE2 = 0x00;
-        INKY_X_TILE_CHANGE = INKY_X_TILE_CHANGE2 = 0x01;
-        CLYDE_Y_TILE_CHANGE = CLYDE_Y_TILE_CHANGE2 = 0x00;
-        CLYDE_X_TILE_CHANGE = CLYDE_X_TILE_CHANGE2 = 0x01;
-        PACMAN_Y_TILE_CHANGE = PACMAN_Y_TILE_CHANGE2 = 0x00;
-        PACMAN_X_TILE_CHANGE = PACMAN_X_TILE_CHANGE2 = 0x01;
+        BLINKY_POS_TILE_CHANGE->y = BLINKY_POS_TILE_CHANGE2->y = 0x00;
+        BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
+        PINKY_POS_TILE_CHANGE->y = PINKY_POS_TILE_CHANGE2->y = 0x00;
+        PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x01;
+        INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0x00;
+        INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x01;
+        CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0x00;
+        CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x01;
+        PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y = 0x00;
+        PACMAN_TILE_CHANGE->x = PACMAN_TILE_CHANGE2->x = 0x01;
         //-------------------------------
         // 265a  21284d    ld      hl,#4d28
         // 265d  3e02      ld      a,#02
@@ -9714,16 +10147,16 @@ initialisePositions_25d3()
         // 2668  22084d    ld      (#4d08),hl
         //-------------------------------
         PACMAN_DESIRED_ORIENTATION = 0x02;
-        PACMAN_Y = 0x94;
-        PACMAN_X = 0x08;
+        PACMAN_POS->y = 0x94;
+        PACMAN_POS->x = 0x08;
         //-------------------------------
         // 266b  21321f    ld      hl,#1f32
         // 266e  22124d    ld      (#4d12),hl
         // 2671  22394d    ld      (#4d39),hl
         // 2674  c9        ret     
         //-------------------------------
-        PACMAN_Y_TILE PACMAN_Y_TILE2 = 0x32;
-        PACMAN_X_TILE PACMAN_X_TILE2 = 0x32;
+        PACMAN_POS_TILE->y PACMAN_POS_TILE2->y = 0x32;
+        PACMAN_TILE->x PACMAN_TILE2->x = 0x32;
     }
 }
 
@@ -9735,7 +10168,7 @@ void resetPositions_2675()
     // 267b  22084d    ld      (#4d08),hl
     //-------------------------------
     FRUIT_POS = 0;
-    PACMAN_Y = PACMAN_X = 0;
+    PACMAN_POS->y = PACMAN_POS->x = 0;
     resetGhostPosition_267e (0, 0);
 }
 
@@ -9748,13 +10181,13 @@ void resetGhostPosition_267e (int y, int x)
     // 2687  22064d    ld      (#4d06),hl
     // 268a  c9        ret     
     //-------------------------------
-    BLINKY_Y = BLINKY_X = x;
-    PINKY_Y = PINKY_X = y;
-    INKY_Y = INKY_X = x;
-    CLYDE_Y = CLYDE_X = y;
+    BLINKY_POS->y = BLINKY_POS->x = x;
+    PINKY_POS->y = PINKY_POS->x = y;
+    INKY_POS->y = INKY_POS->x = x;
+    CLYDE_POS->y = CLYDE_POS->x = y;
 }
 
-blinkySubstateTBD_268b(int param)
+void blinkySubstateTBD_268b(int param)
 {
     //-------------------------------
     // 268b  3e55      ld      a,#55
@@ -9773,7 +10206,7 @@ blinkySubstateTBD_268b(int param)
     BLINKY_SUBSTATE=1;
 }
 
-resetGameState_2698()
+void resetGameState_2698()
 {
     //-------------------------------
     // 2698  3e01      ld      a,#01
@@ -9835,507 +10268,794 @@ void showBonusLifeScore_26b2()
     VIDEO[0x156] = digit + 0x30;
 }
 
-void func_26d0()
+void setConfig_26d0()
 {
-// 26d0  3a8050    ld      a,(#5080)
-// 26d3  47        ld      b,a
-// 26d4  e603      and     #03
-// 26d6  c2de26    jp      nz,#26de
-// 26d9  216e4e    ld      hl,#4e6e
-// 26dc  36ff      ld      (hl),#ff
-// 26de  4f        ld      c,a
-// 26df  1f        rra     
-// 26e0  ce00      adc     a,#00
-// 26e2  326b4e    ld      (#4e6b),a
-// 26e5  e602      and     #02
-// 26e7  a9        xor     c
-// 26e8  326d4e    ld      (#CREDITS_PER_COIN),a
-// 26eb  78        ld      a,b
-// 26ec  0f        rrca    
-// 26ed  0f        rrca    
-// 26ee  e603      and     #03
-// 26f0  3c        inc     a
-// 26f1  fe04      cp      #04
-// 26f3  2001      jr      nz,#26f6        ; (1)
-// 26f5  3c        inc     a
-// 26f6  326f4e    ld      (#4e6f),a
-// 26f9  78        ld      a,b
-// 26fa  0f        rrca    
-// 26fb  0f        rrca    
-// 26fc  0f        rrca    
-// 26fd  0f        rrca    
-// 26fe  e603      and     #03
-// 2700  212827    ld      hl,#2728
-// 2703  d7        rst     #10
-// 2704  32714e    ld      (#4e71),a
-// 2707  78        ld      a,b
-// 2708  07        rlca    
-// 2709  2f        cpl     
-// 270a  e601      and     #01
-// 270c  32754e    ld      (#4e75),a
-// 270f  78        ld      a,b
-// 2710  07        rlca    
-// 2711  07        rlca    
-// 2712  2f        cpl     
-// 2713  e601      and     #01
-// 2715  47        ld      b,a
-// 2716  212c27    ld      hl,#272c
-// 2719  df        rst     #18
-// 271a  22734e    ld      (#4e73),hl
-// 271d  3a4050    ld      a,(#5040)
-// 2720  07        rlca    
-// 2721  2f        cpl     
-// 2722  e601      and     #01
-// 2724  32724e    ld      (#4e72),a
-// 2727  c9        ret     
+    //-------------------------------
+    // 26d0  3a8050    ld      a,(#5080)
+    // 26d3  47        ld      b,a
+    // 26d4  e603      and     #03
+    // 26d6  c2de26    jp      nz,#26de
+    //-------------------------------
+    a = DIP_SWITCH_TEST;
+    if (a == 0)
+    {
+        // 26d9  216e4e    ld      hl,#4e6e
+        // 26dc  36ff      ld      (hl),#ff
+        CREDITS=0xff;
+    }
+    //-------------------------------
+    // 26de  4f        ld      c,a
+    // 26df  1f        rra     
+    // 26e0  ce00      adc     a,#00
+    // 26e2  326b4e    ld      (#4e6b),a
+    //-------------------------------
+    COINS_PER_CREDIT=1; // TODO
+    //-------------------------------
+    // 26e5  e602      and     #02
+    // 26e7  a9        xor     c
+    // 26e8  326d4e    ld      (#4e6d),a
+    //-------------------------------
+    CREDITS_PER_COIN=1; // TODO
+    //-------------------------------
+    // 26eb  78        ld      a,b
+    // 26ec  0f        rrca    
+    // 26ed  0f        rrca    
+    // 26ee  e603      and     #03
+    // 26f0  3c        inc     a
+    // 26f1  fe04      cp      #04
+    // 26f3  2001      jr      nz,#26f6        ; (1)
+    // 26f5  3c        inc     a
+    //-------------------------------
+    if ((((a>>2)&3)+1)==4)
+        a++;
+
+    //-------------------------------
+    // 26f6  326f4e    ld      (#4e6f),a
+    //-------------------------------
+    LIVES_PER_GAME=a;
+    //-------------------------------
+    // 26f9  78        ld      a,b
+    // 26fa  0f        rrca    
+    // 26fb  0f        rrca    
+    // 26fc  0f        rrca    
+    // 26fd  0f        rrca    
+    // 26fe  e603      and     #03
+    //-------------------------------
+    a=DIP_SWITCH_BONUS>>4;
+
+    //-------------------------------
+    // 2700  212827    ld      hl,#2728
+    // 2703  d7        rst     #10
+    // 2704  32714e    ld      (#4e71),a
+    //-------------------------------
+    BONUS_LIFE= fetchOffset (bonusLifeData, a);
+    //-------------------------------
+    // 2707  78        ld      a,b
+    // 2708  07        rlca    
+    // 2709  2f        cpl     
+    // 270a  e601      and     #01
+    // 270c  32754e    ld      (#4e75),a
+    //-------------------------------
+    GHOST_NAMES_MODE=1;
+    //-------------------------------
+    // 270f  78        ld      a,b
+    // 2710  07        rlca    
+    // 2711  07        rlca    
+    // 2712  2f        cpl     
+    // 2713  e601      and     #01
+    // 2715  47        ld      b,a
+    // 2716  212c27    ld      hl,#272c
+    // 2719  df        rst     #18
+    // 271a  22734e    ld      (#4e73),hl
+    //-------------------------------
+    DIFFICULTY_PTR=tableLookup (difficultyData, a);
+    //-------------------------------
+    // 271d  3a4050    ld      a,(#5040)
+    // 2720  07        rlca    
+    // 2721  2f        cpl     
+    // 2722  e601      and     #01
+    // 2724  32724e    ld      (#4e72),a
+    // 2727  c9        ret     
+    //-------------------------------
+    COCKTAIL_MODE = IN1_CABINET;
 }
 
-// 2728  1015      djnz    #273f           ; (21)
-// 272a  20ff      jr      nz,#272b        ; (-1)
-// 272c  68        ld      l,b
-// 272d  00        nop     
-// 272e  7d        ld      a,l
-// 272f  00        nop     
+    //-------------------------------
+    // 2728  10 15 20 ff 68 00 7d 00
+    //-------------------------------
+    uint8_t bonusLifeData[] = { 0x10, 0x15, 0x20, 0xff };
+    uint8_t difficultyData[] = { 0x68, 0x00, 0x7d, 0x00 };
 
 func_2730()
 {
-// 2730  3ac14d    ld      a,(#4dc1)
-// 2733  cb47      bit     0,a
-// 2735  c25827    jp      nz,#2758
-// 2738  3ab64d    ld      a,(#4db6)
-// 273b  a7        and     a
-// 273c  201a      jr      nz,#2758        ; (26)
-// 273e  3a044e    ld      a,(#4e04)
-// 2741  fe03      cp      #03
-// 2743  2013      jr      nz,#2758        ; (19)
-// 2745  2a0a4d    ld      hl,(#4d0a)
-// 2748  3a2c4d    ld      a,(#4d2c)
-// 274b  111d22    ld      de,#221d
-// 274e  cd6629    call    #2966
-func_2966();
-// 2751  221e4d    ld      (#4d1e),hl
-// 2754  322c4d    ld      (#4d2c),a
-// 2757  c9        ret     
-// 
-// 2758  2a0a4d    ld      hl,(#4d0a)
-// 275b  ed5b394d  ld      de,(#4d39)
-// 275f  3a2c4d    ld      a,(#4d2c)
-// 2762  cd6629    call    #2966
-func_2966();
-// 2765  221e4d    ld      (#4d1e),hl
-// 2768  322c4d    ld      (#4d2c),a
-// 276b  c9        ret     
+    //-------------------------------
+    // 2730  3ac14d    ld      a,(#4dc1)
+    // 2733  cb47      bit     0,a
+    // 2735  c25827    jp      nz,#2758
+    //-------------------------------
+    if ((NONRANDOM_MOVEMENT & 1) == 0)
+    {
+        //-------------------------------
+        // 2738  3ab64d    ld      a,(#4db6)
+        // 273b  a7        and     a
+        // 273c  201a      jr      nz,#2758        ; (26)
+        //-------------------------------
+        if (DIFF_FLAG_1 == 0)
+        {
+            //-------------------------------
+            // 273e  3a044e    ld      a,(#4e04)
+            // 2741  fe03      cp      #03
+            // 2743  2013      jr      nz,#2758        ; (19)
+            //-------------------------------
+            if (LEVEL_STATE_SUBR == 3)
+            {
+                //-------------------------------
+                // 2745  2a0a4d    ld      hl,(#4d0a)
+                // 2748  3a2c4d    ld      a,(#4d2c)
+                // 274b  111d22    ld      de,#221d
+                // 274e  cd6629    call    #2966
+                // 2751  221e4d    ld      (#4d1e),hl
+                // 2754  322c4d    ld      (#4d2c),a
+                // 2757  c9        ret     
+                //-------------------------------
+                BLINKY_TILE_CHANGE2 = findBestOrientation_2966 (BLINKY_TILE, 0x221d, &BLINKY_ORIENTATION);
+                return;
+            }
+        }
+    }
+
+    //-------------------------------
+    // 2758  2a0a4d    ld      hl,(#4d0a)
+    // 275b  ed5b394d  ld      de,(#4d39)
+    // 275f  3a2c4d    ld      a,(#4d2c)
+    // 2762  cd6629    call    #2966
+    // 2765  221e4d    ld      (#4d1e),hl
+    // 2768  322c4d    ld      (#4d2c),a
+    // 276b  c9        ret     
+    //-------------------------------
+    BLINKY_TILE_CHANGE2 = findBestOrientation_2966 (BLINKY_TILE, PACMAN_TILE2, &BLINKY_ORIENTATION);
 }
 
 void func_276c()
 {
-// 276c  3ac14d    ld      a,(#4dc1)
-// 276f  cb47      bit     0,a
-// 2771  c28e27    jp      nz,#278e
-// 2774  3a044e    ld      a,(#4e04)
-// 2777  fe03      cp      #03
-// 2779  2013      jr      nz,#278e        ; (19)
-// 277b  2a0c4d    ld      hl,(#4d0c)
-// 277e  3a2d4d    ld      a,(#4d2d)
-// 2781  111d39    ld      de,#391d
-// 2784  cd6629    call    #2966
-func_2966();
-// 2787  22204d    ld      (#4d20),hl
-// 278a  322d4d    ld      (#4d2d),a
-// 278d  c9        ret     
-// 
-// 278e  ed5b394d  ld      de,(#4d39)
-// 2792  2a1c4d    ld      hl,(#4d1c)
-// 2795  29        add     hl,hl
-// 2796  29        add     hl,hl
-// 2797  19        add     hl,de
-// 2798  eb        ex      de,hl
-// 2799  2a0c4d    ld      hl,(#4d0c)
-// 279c  3a2d4d    ld      a,(#4d2d)
-// 279f  cd6629    call    #2966
-func_2966();
-// 27a2  22204d    ld      (#4d20),hl
-// 27a5  322d4d    ld      (#4d2d),a
-// 27a8  c9        ret     
+    //-------------------------------
+    // 276c  3ac14d    ld      a,(#4dc1)
+    // 276f  cb47      bit     0,a
+    // 2771  c28e27    jp      nz,#278e
+    //-------------------------------
+    if ((NONRANDOM_MOVEMENT & 1) == 0)
+    {
+        //-------------------------------
+        // 2774  3a044e    ld      a,(#4e04)
+        // 2777  fe03      cp      #03
+        // 2779  2013      jr      nz,#278e        ; (19)
+        //-------------------------------
+        if (LEVEL_STATE_SUBR == 3)
+        {
+            //-------------------------------
+            // 277b  2a0c4d    ld      hl,(#4d0c)
+            // 277e  3a2d4d    ld      a,(#4d2d)
+            // 2781  111d39    ld      de,#391d
+            // 2784  cd6629    call    #2966
+            // 2787  22204d    ld      (#4d20),hl
+            // 278a  322d4d    ld      (#4d2d),a
+            // 278d  c9        ret     
+            //-------------------------------
+            PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PINKY_TILE, 0x391d, &PINKY_ORIENTATION);
+            return;
+        }
+    }
+
+    //-------------------------------
+    // 278e  ed5b394d  ld      de,(#4d39)
+    // 2792  2a1c4d    ld      hl,(#4d1c)
+    // 2795  29        add     hl,hl
+    // 2796  29        add     hl,hl
+    // 2797  19        add     hl,de
+    // 2798  eb        ex      de,hl
+    // 2799  2a0c4d    ld      hl,(#4d0c)
+    // 279c  3a2d4d    ld      a,(#4d2d)
+    // 279f  cd6629    call    #2966
+    // 27a2  22204d    ld      (#4d20),hl
+    // 27a5  322d4d    ld      (#4d2d),a
+    // 27a8  c9        ret     
+    //-------------------------------
+    PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PACMAN_TILE_CHANGE, PACMAN_TILE2, &PINKY_ORIENTATION);
 }
 
 void func_27a9()
 {
-// 27a9  3ac14d    ld      a,(#4dc1)
-// 27ac  cb47      bit     0,a
-// 27ae  c2cb27    jp      nz,#27cb
-// 27b1  3a044e    ld      a,(#4e04)
-// 27b4  fe03      cp      #03
-// 27b6  2013      jr      nz,#27cb        ; (19)
-// 27b8  2a0e4d    ld      hl,(#4d0e)
-// 27bb  3a2e4d    ld      a,(#4d2e)
-// 27be  114020    ld      de,#2040
-// 27c1  cd6629    call    #2966
-func_2966();
-// 27c4  22224d    ld      (#4d22),hl
-// 27c7  322e4d    ld      (#4d2e),a
-// 27ca  c9        ret     
-// 
-// 27cb  ed4b0a4d  ld      bc,(#4d0a)
-// 27cf  ed5b394d  ld      de,(#4d39)
-// 27d3  2a1c4d    ld      hl,(#4d1c)
-// 27d6  29        add     hl,hl
-// 27d7  19        add     hl,de
-// 27d8  7d        ld      a,l
-// 27d9  87        add     a,a
-// 27da  91        sub     c
-// 27db  6f        ld      l,a
-// 27dc  7c        ld      a,h
-// 27dd  87        add     a,a
-// 27de  90        sub     b
-// 27df  67        ld      h,a
-// 27e0  eb        ex      de,hl
-// 27e1  2a0e4d    ld      hl,(#4d0e)
-// 27e4  3a2e4d    ld      a,(#4d2e)
-// 27e7  cd6629    call    #2966
-func_2966();
-// 27ea  22224d    ld      (#4d22),hl
-// 27ed  322e4d    ld      (#4d2e),a
-// 27f0  c9        ret     
+    // 27a9  3ac14d    ld      a,(#4dc1)
+    // 27ac  cb47      bit     0,a
+    // 27ae  c2cb27    jp      nz,#27cb
+    if ((NONRANDOM_MOVEMENT & 1) == 0)
+    {
+        // 27b1  3a044e    ld      a,(#4e04)
+        // 27b4  fe03      cp      #03
+        // 27b6  2013      jr      nz,#27cb        ; (19)
+        if (LEVEL_STATE_SUBR == 3)
+        {
+            // 27b8  2a0e4d    ld      hl,(#4d0e)
+            // 27bb  3a2e4d    ld      a,(#4d2e)
+            // 27be  114020    ld      de,#2040
+            // 27c1  cd6629    call    #2966
+            // 27c4  22224d    ld      (#4d22),hl
+            // 27c7  322e4d    ld      (#4d2e),a
+            // 27ca  c9        ret     
+            INKY_TILE_CHANGE2 = findBestOrientation_2966 (INKY_TILE, 0x2040, &INKY_ORIENTATION);
+            return;
+        }
+    }
+
+    // 27cb  ed4b0a4d  ld      bc,(#4d0a)
+    // bc=BLINKY_TILE;
+    // 27cf  ed5b394d  ld      de,(#4d39)
+    // de=PACMAN_TILE2;
+    // 27d3  2a1c4d    ld      hl,(#4d1c)
+    XYPOS pos=PACMAN_TILE_CHANGE;
+    // 27d6  29        add     hl,hl
+    // 27d7  19        add     hl,de
+    pos.y = PACMAN_TILE_CHANGE->y * 2 + PACMAN_TILE2->y;
+    pos.x = PACMAN_TILE_CHANGE->x * 2 + PACMAN_TILE2->x;
+    // 27d8  7d        ld      a,l
+    // 27d9  87        add     a,a
+    // 27da  91        sub     c
+    // 27db  6f        ld      l,a
+    pos.y = pos.y * 2 - BLINKY_TILE->x;
+    // 27dc  7c        ld      a,h
+    // 27dd  87        add     a,a
+    // 27de  90        sub     b
+    // 27df  67        ld      h,a
+    pos.x = pos.x * 2 - BLINKY_TILE->y;
+    // 27e0  eb        ex      de,hl
+    // 27e1  2a0e4d    ld      hl,(#4d0e)
+    // 27e4  3a2e4d    ld      a,(#4d2e)
+    // 27e7  cd6629    call    #2966
+    // 27ea  22224d    ld      (#4d22),hl
+    // 27ed  322e4d    ld      (#4d2e),a
+    // 27f0  c9        ret     
+    INKY_TILE_CHANGE2 = findBestOrientation_2966 (INKY_TILE, pos, &INKY_ORIENTATION);
 }
 
 void func_27f1()
 {
-// 27f1  3ac14d    ld      a,(#4dc1)
-// 27f4  cb47      bit     0,a
-// 27f6  c21328    jp      nz,#2813
-// 27f9  3a044e    ld      a,(#4e04)
-// 27fc  fe03      cp      #03
-// 27fe  2013      jr      nz,#2813        ; (19)
-// 2800  2a104d    ld      hl,(#4d10)
-// 2803  3a2f4d    ld      a,(#4d2f)
-// 2806  11403b    ld      de,#3b40
-// 2809  cd6629    call    #2966
-func_2966();
-// 280c  22244d    ld      (#4d24),hl
-// 280f  322f4d    ld      (#4d2f),a
-// 2812  c9        ret     
-// 
-// 2813  dd21394d  ld      ix,#4d39
-// 2817  fd21104d  ld      iy,#4d10
-// 281b  cdea29    call    #29ea
-func_29ea();
-// 281e  114000    ld      de,#0040
-// 2821  a7        and     a
-// 2822  ed52      sbc     hl,de
-// 2824  da0028    jp      c,#2800
-// 2827  2a104d    ld      hl,(#4d10)
-// 282a  ed5b394d  ld      de,(#4d39)
-// 282e  3a2f4d    ld      a,(#4d2f)
-// 2831  cd6629    call    #2966
-func_2966();
-// 2834  22244d    ld      (#4d24),hl
-// 2837  322f4d    ld      (#4d2f),a
-// 283a  c9        ret     
+    // 27f1  3ac14d    ld      a,(#4dc1)
+    // 27f4  cb47      bit     0,a
+    // 27f6  c21328    jp      nz,#2813
+    if ((NONRANDOM_MOVEMENT & 1) == 0)
+    {
+        // 27f9  3a044e    ld      a,(#4e04)
+        // 27fc  fe03      cp      #03
+        // 27fe  2013      jr      nz,#2813        ; (19)
+        if (LEVEL_STATE_SUBR == 3)
+        {
+            random:
+            // 2800  2a104d    ld      hl,(#4d10)
+            // 2803  3a2f4d    ld      a,(#4d2f)
+            // 2806  11403b    ld      de,#3b40
+            // 2809  cd6629    call    #2966
+            // 280c  22244d    ld      (#4d24),hl
+            // 280f  322f4d    ld      (#4d2f),a
+            // 2812  c9        ret     
+            CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, data_3b40,
+            &CLYDE_ORIENTATION);
+            return;
+        }
+    }
 
-void func_283b()
-{
-// 283b  3aac4d    ld      a,(#4dac)
-// 283e  a7        and     a
-// 283f  ca5528    jp      z,#2855
-// 2842  112c2e    ld      de,#2e2c
-// 2845  2a0a4d    ld      hl,(#4d0a)
-// 2848  3a2c4d    ld      a,(#4d2c)
-// 284b  cd6629    call    #2966
-func_2966();
-// 284e  221e4d    ld      (#4d1e),hl
-// 2851  322c4d    ld      (#4d2c),a
-// 2854  c9        ret     
-// 
-// 2855  2a0a4d    ld      hl,(#4d0a)
-// 2858  3a2c4d    ld      a,(#4d2c)
-// 285b  cd1e29    call    #291e
-func_291e();
-// 285e  221e4d    ld      (#4d1e),hl
-// 2861  322c4d    ld      (#4d2c),a
-// 2864  c9        ret     
+    // 2813  dd21394d  ld      ix,#4d39
+    // 2817  fd21104d  ld      iy,#4d10
+    // 281b  cdea29    call    #29ea
+    dist = computeDistance_29ea(PACMAN_TILE2, CLYDE_TILE);
+    // 281e  114000    ld      de,#0040
+    // 2821  a7        and     a
+    // 2822  ed52      sbc     hl,de
+    // 2824  da0028    jp      c,#2800
+    dist -= 0x40;
+    if (dist < 0)
+        goto random;
+    }
+    // 2827  2a104d    ld      hl,(#4d10)
+    // 282a  ed5b394d  ld      de,(#4d39)
+    // 282e  3a2f4d    ld      a,(#4d2f)
+    // 2831  cd6629    call    #2966
+    // 2834  22244d    ld      (#4d24),hl
+    // 2837  322f4d    ld      (#4d2f),a
+    // 283a  c9        ret     
+    CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, PACMAN_TILE2,
+    &CLYDE_ORIENTATION);
 }
 
-void func_2865()
+void tileChangeBlinky_283b()
 {
-// 2865  3aad4d    ld      a,(#4dad)
-// 2868  a7        and     a
-// 2869  ca7f28    jp      z,#287f
-// 286c  112c2e    ld      de,#2e2c
-// 286f  2a0c4d    ld      hl,(#4d0c)
-// 2872  3a2d4d    ld      a,(#4d2d)
-// 2875  cd6629    call    #2966
-func_2966();
-// 2878  22204d    ld      (#4d20),hl
-// 287b  322d4d    ld      (#4d2d),a
-// 287e  c9        ret     
-// 
-// 287f  2a0c4d    ld      hl,(#4d0c)
-// 2882  3a2d4d    ld      a,(#4d2d)
-// 2885  cd1e29    call    #291e
-func_291e();
-// 2888  22204d    ld      (#4d20),hl
-// 288b  322d4d    ld      (#4d2d),a
-// 288e  c9        ret     
-
-void func_288f()
-{
-// 288f  3aae4d    ld      a,(#4dae)
-// 2892  a7        and     a
-// 2893  caa928    jp      z,#28a9
-// 2896  112c2e    ld      de,#2e2c
-// 2899  2a0e4d    ld      hl,(#4d0e)
-// 289c  3a2e4d    ld      a,(#4d2e)
-// 289f  cd6629    call    #2966
-func_2966();
-// 28a2  22224d    ld      (#4d22),hl
-// 28a5  322e4d    ld      (#4d2e),a
-// 28a8  c9        ret     
-// 
-// 28a9  2a0e4d    ld      hl,(#4d0e)
-// 28ac  3a2e4d    ld      a,(#4d2e)
-// 28af  cd1e29    call    #291e
-func_291e();
-// 28b2  22224d    ld      (#4d22),hl
-// 28b5  322e4d    ld      (#4d2e),a
-// 28b8  c9        ret     
+    // 283b  3aac4d    ld      a,(#4dac)
+    // 283e  a7        and     a
+    // 283f  ca5528    jp      z,#2855
+    if (BLINKY_STATE)
+    {
+        // 2842  112c2e    ld      de,#2e2c
+        // 2845  2a0a4d    ld      hl,(#4d0a)
+        // 2848  3a2c4d    ld      a,(#4d2c)
+        // 284b  cd6629    call    #2966
+        // 284e  221e4d    ld      (#4d1e),hl
+        // 2851  322c4d    ld      (#4d2c),a
+        // 2854  c9        ret     
+        BLINKY_TILE_CHANGE2 = findBestOrientation_2966(BLINKY_TILE, 0x2e2c, &BLINKY_ORIENTATION);
+        return;
+    }
+    // 2855  2a0a4d    ld      hl,(#4d0a)
+    // 2858  3a2c4d    ld      a,(#4d2c)
+    // 285b  cd1e29    call    #291e
+    // 285e  221e4d    ld      (#4d1e),hl
+    // 2861  322c4d    ld      (#4d2c),a
+    // 2864  c9        ret     
+    BLINKY_TILE_CHANGE2 = randomDirection_291e(BLINKY_TILE, &BLINKY_ORIENTATION);
 }
 
-void func_28b9()
+void tileChangePinky_2865()
 {
-// 28b9  3aaf4d    ld      a,(#4daf)
-// 28bc  a7        and     a
-// 28bd  cad328    jp      z,#28d3
-// 28c0  112c2e    ld      de,#2e2c
-// 28c3  2a104d    ld      hl,(#4d10)
-// 28c6  3a2f4d    ld      a,(#4d2f)
-// 28c9  cd6629    call    #2966
-func_2966();
-// 28cc  22244d    ld      (#4d24),hl
-// 28cf  322f4d    ld      (#4d2f),a
-// 28d2  c9        ret     
+    // 2865  3aad4d    ld      a,(#4dad)
+    // 2868  a7        and     a
+    // 2869  ca7f28    jp      z,#287f
+    if (PINKY_STATE)
+    {
+        // 286c  112c2e    ld      de,#2e2c
+        // 286f  2a0c4d    ld      hl,(#4d0c)
+        // 2872  3a2d4d    ld      a,(#4d2d)
+        // 2875  cd6629    call    #2966
+        // 2878  22204d    ld      (#4d20),hl
+        // 287b  322d4d    ld      (#4d2d),a
+        // 287e  c9        ret     
+        PINKY_TILE_CHANGE2 = findBestOrientation_2966(PINKY_TILE, 0x2e2c,
+        &PINKY_ORIENTATION);
+        return;
+    }
+
+    // 287f  2a0c4d    ld      hl,(#4d0c)
+    // 2882  3a2d4d    ld      a,(#4d2d)
+    // 2885  cd1e29    call    #291e
+    // 2888  22204d    ld      (#4d20),hl
+    // 288b  322d4d    ld      (#4d2d),a
+    // 288e  c9        ret     
+    PINKY_TILE_CHANGE2 = randomDirection_291e(PINKY_TILE, &PINKY_ORIENTATION);
+}
+
+void tileChangeInky_288f()
+{
+    // 288f  3aae4d    ld      a,(#4dae)
+    // 2892  a7        and     a
+    // 2893  caa928    jp      z,#28a9
+    if (INKY_STATE)
+    {
+        // 2896  112c2e    ld      de,#2e2c
+        // 2899  2a0e4d    ld      hl,(#4d0e)
+        // 289c  3a2e4d    ld      a,(#4d2e)
+        // 289f  cd6629    call    #2966
+        // 28a2  22224d    ld      (#4d22),hl
+        // 28a5  322e4d    ld      (#4d2e),a
+        // 28a8  c9        ret     
+        INKY_TILE_CHANGE2 = findBestOrientation_2966(INKY_TILE, 0x2e2c,
+        &INKY_ORIENTATION);
+        return;
+    }
+V
+    // 28a9  2a0e4d    ld      hl,(#4d0e)
+    // 28ac  3a2e4d    ld      a,(#4d2e)
+    // 28af  cd1e29    call    #291e
+    // 28b2  22224d    ld      (#4d22),hl
+    // 28b5  322e4d    ld      (#4d2e),a
+    // 28b8  c9        ret     
+    INKY_TILE_CHANGE2 = randomDirection_291e(INKY_TILE, &INKY_ORIENTATION);
+}
+
+void tileChangeClyde_28b9()
+{
+    // 28b9  3aaf4d    ld      a,(#4daf)
+    // 28bc  a7        and     a
+    // 28bd  cad328    jp      z,#28d3
+    if (CLYDE_STATE)
+    {
+        // 28c0  112c2e    ld      de,#2e2c
+        // 28c3  2a104d    ld      hl,(#4d10)
+        // 28c6  3a2f4d    ld      a,(#4d2f)
+        // 28c9  cd6629    call    #2966
+        // 28cc  22244d    ld      (#4d24),hl
+        // 28cf  322f4d    ld      (#4d2f),a
+        // 28d2  c9        ret     
+        CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, 0x2e2c,
+        &CLYDE_ORIENTATION);
+        return;
+    }
 // 
-// 28d3  2a104d    ld      hl,(#4d10)
-// 28d6  3a2f4d    ld      a,(#4d2f)
-// 28d9  cd1e29    call    #291e
-func_291e();
-// 28dc  22244d    ld      (#4d24),hl
-// 28df  322f4d    ld      (#4d2f),a
-// 28e2  c9        ret     
+    // 28d3  2a104d    ld      hl,(#4d10)
+    // 28d6  3a2f4d    ld      a,(#4d2f)
+    // 28d9  cd1e29    call    #291e
+    // 28dc  22244d    ld      (#4d24),hl
+    // 28df  322f4d    ld      (#4d2f),a
+    // 28e2  c9        ret     
+    CLYDE_TILE_CHANGE2 = randomDirection_291e(CLYDE_TILE, &CLYDE_ORIENTATION);
+}
 
 void func_28e3()
 {
-// 28e3  3aa74d    ld      a,(#4da7)
-// 28e6  a7        and     a
-// 28e7  cafe28    jp      z,#28fe
-// 28ea  2a124d    ld      hl,(#4d12)
-// 28ed  ed5b0c4d  ld      de,(#4d0c)
-// 28f1  3a3c4d    ld      a,(#4d3c)
-// 28f4  cd6629    call    #2966
-func_2966();
-// 28f7  22264d    ld      (#4d26),hl
-// 28fa  323c4d    ld      (#4d3c),a
-// 28fd  c9        ret     
-// 
-// 28fe  2a394d    ld      hl,(#4d39)
-// 2901  ed4b0c4d  ld      bc,(#4d0c)
-// 2905  7d        ld      a,l
-// 2906  87        add     a,a
-// 2907  91        sub     c
-// 2908  6f        ld      l,a
-// 2909  7c        ld      a,h
-// 290a  87        add     a,a
-// 290b  90        sub     b
-// 290c  67        ld      h,a
-// 290d  eb        ex      de,hl
-// 290e  2a124d    ld      hl,(#4d12)
-// 2911  3a3c4d    ld      a,(#4d3c)
-// 2914  cd6629    call    #2966
-func_2966();
-// 2917  22264d    ld      (#4d26),hl
-// 291a  323c4d    ld      (#4d3c),a
-// 291d  c9        ret     
- 
-// 291e  223e4d    ld      (#4d3e),hl
-// 2921  ee02      xor     #02
-// 2923  323d4d    ld      (#4d3d),a
-// 2926  cd232a    call    #2a23
-func_2a23();
-// 2929  e603      and     #03
-// 292b  213b4d    ld      hl,#4d3b
-hl=BEST_ORIENTATION_FOUND;
-// 292e  77        ld      (hl),a
-// 292f  87        add     a,a
-// 2930  5f        ld      e,a
-// 2931  1600      ld      d,#00
-// 2933  dd21ff32  ld      ix,#32ff
-// 2937  dd19      add     ix,de
-// 2939  fd213e4d  ld      iy,#4d3e
-// 293d  3a3d4d    ld      a,(#4d3d)
-// 2940  be        cp      (hl)
-OPPOSITE_ORIENTATION == ;
-// 2941  ca5729    jp      z,#2957
-{
-    // 2944  cd0f20    call    #200f
-    a = getScreenCharPosOffset_200f(0x32ff+ , CURRENT_TILE_POS);
-    // 2947  e6c0      and     #c0
-    // 2949  d6c0      sub     #c0
-    // 294b  280a      jr      z,#2957         ; (10)
-    if ((a&0xc0) != 0xc0)
+    // 28e3  3aa74d    ld      a,(#4da7)
+    // 28e6  a7        and     a
+    // 28e7  cafe28    jp      z,#28fe
+    if (BLINKY_EDIBLE)
     {
-        // 294d  dd6e00    ld      l,(ix+#00)
-        // 2950  dd6601    ld      h,(ix+#01)
-        // 2953  3a3b4d    ld      a,(#4d3b)
-        // 2956  c9        ret     
-        hl=moveData_32ff;
-        a=BEST_ORIENTATION_FOUND;
+        // 28ea  2a124d    ld      hl,(#4d12)
+        // 28ed  ed5b0c4d  ld      de,(#4d0c)
+        // 28f1  3a3c4d    ld      a,(#4d3c)
+        // 28f4  cd6629    call    #2966
+        // 28f7  22264d    ld      (#4d26),hl
+        // 28fa  323c4d    ld      (#4d3c),a
+        // 28fd  c9        ret     
+        PACMAN_TILE_CHANGE2 = findBestOrientation_2966(PACMAN_DEMO_TILE, PINKY_TILE,
+        &PACMAN_DESIRED_ORIENTATION);
         return;
     }
-// 2957  dd23      inc     ix
-// 2959  dd23      inc     ix
-// 295b  213b4d    ld      hl,#4d3b
-// 295e  7e        ld      a,(hl)
-// 295f  3c        inc     a
-// 2960  e603      and     #03
-// 2962  77        ld      (hl),a
-// 2963  c33d29    jp      #293d
-func_293d();
+
+    // 28fe  2a394d    ld      hl,(#4d39)
+    // 2901  ed4b0c4d  ld      bc,(#4d0c)
+    // 2905  7d        ld      a,l
+    // 2906  87        add     a,a
+    // 2907  91        sub     c
+    // 2908  6f        ld      l,a
+    XYPOS desired;
+    desired->y=PACMAN_TILE2->y*2-PINKY_TILE->y;
+    // 2909  7c        ld      a,h
+    // 290a  87        add     a,a
+    // 290b  90        sub     b
+    // 290c  67        ld      h,a
+    desired->x=PACMAN_TILE2->x*2-PINKY_TILE->x;
+    // 290d  eb        ex      de,hl
+    // 290e  2a124d    ld      hl,(#4d12)
+    // 2911  3a3c4d    ld      a,(#4d3c)
+    // 2914  cd6629    call    #2966
+    // 2917  22264d    ld      (#4d26),hl
+    // 291a  323c4d    ld      (#4d3c),a
+    // 291d  c9        ret     
+    PACMAN_TILE_CHANGE2 = findBestOrientation_2966(PACMAN_DEMO_TILE, desired, &PACMAN_DESIRED_ORIENTATION);
 }
 
-void func_2966 (XY pos)
+uint16_t randomDirection_291e (XYPOS hl, uint8_t *orientation)
 {
-// 2966  223e4d    ld      (#4d3e),hl
-CURRENT_TILE_POS = pos;
-// 2969  ed53404d  ld      (#4d40),de
-// 296d  323b4d    ld      (#4d3b),a
-// 2970  ee02      xor     #02
-// 2972  323d4d    ld      (#4d3d),a
-// 2975  21ffff    ld      hl,#ffff
-// 2978  22444d    ld      (#4d44),hl
-// 297b  dd21ff32  ld      ix,#32ff
-// 297f  fd213e4d  ld      iy,#4d3e
-// 2983  21c74d    ld      hl,#4dc7
-// 2986  3600      ld      (hl),#00
-// 2988  3a3d4d    ld      a,(#4d3d)
-// 298b  be        cp      (hl)
-// 298c  cac629    jp      z,#29c6
-// 298f  cd0020    call    #2000
-addXYOffset_2000(0x32ff, 0x4d3e);
-// 2992  22424d    ld      (#4d42),hl
-// 2995  cd6500    call    #0065
-getScreenOffset_0065();
-// 2998  7e        ld      a,(hl)
-// 2999  e6c0      and     #c0
-// 299b  d6c0      sub     #c0
-// 299d  2827      jr      z,#29c6         ; (39)
-// 299f  dde5      push    ix
-// 29a1  fde5      push    iy
-// 29a3  dd21404d  ld      ix,#4d40
-// 29a7  fd21424d  ld      iy,#4d42
-// 29ab  cdea29    call    #29ea
-func_29ea();
-// 29ae  fde1      pop     iy
-// 29b0  dde1      pop     ix
-// 29b2  eb        ex      de,hl
-// 29b3  2a444d    ld      hl,(#4d44)
-// 29b6  a7        and     a
-// 29b7  ed52      sbc     hl,de
-// 29b9  dac629    jp      c,#29c6
-// 29bc  ed53444d  ld      (#4d44),de
-// 29c0  3ac74d    ld      a,(#4dc7)
-// 29c3  323b4d    ld      (#4d3b),a
-// 29c6  dd23      inc     ix
-// 29c8  dd23      inc     ix
-// 29ca  21c74d    ld      hl,#4dc7
-// 29cd  34        inc     (hl)
-// 29ce  3e04      ld      a,#04
-// 29d0  be        cp      (hl)
-// 29d1  c28829    jp      nz,#2988
-// 29d4  3a3b4d    ld      a,(#4d3b)
-// 29d7  87        add     a,a
-// 29d8  5f        ld      e,a
-// 29d9  1600      ld      d,#00
-// 29db  dd21ff32  ld      ix,#32ff
-// 29df  dd19      add     ix,de
-// 29e1  dd6e00    ld      l,(ix+#00)
-// 29e4  dd6601    ld      h,(ix+#01)
-// 29e7  cb3f      srl     a
-// 29e9  c9        ret     
+    // 291e  223e4d    ld      (#4d3e),hl
+    // 2921  ee02      xor     #02
+    // 2923  323d4d    ld      (#4d3d),a
+    CURRENT_TILE_POS=hl;
+    OPPOSITE_ORIENTATION = *orientation ^ 2;
+    // 2926  cd232a    call    #2a23
+    // 2929  e603      and     #03
+    // 292b  213b4d    ld      hl,#4d3b
+    // 292e  77        ld      (hl),a
+    BEST_ORIENTATION_FOUND = random_2a23() & 3;
+    // 292f  87        add     a,a
+    // 2930  5f        ld      e,a
+    // 2931  1600      ld      d,#00
+    // 2933  dd21ff32  ld      ix,#32ff
+    // 2937  dd19      add     ix,de
+    // 2939  fd213e4d  ld      iy,#4d3e
+    ix = &moveData_32ff[BEST_ORIENTATION_FOUND*2];
+    iy = CURRENT_TILE_POS;
+
+    while (1)
+    {
+        // 293d  3a3d4d    ld      a,(#4d3d)
+        // 2940  be        cp      (hl)
+        // 2941  ca5729    jp      z,#2957
+        if (OPPOSITE_ORIENTATION != BEST_ORIENTATON_FOUND)
+        {
+            // 2944  cd0f20    call    #200f
+            a = getScreenCharPosOffset_200f(ix, iy);
+            // 2947  e6c0      and     #c0
+            // 2949  d6c0      sub     #c0
+            // 294b  280a      jr      z,#2957         ; (10)
+            if ((a&0xc0) != 0xc0)
+            {
+                // 294d  dd6e00    ld      l,(ix+#00)
+                // 2950  dd6601    ld      h,(ix+#01)
+                // 2953  3a3b4d    ld      a,(#4d3b)
+                // 2956  c9        ret     
+                hl=MEM[ix];
+                return hl;
+            }
+        }
+        // 2957  dd23      inc     ix
+        // 2959  dd23      inc     ix
+        ix+=2;
+        // 295b  213b4d    ld      hl,#4d3b
+        // 295e  7e        ld      a,(hl)
+        // 295f  3c        inc     a
+        // 2960  e603      and     #03
+        // 2962  77        ld      (hl),a
+        // 2963  c33d29    jp      #293d
+        BEST_ORIENTATION_FOUND = (BEST_ORIENTATION_FOUND+1)&3;
+    }
 }
 
-void func_29ea()
+/*  hl = current position
+ *  de = target position
+ *  a = current orientation
+ *
+ *  returns new direction vector
+ */
+XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
 {
-// 29ea  dd7e00    ld      a,(ix+#00)
-// 29ed  fd4600    ld      b,(iy+#00)
-// 29f0  90        sub     b
-// 29f1  d2f929    jp      nc,#29f9
-// 29f4  78        ld      a,b
-// 29f5  dd4600    ld      b,(ix+#00)
-// 29f8  90        sub     b
-// 29f9  cd122a    call    #2a12
-func_2a12();
-// 29fc  e5        push    hl
-// 29fd  dd7e01    ld      a,(ix+#01)
-// 2a00  fd4601    ld      b,(iy+#01)
-// 2a03  90        sub     b
-// 2a04  d20c2a    jp      nc,#2a0c
-// 2a07  78        ld      a,b
-// 2a08  dd4601    ld      b,(ix+#01)
-// 2a0b  90        sub     b
-// 2a0c  cd122a    call    #2a12
-func_2a12();
-// 2a0f  c1        pop     bc
-// 2a10  09        add     hl,bc
-// 2a11  c9        ret     
-// 
-// 2a12  67        ld      h,a
-// 2a13  5f        ld      e,a
-// 2a14  2e00      ld      l,#00
-// 2a16  55        ld      d,l
-// 2a17  0e08      ld      c,#08
-// 2a19  29        add     hl,hl
-// 2a1a  d21e2a    jp      nc,#2a1e
-// 2a1d  19        add     hl,de
-// 2a1e  0d        dec     c
-// 2a1f  c2192a    jp      nz,#2a19
-// 2a22  c9        ret     
-// 
-// 2a23  2ac94d    ld      hl,(#4dc9)
-// 2a26  54        ld      d,h
-// 2a27  5d        ld      e,l
-// 2a28  29        add     hl,hl
-// 2a29  29        add     hl,hl
-// 2a2a  19        add     hl,de
-// 2a2b  23        inc     hl
-// 2a2c  7c        ld      a,h
-// 2a2d  e61f      and     #1f
-// 2a2f  67        ld      h,a
-// 2a30  7e        ld      a,(hl)
-// 2a31  22c94d    ld      (#4dc9),hl
-// 2a34  c9        ret     
+    //-------------------------------
+    // 2966  223e4d    ld      (#4d3e),hl
+    // 2969  ed53404d  ld      (#4d40),de
+    // 296d  323b4d    ld      (#4d3b),a
+    // 2970  ee02      xor     #02
+    // 2972  323d4d    ld      (#4d3d),a
+    //-------------------------------
+    CURRENT_TILE_POS = hl;
+    DEST_TILE_POS = de;
+    BEST_ORIENTATION_FOUND = *a;
+    OPPOSITE_ORIENTATION = *a ^ 2;
+    //-------------------------------
+    // 2975  21ffff    ld      hl,#ffff
+    // 2978  22444d    ld      (#4d44),hl
+    //-------------------------------
+    MIN_DIST_FOUND = 0xffff;
+    //-------------------------------
+    // 297b  dd21ff32  ld      ix,#32ff
+    // 297f  fd213e4d  ld      iy,#4d3e
+    // 2983  21c74d    ld      hl,#4dc7
+    // 2986  3600      ld      (hl),#00
+    //-------------------------------
+    TRIAL_ORIENTATION = 0;
+
+    do
+    {
+        //-------------------------------
+        // 2988  3a3d4d    ld      a,(#4d3d)
+        // 298b  be        cp      (hl)
+        // 298c  cac629    jp      z,#29c6
+        //-------------------------------
+        if (OPPOSITE_ORIENTATION != 0)
+        {
+            //-------------------------------
+            // 298f  cd0020    call    #2000
+            // 2992  22424d    ld      (#4d42),hl
+            // 2995  cd6500    call    #0065
+            //-------------------------------
+            TMP_RESULT_POS = addXYOffset_2000(modeData_32ff, CURRENT_TILE_POS);
+            int offset = getScreenOffset_0065(TMP_RESULT_POS);
+            //-------------------------------
+            // 2998  7e        ld      a,(hl)
+            // 2999  e6c0      and     #c0
+            // 299b  d6c0      sub     #c0
+            // 299d  2827      jr      z,#29c6         ; (39)
+            //-------------------------------
+            if ((VIDEO[offset]&0xc0)!= 0xc0)
+            {
+                //-------------------------------
+                // 299f  dde5      push    ix
+                // 29a1  fde5      push    iy
+                // 29a3  dd21404d  ld      ix,#4d40
+                // 29a7  fd21424d  ld      iy,#4d42
+                // 29ab  cdea29    call    #29ea
+                //-------------------------------
+                uint16_t dist = computeDistance_29ea(DEST_TILE_POS, TMP_RESULT_POS);
+                //-------------------------------
+                // 29ae  fde1      pop     iy
+                // 29b0  dde1      pop     ix
+                // 29b2  eb        ex      de,hl
+                // 29b3  2a444d    ld      hl,(#4d44)
+                // 29b6  a7        and     a
+                // 29b7  ed52      sbc     hl,de
+                // 29b9  dac629    jp      c,#29c6
+                //-------------------------------
+                if (dist < MIN_DISTANCE_FOUND)
+                {
+                    //-------------------------------
+                    // 29bc  ed53444d  ld      (#4d44),de
+                    // 29c0  3ac74d    ld      a,(#4dc7)
+                    // 29c3  323b4d    ld      (#4d3b),a
+                    //-------------------------------
+                    MIN_DISTANCE_FOUND = dist;
+                    BEST_ORIENTATION_FOUND = TRIAL_ORIENTATION;
+                }
+            }
+        }
+
+        //-------------------------------
+        // 29c6  dd23      inc     ix
+        // 29c8  dd23      inc     ix
+        //-------------------------------
+        modeData+=2;
+        //-------------------------------
+        // 29ca  21c74d    ld      hl,#4dc7
+        // 29cd  34        inc     (hl)
+        //-------------------------------
+        TRIAL_ORIENTATON++;
+        //-------------------------------
+        // 29ce  3e04      ld      a,#04
+        // 29d0  be        cp      (hl)
+        // 29d1  c28829    jp      nz,#2988
+        //-------------------------------
+    }
+    while (++TRIAL_ORIENTATION < 4);
+    
+    //-------------------------------
+    // 29d4  3a3b4d    ld      a,(#4d3b)
+    // 29d7  87        add     a,a
+    // 29d8  5f        ld      e,a
+    // 29d9  1600      ld      d,#00
+    //-------------------------------
+    de = BEST_ORIENTATION_FOUND * 2;
+    //-------------------------------
+    // 29db  dd21ff32  ld      ix,#32ff
+    // 29df  dd19      add     ix,de
+    // 29e1  dd6e00    ld      l,(ix+#00)
+    // 29e4  dd6601    ld      h,(ix+#01)
+    // 29e7  cb3f      srl     a
+    // 29e9  c9        ret     
+    //-------------------------------
+    *a = BEST_ORIENTATION_FOUND;
+    return moveData[de];
+}
+
+/*  Computes the distance between two sets of co-ords by summing the squares of
+ *  the x and y differences.
+ *
+ *  ix, iy = input co-ords
+ *  returns hl = sum of squares
+ */
+uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy)
+{
+    //-------------------------------
+    // 29ea  dd7e00    ld      a,(ix+#00)
+    // 29ed  fd4600    ld      b,(iy+#00)
+    // 29f0  90        sub     b
+    // 29f1  d2f929    jp      nc,#29f9
+    //-------------------------------
+    int b = ix.y - iy.y;
+    if (b < 0)
+    {
+        //-------------------------------
+        // 29f4  78        ld      a,b
+        // 29f5  dd4600    ld      b,(ix+#00)
+        // 29f8  90        sub     b
+        //-------------------------------
+        b = iy.y - ix.y
+    }
+    //-------------------------------
+    // 29f9  cd122a    call    #2a12
+    //-------------------------------
+    uint16_t hl = calcSquare_2a12(b);
+    //-------------------------------
+    // 29fc  e5        push    hl
+    // 29fd  dd7e01    ld      a,(ix+#01)
+    // 2a00  fd4601    ld      b,(iy+#01)
+    // 2a03  90        sub     b
+    // 2a04  d20c2a    jp      nc,#2a0c
+    //-------------------------------
+    b = ix.x - iy.x;
+    if (b < 0)
+    {
+        //-------------------------------
+        // 2a07  78        ld      a,b
+        // 2a08  dd4601    ld      b,(ix+#01)
+        // 2a0b  90        sub     b
+        //-------------------------------
+        b = iy.x - ix.x
+    }
+    //-------------------------------
+    // 2a0c  cd122a    call    #2a12
+    // 2a0f  c1        pop     bc
+    // 2a10  09        add     hl,bc
+    // 2a11  c9        ret     
+    //-------------------------------
+    hl += calcSquare_2a12(b);
+
+    return hl;
+}
+
+/*  Calculates the square of a value using bit shifts and add 
+ *
+ *  input : a 
+ *  output : hl
+ */
+uint16_t calcSquare_2a12(uint8_t a)
+{
+    //-------------------------------
+    // 2a12  67        ld      h,a
+    // 2a13  5f        ld      e,a
+    // 2a14  2e00      ld      l,#00
+    // 2a16  55        ld      d,l
+    // 2a17  0e08      ld      c,#08
+    //-------------------------------
+    uint16_t hl = a<<8;
+    uint16_t de = a;
+    for (int c = 0; c < 8; c++)
+    {
+        //-------------------------------
+        // 2a19  29        add     hl,hl
+        // 2a1a  d21e2a    jp      nc,#2a1e
+        //-------------------------------
+        int carry = hl & 0x8000;
+        hl <<= 1;
+        if (carry)
+        {
+            //-------------------------------
+            // 2a1d  19        add     hl,de
+            //-------------------------------
+            hl += de;
+        }
+        //-------------------------------
+        // 2a1e  0d        dec     c
+        // 2a1f  c2192a    jp      nz,#2a19
+        //-------------------------------
+    }
+    //-------------------------------
+    // 2a22  c9        ret     
+    //-------------------------------
+    return hl;
+}
+
+/*  Generates a random number by reading a byte from a randomised ROM address 
+ *  TODO : this will generate different movement unless original ROM data is used */
+void random_2a23()
+{
+    // 2a23  2ac94d    ld      hl,(#4dc9)
+    uint16_t hl=RND_VAL_PTR;
+    // 2a26  54        ld      d,h
+    // 2a27  5d        ld      e,l
+    // 2a28  29        add     hl,hl
+    // 2a29  29        add     hl,hl
+    // 2a2a  19        add     hl,de
+    // 2a2b  23        inc     hl
+    hl*=5;
+    hl++;
+    // 2a2c  7c        ld      a,h
+    // 2a2d  e61f      and     #1f
+    // 2a2f  67        ld      h,a
+    hl&=0x1f00;
+    // 2a30  7e        ld      a,(hl)
+    // 2a31  22c94d    ld      (#4dc9),hl
+    // 2a34  c9        ret     
+    return MEM[hl];
 }
 
 void func_2a35()
 {
-// 2a35  114040    ld      de,#4040
-// 2a38  21c043    ld      hl,#43c0
-// 2a3b  a7        and     a
-// 2a3c  ed52      sbc     hl,de
-// 2a3e  c8        ret     z
-// 
-// 2a3f  1a        ld      a,(de)
-// 2a40  fe10      cp      #10
-// 2a42  ca532a    jp      z,#2a53
-// 2a45  fe12      cp      #12
-// 2a47  ca532a    jp      z,#2a53
-// 2a4a  fe14      cp      #14
-// 2a4c  ca532a    jp      z,#2a53
-// 2a4f  13        inc     de
-// 2a50  c3382a    jp      #2a38
-// 2a53  3e40      ld      a,#40
-// 2a55  12        ld      (de),a
-// 2a56  13        inc     de
-// 2a57  c3382a    jp      #2a38
+    // 2a35  114040    ld      de,#4040
+    int de=0x4040;
+    while (1)
+    {
+        // 2a38  21c043    ld      hl,#43c0
+        // 2a3b  a7        and     a
+        // 2a3c  ed52      sbc     hl,de
+        // 2a3e  c8        ret     z
+        int hl=0x43c0;
+        if (de==hl)
+            return;
+
+        // 2a3f  1a        ld      a,(de)
+        // 2a40  fe10      cp      #10
+        // 2a42  ca532a    jp      z,#2a53
+        // 2a45  fe12      cp      #12
+        // 2a47  ca532a    jp      z,#2a53
+        // 2a4a  fe14      cp      #14
+        // 2a4c  ca532a    jp      z,#2a53
+        if (a!=0x10 && a!=0x12 && a!=0x14)
+        {
+            // 2a4f  13        inc     de
+            // 2a50  c3382a    jp      #2a38
+            de++;
+        }
+        else
+        {
+            // 2a53  3e40      ld      a,#40
+            // 2a55  12        ld      (de),a
+            // 2a56  13        inc     de
+            // 2a57  c3382a    jp      #2a38
+            MEM[de++]=0x40;
+        }
+    }
+}
 
 void addToScore_2a5a(int b)
 {
@@ -10351,108 +11071,178 @@ void addToScore_2a5a(int b)
     // 2a60  21172b    ld      hl,#2b17
     // 2a63  df        rst     #18
     //-------------------------------
-    hl=tableLookup (scoreTable_2b17, b);
+    /*  Retrieve the 2-byte value to be added to the 4-byte score */
+    uint16_t add = tableLookup (scoreTable_2b17, b);
 
-// 2a64  eb        ex      de,hl
-// 2a65  cd0b2b    call    #2b0b
-uint8_t *score=getPlayerScorePtr_2b0b();
-// 2a68  7b        ld      a,e
-// 2a69  86        add     a,(hl)
-// 2a6a  27        daa     
-*score+=e;
-*score=DAA(*score);
-// 2a6b  77        ld      (hl),a
-// 2a6c  23        inc     hl
-score++;
-// 2a6d  7a        ld      a,d
-// 2a6e  8e        adc     a,(hl)
-// 2a6f  27        daa     
-// 2a70  77        ld      (hl),a
-// 2a71  5f        ld      e,a
-// 2a72  23        inc     hl
-// 2a73  3e00      ld      a,#00
-// 2a75  8e        adc     a,(hl)
-// 2a76  27        daa     
-// 2a77  77        ld      (hl),a
-// 2a78  57        ld      d,a
-// 2a79  eb        ex      de,hl
-// 2a7a  29        add     hl,hl
-// 2a7b  29        add     hl,hl
-// 2a7c  29        add     hl,hl
-// 2a7d  29        add     hl,hl
-hl=de*4;
-// 2a7e  3a714e    ld      a,(#4e71)
-// 2a81  3d        dec     a
-BONUS_LIFE-1
-// 2a82  bc        cp      h
-// 2a83  dc332b    call    c,#2b33
-extraLife_2b33();
-// 2a86  cdaf2a    call    #2aaf
-func_2aaf();
-// 2a89  13        inc     de
-// 2a8a  13        inc     de
-// 2a8b  13        inc     de
-// 2a8c  218a4e    ld      hl,#4e8a	; High score?
-// 2a8f  0603      ld      b,#03
-// 2a91  1a        ld      a,(de)
-// 2a92  be        cp      (hl)
-// 2a93  d8        ret     c
-// 
-// 2a94  2005      jr      nz,#2a9b        ; (5)
-{
-// 2a96  1b        dec     de
-// 2a97  2b        dec     hl
-// 2a98  10f7      djnz    #2a91           ; (-9)
-// 2a9a  c9        ret     
-}
+    // 2a64  eb        ex      de,hl
+    // 2a65  cd0b2b    call    #2b0b
+    /*  Fetch a pointer to the player's score (P1 or P2) */
+    uint8_t *score = getPlayerScorePtr_2b0b();
+    // 2a68  7b        ld      a,e
+    // 2a69  86        add     a,(hl)
+    // 2a6a  27        daa     
+    // 2a6b  77        ld      (hl),a
+    // 2a6c  23        inc     hl
+    /*  Add the LSB of the addition to the LSB of the score and adjust for BCD
+     */
+    score[0] += add & 0xff;
+    int carry = bcdAdjust (&score[0]);
+    // 2a6d  7a        ld      a,d
+    // 2a6e  8e        adc     a,(hl)
+    // 2a6f  27        daa     
+    // 2a70  77        ld      (hl),a
+    // 2a71  5f        ld      e,a
+    // 2a72  23        inc     hl
+    /*  Add the 2nd byte of the addition and adjust for BCD */
+    score[1] += (add>>8) + carry;
+    carry = bcdAdjust (&score[1]);
+    // 2a73  3e00      ld      a,#00
+    // 2a75  8e        adc     a,(hl)
+    // 2a76  27        daa     
+    // 2a77  77        ld      (hl),a
+    /*  Add any BCD carry to the 3rd byte of the score */
+    score[2] += carry;
+    carry = bcdAdjust (&score[2]);
+    // 2a78  57        ld      d,a
+    // 2a79  eb        ex      de,hl
+    uint16_t hl=score[2] << 8 + score[1];
+    // 2a7a  29        add     hl,hl
+    // 2a7b  29        add     hl,hl
+    // 2a7c  29        add     hl,hl
+    // 2a7d  29        add     hl,hl
+    hl*=16;
+    // 2a7e  3a714e    ld      a,(#4e71)
+    // 2a81  3d        dec     a
+    // 2a82  bc        cp      h
+    // 2a83  dc332b    call    c,#2b33
+    if (hl>>8 > BONUS_LIFE-1)
+        extraLife_2b33();
 
-// 2a9b  cd0b2b    call    #2b0b
-getPlayerScorePtr_2b0b();
+    // 2a86  cdaf2a    call    #2aaf
+    // 2a89  13        inc     de
+    // 2a8a  13        inc     de
+    // 2a8b  13        inc     de
+    drawPlayerScore_2aaf(score);
+    score+=3;
+
+    // 2a8c  218a4e    ld      hl,#4e8a
+
+    /*  Get Ptr to LSD of high score */
+    uint8_t *highScore = &HIGH_SCORE[2];
+
+    // 2a8f  0603      ld      b,#03
+    for (b = 0; b < 3; b++)
+    {
+        // 2a91  1a        ld      a,(de)
+        // 2a92  be        cp      (hl)
+        // 2a93  d8        ret     c
+        if (*score < *highScore)
+            return;
+
+        // 2a94  2005      jr      nz,#2a9b        ; (5)
+        if (*score != 0)
+            break;
+
+        // 2a96  1b        dec     de
+        // 2a97  2b        dec     hl
+        // 2a98  10f7      djnz    #2a91           ; (-9)
+        score--;
+        highScore--;
+    }
+    // 2a9a  c9        ret     
+    if (b == 3)
+        return;
+
+    // 2a9b  cd0b2b    call    #2b0b
+    score = getPlayerScorePtr_2b0b();
 
     // 2a9e  11884e    ld      de,#4e88
-    de = &highScore;
+    highScore = HIGH_SCORE;
 
-// 2aa1  010300    ld      bc,#0003
-// 2aa4  edb0      ldir    
-// 2aa6  1b        dec     de
-// 2aa7  010403    ld      bc,#0304
-// 2aaa  21f243    ld      hl,#43f2
-// 2aad  180f      jr      #2abe           ; (15)
-// 2aaf  3a094e    ld      a,(#4e09)
-// 2ab2  010403    ld      bc,#0304
-// 2ab5  21fc43    ld      hl,#43fc
-// 2ab8  a7        and     a
-// 2ab9  2803      jr      z,#2abe         ; (3)
-// 2abb  21e943    ld      hl,#43e9
-// 
-// 	;; Draw score, (b) bytes
-// 2abe  1a        ld      a,(de)
-// 2abf  0f        rrca    
-// 2ac0  0f        rrca    
-// 2ac1  0f        rrca    
-// 2ac2  0f        rrca    
-// 2ac3  cdce2a    call    #2ace
-func_2ace();
-// 2ac6  1a        ld      a,(de)
-// 2ac7  cdce2a    call    #2ace
-func_2ace();
-// 2aca  1b        dec     de
-// 2acb  10f1      djnz    #2abe           ; (-15)
-// 2acd  c9        ret     
-// 
-// 	;;  Draw digit (discard leading 0's)
-// 2ace  e60f      and     #0f
-// 2ad0  2804      jr      z,#2ad6         ; a=0?
-// 2ad2  0e00      ld      c,#00
-// 2ad4  1807      jr      #2add           ; 
-// 2ad6  79        ld      a,c		; c->a 
-// 2ad7  a7        and     a
-// 2ad8  2803      jr      z,#2add         ; (3)
-// 2ada  3e40      ld      a,#40
-// 2adc  0d        dec     c
-// 2add  77        ld      (hl),a
-// 2ade  2b        dec     hl
-// 2adf  c9        ret     
+    // 2aa1  010300    ld      bc,#0003
+    // 2aa4  edb0      ldir    
+    memcpy (highScore, score, 3);
+
+    // 2aa6  1b        dec     de
+    // 2aa7  010403    ld      bc,#0304
+    // 2aaa  21f243    ld      hl,#43f2
+    // 2aad  180f      jr      #2abe           ; (15)
+    highScore--;
+    screenLoc = &VIDEO[0x3f2];
+    drawScore_2abe (screenLoc, highScore, 4);
+}
+
+void drawPlayerScore_2aaf (uint8_t *score)
+{
+    // 2aaf  3a094e    ld      a,(#4e09)
+    // 2ab2  010403    ld      bc,#0304
+    // 2ab5  21fc43    ld      hl,#43fc
+    // 2ab8  a7        and     a
+    // 2ab9  2803      jr      z,#2abe         ; (3)
+    // 2abb  21e943    ld      hl,#43e9
+    uint8_t *screenLoc;
+    if (PLAYER == 0)
+        screenLoc = &VIDEO[0x3fc];
+    else
+        screenLoc = &VIDEO[0x3e9];
+
+    drawScore_2abe (screenLoc, score, 4);
+}
+
+/*  Draw score on screen while maintaining a flag to indicate leading blanks.
+ *  As soon as a non zero digit is encountered, clear the leading blanks flag.
+ *  Reg de is pointer to score, hl is screen ptr */
+void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks)
+{
+    for (int b = 0; b < 3; b++)
+    {
+        // 2abe  1a        ld      a,(de)
+        // 2abf  0f        rrca    
+        // 2ac0  0f        rrca    
+        // 2ac1  0f        rrca    
+        // 2ac2  0f        rrca    
+        // 2ac3  cdce2a    call    #2ace
+        blanks = drawDigit_2ace(&screenLoc, *score >> 4, blanks);
+        // 2ac6  1a        ld      a,(de)
+        // 2ac7  cdce2a    call    #2ace
+        blanks = drawDigit_2ace(&screenLoc, *score, blanks);
+        // 2aca  1b        dec     de
+        // 2acb  10f1      djnz    #2abe           ; (-15)
+        score--;
+    }
+    // 2acd  c9        ret     
+}
+
+/*  Draw digit (discard leading 0's) */
+int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks)
+{
+    // 2ace  e60f      and     #0f
+    // 2ad0  2804      jr      z,#2ad6         ; a=0?
+    if ((digit & 0xf) != 0)
+    {
+        // 2ad2  0e00      ld      c,#00
+        // 2ad4  1807      jr      #2add  
+        blanks=0;
+    }
+    else
+    {
+        // 2ad6  79        ld      a,c
+        // 2ad7  a7        and     a
+        // 2ad8  2803      jr      z,#2add         ; (3)
+        if (blanks!=0)
+        {
+            // 2ada  3e40      ld      a,#40
+            // 2adc  0d        dec     c
+            digit=0x40;
+            blanks--;
+        }
+    }
+    // 2add  77        ld      (hl),a
+    // 2ade  2b        dec     hl
+    // 2adf  c9        ret     
+    **screenLoc = digit;
+    *screenLoc--;
+    return blanks;
 }
 
 void func_2ae0()
@@ -10463,31 +11253,32 @@ void func_2ae0()
     //-------------------------------
     displayMsg_2c5e(0);
 
-// 2ae5  af        xor     a		; Clear P1 score 
-// 2ae6  21804e    ld      hl,#4e80
-// 2ae9  0608      ld      b,#08
-// 2aeb  cf        rst     #8
-P1Score = 0;
+    // 2ae5  af        xor     a		; Clear P1 score 
+    // 2ae6  21804e    ld      hl,#4e80
+    // 2ae9  0608      ld      b,#08
+    // 2aeb  cf        rst     #8
+    P1_SCORE = 0;
 
-// ;2aec  010403    ld      bc,#0304	; Draw Score P1
-// ;2aef  11824e    ld      de,#4e82
-// 2aec  010403    ld      bc,#0407	; 4 bytes, drop 7 leading zeroes 
-// 2aef  11824e    ld      de,#4e83	 
-// 2af2  21fc43    ld      hl,#43fc	; location 
-// 2af5  cdbe2a    call    #2abe
-func_2abe();
-// 	
-// ;2af8  010403    ld      bc,#0304	; Draw Score P2
-// ;2afb  11864e    ld      de,#4e86
-// 2af8  010403    ld      bc,#0407
-// 2afb  11864e    ld      de,#4e87
-// 2afe  21e943    ld      hl,#43e9
-// 2b01  3a704e    ld      a,(#4e70)
-// 2b04  a7        and     a
-// 2b05  20b7      jr      nz,#2abe        ; score needed
-// 
-// 2b07  0e06      ld      c,#06
-// 2b09  18b3      jr      #2abe           ; draw blanks
+    // 2aec  010403    ld      bc,#0304	; Draw Score P1
+    // 2aef  11824e    ld      de,#4e82
+    // 2af2  21fc43    ld      hl,#43fc	; location 
+    // 2af5  cdbe2a    call    #2abe
+    drawScore_2abe(&VIDEO[0x3fc], &P1_SCORE[2], 4);
+
+    // 2af8  010403    ld      bc,#0304	; Draw Score P2
+    // 2afb  11864e    ld      de,#4e86
+    // 2afe  21e943    ld      hl,#43e9
+    // 2b01  3a704e    ld      a,(#4e70)
+    // 2b04  a7        and     a
+    // 2b05  20b7      jr      nz,#2abe        ; score needed
+    // 2b07  0e06      ld      c,#06
+    int blanks = 4;
+    if (TWO_PLAYERS)
+        blanks = 6;
+
+    // 2b09  18b3      jr      #2abe           ; draw blanks
+    drawScore_2abe(&VIDEO[0x3e9], &P2_SCORE[2], blanks);
+}
 
 /*  Returns a pointer to the 4-byte array containing a player's score */
 uint8_t* getPlayerScorePtr_2b0b (void)
@@ -10822,149 +11613,201 @@ bool func_2bea ()
     // 2bf4  fe08      cp      #08		; >= 8? 
     // 2bf6  d22e2c    jp      nc,#2c2e	; No -> 0x2c2e 
     //-------------------------------
-    if (P1_LEVEL < 8)
+    int level = P1_LEVEL;
+    if (level < 8)
     {
+        // 2bf9  11083b    ld      de,#3b08	; Fruit table?  
+        // 2bfc  47        ld      b,a
+        {
+        // 2bfd  0e07      ld      c,#07		; Fruit count	 
+        // 2bff  210440    ld      hl,#4004	; Starting loc 
+        c=7;
+        hl=0x4004;
+        for (int i = 0; i < P1_LEVEL; i++)
+        {
+            // 2c02  1a        ld      a,(de)		;  
+            // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
+            a=MEM[de];
+            drawFruit_2b8f (hl, a);
 
-// 2bf9  11083b    ld      de,#3b08	; Fruit table?  
-// 2bfc  47        ld      b,a
-// 2bfd  0e07      ld      c,#07		; Fruit count	 
-// 2bff  210440    ld      hl,#4004	; Starting loc 
-c=7;
-hl=0x4004;
-for (int i = 0; i < P1_LEVEL; i++)
-{
-// 2c02  1a        ld      a,(de)		;  
-// 2c03  cd8f2b    call    #2b8f		; Draw fruit 
-drawFruit_2b8f (c, hl, de);
+            // 2c06  3e04      ld      a,#04		; v
+            // 2c08  84        add     a,h		; v
+            // 2c09  67        ld      h,a		; v
+            h+=4;
+            // 2c0a  13        inc     de		; v
+            // 2c0b  1a        ld      a,(de)		; v
+            a=MEM[++de];
+            // 2c0c  cd802b    call    #2b80		; Erase next fruit 
+            drawCharSquare_2b80 (hl, a);
+            // 2c0f  3efc      ld      a,#fc		; 
+            // 2c11  84        add     a,h		; 
+            // 2c12  67        ld      h,a		; 
+            h-=0xfc;
+            // 2c13  13        inc     de
+            de++;
+            // 2c14  23        inc     hl
+            // 2c15  23        inc     hl
+            hl+=2;
+            // 2c16  0d        dec     c
+            c--;
+            // 2c17  10e9      djnz    #2c02           ; (-23)
+        }
 
-// 2c06  3e04      ld      a,#04		; v
-// 2c08  84        add     a,h		; v
-// 2c09  67        ld      h,a		; v
-h+=4;
-// 2c0a  13        inc     de		; v
-// 2c0b  1a        ld      a,(de)		; v
-a=MEM[++de];
-// 2c0c  cd802b    call    #2b80		; Erase next fruit 
-drawCharSquare_2b80 (hl, a);
-// 2c0f  3efc      ld      a,#fc		; 
-// 2c11  84        add     a,h		; 
-// 2c12  67        ld      h,a		; 
-h-=0xfc;
-// 2c13  13        inc     de
-de++;
-// 2c14  23        inc     hl
-// 2c15  23        inc     hl
-hl+=2;
-// 2c16  0d        dec     c
-c--;
-// 2c17  10e9      djnz    #2c02           ; (-23)
+        while (1)
+        {
+            // 2c19  0d        dec     c
+            // 2c1a  f8        ret     m
+            if (--c < 0)
+                return;
+
+            // 2c1b  cd7e2b    call    #2b7e
+            drawBlankSquare_2b7e(hl);
+
+            // 2c1e  3e04      ld      a,#04
+            // 2c20  84        add     a,h
+            // 2c21  67        ld      h,a
+            // 2c22  af        xor     a
+            // 2c23  cd802b    call    #2b80
+            hl += 0x400;
+            drawCharSquare_2b80 (hl, 0);
+
+            // 2c26  3efc      ld      a,#fc
+            // 2c28  84        add     a,h
+            // 2c29  67        ld      h,a
+            // 2c2a  23        inc     hl
+            // 2c2b  23        inc     hl
+            // 2c2c  18eb      jr      #2c19           ; (-21)
+            hl -= 0x400;
+            hl += 2;
+        }
+    }
+
+    // 2c2e  fe13      cp      #13
+    // 2c30  3802      jr      c,#2c34         ; (2)
+    // 2c32  3e13      ld      a,#13
+    if (level >= 0x13)
+        level=0x13;
+    // 2c34  d607      sub     #07
+    // 2c36  4f        ld      c,a
+    c=a-7;
+    // 2c37  0600      ld      b,#00
+    // 2c39  21083b    ld      hl,#3b08
+    // 2c3c  09        add     hl,bc
+    // 2c3d  09        add     hl,bc
+    hl=&fruitTable[(level - 7) * 2];
+    // 2c3e  eb        ex      de,hl
+    // 2c3f  0607      ld      b,#07
+    // 2c41  c3fd2b    jp      #2bfd
+    }
 }
 
-// 2c19  0d        dec     c
-// 2c1a  f8        ret     m
-// 
-// 2c1b  cd7e2b    call    #2b7e
-drawBlankSquare_2b7e(hl);
-// 2c1e  3e04      ld      a,#04
-// 2c20  84        add     a,h
-// 2c21  67        ld      h,a
-// 2c22  af        xor     a
-// 2c23  cd802b    call    #2b80
-drawCharSquare_2b80 (hl, 0);
-// 2c26  3efc      ld      a,#fc
-// 2c28  84        add     a,h
-// 2c29  67        ld      h,a
-// 2c2a  23        inc     hl
-// 2c2b  23        inc     hl
-// 2c2c  18eb      jr      #2c19           ; (-21)
-// 
-// 2c2e  fe13      cp      #13
-// 2c30  3802      jr      c,#2c34         ; (2)
-// 2c32  3e13      ld      a,#13
-// 2c34  d607      sub     #07
-// 2c36  4f        ld      c,a
-// 2c37  0600      ld      b,#00
-// 2c39  21083b    ld      hl,#3b08
-// 2c3c  09        add     hl,bc
-// 2c3d  09        add     hl,bc
-// 2c3e  eb        ex      de,hl
-// 2c3f  0607      ld      b,#07
-// 2c41  c3fd2b    jp      #2bfd
-// 
-// 
-// 2c44  47        ld      b,a
-// 2c45  e60f      and     #0f
-// 2c47  c600      add     a,#00
-// 2c49  27        daa     
-// 2c4a  4f        ld      c,a
-// 2c4b  78        ld      a,b
-// 2c4c  e6f0      and     #f0
-// 2c4e  280b      jr      z,#2c5b         ; (11)
-// 2c50  0f        rrca    
-// 2c51  0f        rrca    
-// 2c52  0f        rrca    
-// 2c53  0f        rrca    
-// 2c54  47        ld      b,a
-// 2c55  af        xor     a
-// 2c56  c616      add     a,#16
-// 2c58  27        daa     
-// 2c59  10fb      djnz    #2c56           ; (-5)
-// 2c5b  81        add     a,c
-// 2c5c  27        daa     
-// 2c5d  c9        ret     
-// 
-// 	;; This gets called a lot...
-// 	;; Appears to draw messages from a table with
-// 	;;   coordinates and message data
-// 	;;   b=message # in table
-void displayMsg_2c5e (int msg)
+void func_2c44(uint8_t a)
+{
+    // 2c44  47        ld      b,a
+    // 2c45  e60f      and     #0f
+    // 2c47  c600      add     a,#00
+    // 2c49  27        daa     
+    int b = a & 0xf;
+    bcdAdjust (&b);
+    // 2c4a  4f        ld      c,a
+    // 2c4b  78        ld      a,b
+    // 2c4c  e6f0      and     #f0
+    // 2c4e  280b      jr      z,#2c5b         ; (11)
+    if ((a & 0xf0) != 0)
+    {
+        // 2c50  0f        rrca    
+        // 2c51  0f        rrca    
+        // 2c52  0f        rrca    
+        // 2c53  0f        rrca    
+        a>>=4;
+        // 2c54  47        ld      b,a
+        // 2c55  af        xor     a
+        for ()
+        {
+            // 2c56  c616      add     a,#16
+            // 2c58  27        daa     
+            a+=0x16;
+            bcdAdjust(&a);
+            // 2c59  10fb      djnz    #2c56           ; (-5)
+        }
+    }
+    // 2c5b  81        add     a,c
+    // 2c5c  27        daa     
+    // 2c5d  c9        ret     
+    bcdAdjust(&a);
+    return a;
+}
+
+/* draw messages from a table
+ * coordinates and message data
+ *  b=message # in table
+ */
+void displayMsg_2c5e (int b)
 {
     // 2c5e  21a536    ld      hl,#36a5
     // 2c61  df        rst     #18		; (hl+2*b) -> hl 
-    uint16_t hl = 0x36a5;
-    hl = hl + msg * 2;
-// 2c62  5e        ld      e,(hl)
-// 2c63  23        inc     hl
-// 2c64  56        ld      d,(hl)
+    uint16_t *hl = (uint16_t*) tableLookup (msgTable_36a5, b);
+    // 2c62  5e        ld      e,(hl)
+    // 2c63  23        inc     hl
+    // 2c64  56        ld      d,(hl)
+    de=*hl;
+
 // 2c65  dd210044  ld      ix,#4400	; Start of Color RAM
 // 2c69  dd19      add     ix,de	; Calculate starting pos in CRAM
 // 2c6b  dde5      push    ix		; 4400 + (hl) -> stack 
-// 2c6d  1100fc    ld      de,#fc00	
-// 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
-// 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
-// 2c75  cb7e      bit     7,(hl)  
-// 2c77  2003      jr      nz,#2c7c     ; (3) 
-// 2c79  11e0ff    ld      de,#ffe0	; Offset for top + bottom 2 lines 
+    // 2c6d  1100fc    ld      de,#fc00	
+    // 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
+    ix-=0x400;
+    // 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
+    de=-1;
+    // 2c75  cb7e      bit     7,(hl)  
+    // 2c77  2003      jr      nz,#2c7c     ; (3) 
+    if ((*hl & 0x80) == 0)
+    {
+        // 2c79  11e0ff    ld      de,#ffe0	; Offset for top + bottom 2 lines 
+        de=-0x20;
+    }
 // 2c7c  23        inc     hl
 // 2c7d  78        ld      a,b		; b -> a
 // 2c7e  010000    ld      bc,#0000	; 0 -> b,c 
 // 2c81  87        add     a,a		; 2*a -> a 
 // 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
+if (a>=0x80)
+{
+while()
+{
 // 2c84  7e        ld      a,(hl)		; Read next char 
 // 2c85  fe2f      cp      #2f		; #2f = end of text
 // 2c87  2809      jr      z,#2c92         ; Done with VRAM
+break;
 // 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
 // 2c8c  23        inc     hl		; Next char
 // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
 // 2c8f  04        inc     b		; Inc char count
 // 2c90  18f2      jr      #2c84           ; loop
+}
 // 2c92  23        inc     hl
 // 2c93  dde1      pop     ix		; Get CRAM start pos
 // 2c95  7e        ld      a,(hl)		; Get color 
 // 2c96  a7        and     a
 // 2c97  faa42c    jp      m,#2ca4		; Jump if > #80 
+if (colour&0x80)
+{
 // 2c9a  7e        ld      a,(hl)		; Get color  
 // 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
 // 2c9e  23        inc     hl		; Next color 
 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
 // 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
 // 2ca3  c9        ret     
-// 
+}
+
 // 	;; Same as above, but all the same color
 // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
 // 2ca7  dd19      add     ix,de		; Calc next CRAM pos
 // 2ca9  10f9      djnz    #2ca4           ; Loop until b=0
 // 2cab  c9        ret     
+}
+
 // 
 // 	;; Message # > 80 (erase previous message?!), use 2nd color code
 // 2cac  7e        ld      a,(hl)		; Read next char
@@ -10979,13 +11822,14 @@ void displayMsg_2c5e (int msg)
 // 2cbc  04        inc     b		; Inc char count 
 // 2cbd  edb1      cpir			; Loop until [hl] = 2f 
 // 2cbf  18d2      jr      #2c93           ; Do CRAM
-// 
-// 	;; 
-// 2cc1  21c83b    ld      hl,#3bc8
-// 2cc4  dd21cc4e  ld      ix,#4ecc
-// 2cc8  fd218c4e  ld      iy,#4e8c
-// 2ccc  cd442d    call    #2d44
-func_2d44(0x4ecc, 0x4e8c);
+ 
+void func_2cc1 (void)
+{
+    // 2cc1  21c83b    ld      hl,#3bc8
+    // 2cc4  dd21cc4e  ld      ix,#4ecc
+    // 2cc8  fd218c4e  ld      iy,#4e8c
+    // 2ccc  cd442d    call    #2d44
+    func_2d44(SND_CH1_WAV_NUM, CH1_FREQ0, data_3bc8);
 // 2ccf  47        ld      b,a
 // 2cd0  3acc4e    ld      a,(#4ecc)
 // 2cd3  a7        and     a
@@ -10996,7 +11840,7 @@ func_2d44(0x4ecc, 0x4e8c);
 // 2cdd  dd21dc4e  ld      ix,#4edc
 // 2ce1  fd21924e  ld      iy,#4e92
 // 2ce5  cd442d    call    #2d44
-func_2d44(0x4edc, 0x4e92);
+func_2d44(SND_CH2_WAV_NUM, CH2_FREQ1, data_3bcc);
 // 2ce8  47        ld      b,a
 // 2ce9  3adc4e    ld      a,(#4edc)
 // 2cec  a7        and     a
@@ -11007,7 +11851,7 @@ func_2d44(0x4edc, 0x4e92);
 // 2cf6  dd21ec4e  ld      ix,#4eec
 // 2cfa  fd21974e  ld      iy,#4e97
 // 2cfe  cd442d    call    #2d44
-func_2d44(0x4eec, 0x4e97);
+func_2d44(SND_CH3_WAV_NUM, CH3_FREQ1, data_3bd0);
 // 2d01  47        ld      b,a
 // 2d02  3aec4e    ld      a,(#4eec)
 // 2d05  a7        and     a
@@ -11021,26 +11865,26 @@ func_2d44(0x4eec, 0x4e97);
 // 2d0f  dd219c4e  ld      ix,#4e9c
 // 2d13  fd218c4e  ld      iy,#4e8c
 // 2d17  cdee2d    call    #2dee
-func_2dee(0x4e9c);
+func_2dee(0x4e9c, data_3b30);
 // 2d1a  32914e    ld      (#4e91),a
 // 2d1d  21403b    ld      hl,#3b40
 // 2d20  dd21ac4e  ld      ix,#4eac
 // 2d24  fd21924e  ld      iy,#4e92
 // 2d28  cdee2d    call    #2dee
-func_2dee(0x4eac);
+func_2dee(0x4eac, data_3b40);
 // 2d2b  32964e    ld      (#4e96),a
 // 2d2e  21803b    ld      hl,#3b80
 // 2d31  dd21bc4e  ld      ix,#4ebc
 // 2d35  fd21974e  ld      iy,#4e97
 // 2d39  cdee2d    call    #2dee
-func_2dee(0x4ebc);
+func_2dee(0x4ebc, data_3b80);
 // 2d3c  329b4e    ld      (#4e9b),a
 // 2d3f  af        xor     a
 // 2d40  32904e    ld      (#4e90),a
 // 2d43  c9        ret     
 }
 
-void func_2d44(int ix, int iy)
+void func_2d44(int ix, int iy, uint8_t data[])
 {
     // 2d44  dd7e00    ld      a,(ix+#00)
     // 2d47  a7        and     a
@@ -11127,42 +11971,73 @@ void func_2d44(int ix, int iy)
     tableCall (func, task, param);
 }
 
-void func_2da5()
+void func_2da5(int a)
 {
 // 2da5  47        ld      b,a
 // 2da6  e61f      and     #1f
 // 2da8  2803      jr      z,#2dad         ; (3)
+if (a!=0)
+{
 // 2daa  dd700d    ld      (ix+#0d),b
+ix[0xd]=a;
 // 2dad  dd4e09    ld      c,(ix+#09)
 // 2db0  dd7e0b    ld      a,(ix+#0b)
 // 2db3  e608      and     #08
 // 2db5  2802      jr      z,#2db9         ; (2)
 // 2db7  0e00      ld      c,#00
+c=ix[0x9];
+if ((ix[0xb] & 8) != 0)
+{
+c=0;
+}
 // 2db9  dd710f    ld      (ix+#0f),c
+ix[0xf] = c;
 // 2dbc  78        ld      a,b
 // 2dbd  07        rlca    
 // 2dbe  07        rlca    
 // 2dbf  07        rlca    
 // 2dc0  e607      and     #07
+a = (a>>3) & 7;
 // 2dc2  21b03b    ld      hl,#3bb0
 // 2dc5  d7        rst     #10
+    a = fetchOffset (data_3bb0, a);
 // 2dc6  dd770c    ld      (ix+#0c),a
-// 2dc9  78        ld      a,b
-// 2dca  e61f      and     #1f
-// 2dcc  2809      jr      z,#2dd7         ; (9)
-// 2dce  e60f      and     #0f
-// 2dd0  21b83b    ld      hl,#3bb8
-// 2dd3  d7        rst     #10
-// 2dd4  dd770e    ld      (ix+#0e),a
-// 2dd7  dd6e0e    ld      l,(ix+#0e)
-// 2dda  2600      ld      h,#00
-// 2ddc  dd7e0d    ld      a,(ix+#0d)
-// 2ddf  e610      and     #10
-// 2de1  2802      jr      z,#2de5         ; (2)
-// 2de3  3e01      ld      a,#01
-// 2de5  dd8604    add     a,(ix+#04)
-// 2de8  cae82e    jp      z,#2ee8
-// 2deb  c3e42e    jp      #2ee4
+ix[0xc] = a;
+    // 2dc9  78        ld      a,b
+    // 2dca  e61f      and     #1f
+    // 2dcc  2809      jr      z,#2dd7         ; (9)
+    if ((a & 0x1f) != 0)
+    {
+        // 2dce  e60f      and     #0f
+        // 2dd0  21b83b    ld      hl,#3bb8
+        // 2dd3  d7        rst     #10
+        // 2dd4  dd770e    ld      (ix+#0e),a
+        a = fetchOffset (data_3bb8, a);
+        ix[0xe]=a;
+    }
+    // 2dd7  dd6e0e    ld      l,(ix+#0e)
+    // 2dda  2600      ld      h,#00
+    hl=ix[0xe];
+    // 2ddc  dd7e0d    ld      a,(ix+#0d)
+    // 2ddf  e610      and     #10
+    // 2de1  2802      jr      z,#2de5         ; (2)
+    if ((ix[0xd] & 0x10) != 0)
+    {
+        // 2de3  3e01      ld      a,#01
+        a=1;
+    }
+
+    // 2de5  dd8604    add     a,(ix+#04)
+    // 2de8  cae82e    jp      z,#2ee8
+    if (ix[4] == 0xff)
+    {
+        func_2ee8();
+        return;
+    }
+
+    // 2deb  c3e42e    jp      #2ee4
+    func_2ee4();
+}
 
 // 2dee  dd7e00    ld      a,(ix+#00)
 // 2df1  a7        and     a
@@ -11298,7 +12173,7 @@ if (--MEM[ix+8] == 0)
 // 2e80  dda600    and     (ix+#00)
 // 2e83  dd7700    ld      (ix+#00),a
 // 2e86  c3ee2d    jp      #2dee
-
+}
 // 2e89  dd7e06    ld      a,(ix+#06)
 // 2e8c  e67f      and     #7f
 // 2e8e  dd770c    ld      (ix+#0c),a
@@ -11373,21 +12248,21 @@ if (--MEM[ix+8] == 0)
     tableCall (MEM[ix+0xb], func);
 }
 
-//-------------------------------
-// 2f22  dd7e0f    ld      a,(ix+#0f)
-// 2f25  c9        ret     
-//-------------------------------
 void func_2f22()
 {
+    //-------------------------------
+    // 2f22  dd7e0f    ld      a,(ix+#0f)
+    // 2f25  c9        ret     
+    //-------------------------------
     a = MEM[ix+0xf];
 }
 
-//-------------------------------
-// 2f26  dd7e0f    ld      a,(ix+#0f)
-// 2f29  1809      jr      #2f34           ; (9)
-//-------------------------------
 void func_2f26()
 {
+    //-------------------------------
+    // 2f26  dd7e0f    ld      a,(ix+#0f)
+    // 2f29  1809      jr      #2f34           ; (9)
+    //-------------------------------
     a = MEM[ix+0xf];
     func_2f34();
 }
@@ -11397,6 +12272,13 @@ void func_2f2b()
     //-------------------------------
     // 2f2b  3a844c    ld      a,(#4c84)
     // 2f2e  e601      and     #01
+    //-------------------------------
+    func_2f30(SOUND_COUNTER&1);
+}
+
+void func_2f30()
+{
+    //-------------------------------
     // 2f30  dd7e0f    ld      a,(ix+#0f)
     // 2f33  c0        ret     nz
     //-------------------------------
@@ -11420,27 +12302,34 @@ void func_2f2b()
 
 void func_2f3c()
 {
+    // 2f3c  3a844c    ld      a,(#4c84)
+    // 2f3f  e603      and     #03
+    // 2f41  18ed      jr      #2f30           ; (-19)
+    func_2f30(SOUND_COUNTER&3);
 }
 
-// 2f3c  3a844c    ld      a,(#4c84)
-// 2f3f  e603      and     #03
-// 2f41  18ed      jr      #2f30           ; (-19)
-// 2f43  3a844c    ld      a,(#4c84)
-// 2f46  e607      and     #07
-// 2f48  18e6      jr      #2f30           ; (-26)
+void func_2f43()
+{
+    // 2f43  3a844c    ld      a,(#4c84)
+    // 2f46  e607      and     #07
+    // 2f48  18e6      jr      #2f30           ; (-26)
+    func_2f30(SOUND_COUNTER&7);
+}
 
-// 2f4a  c9        ret     
-// 2f4b  c9        ret     
-// 2f4c  c9        ret     
-// 2f4d  c9        ret     
-// 2f4e  c9        ret     
-// 2f4f  c9        ret     
-// 2f50  c9        ret     
-// 2f51  c9        ret     
-// 2f52  c9        ret     
-// 2f53  c9        ret     
-// 2f54  c9        ret     
- 
+    // 2f4a  c9        ret     
+    // 2f4b  c9        ret     
+    // 2f4c  c9        ret     
+    // 2f4d  c9        ret     
+    // 2f4e  c9        ret     
+    // 2f4f  c9        ret     
+    // 2f50  c9        ret     
+    // 2f51  c9        ret     
+    // 2f52  c9        ret     
+    // 2f53  c9        ret     
+    // 2f54  c9        ret     
+
+void func_2f55()
+{
 // 2f55  dd6e06    ld      l,(ix+#06)
 // 2f58  dd6607    ld      h,(ix+#07)
 // 2f5b  7e        ld      a,(hl)
@@ -11449,7 +12338,14 @@ void func_2f3c()
 // 2f60  7e        ld      a,(hl)
 // 2f61  dd7707    ld      (ix+#07),a
 // 2f64  c9        ret     
-// 
+l=MEM[ix+6];
+h=MEM[ix+7];
+MEM[ix+6]=MEM[hl];
+MEM[ix+7]=MEM[hl+1];
+}
+
+void func_2f65()
+{
 // 2f65  dd6e06    ld      l,(ix+#06)
 // 2f68  dd6607    ld      h,(ix+#07)
 // 2f6b  7e        ld      a,(hl)
@@ -11458,6 +12354,13 @@ void func_2f3c()
 // 2f70  dd7407    ld      (ix+#07),h
 // 2f73  dd7703    ld      (ix+#03),a
 // 2f76  c9        ret     
+l=MEM[ix+6];
+h=MEM[ix+7];
+MEM[ix+3]=MEM[hl];
+hl++;
+MEM[ix+6]=l
+MEM[ix+7]=h;
+}
 // 
 // 2f77  dd6e06    ld      l,(ix+#06)
 // 2f7a  dd6607    ld      h,(ix+#07)
@@ -11491,8 +12394,8 @@ void func_2f3c()
 // 2fb1  dda600    and     (ix+#00)
 // 2fb4  dd7700    ld      (ix+#00),a
 // 2fb7  c3f42d    jp      #2df4
-func_2df4();
-return;
+    func_2df4();
+    return;
 }
 
 // 2fba-2ffd 00 
@@ -12008,65 +12911,67 @@ kickWatchdog();
     #define MOVE_DATA_RIGHT data_3303[0];
     #define MOVE_DATA_UP data_3305[0];
 
-    // 330f                                                55  |...............U|
-    // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25  |*U*UUUUU*U*RJ..%|
-    // 3320  25 25 25 22 22 22 22 01  01 01 01 58 02 08 07 60  |%%%""""....X...`|
-    // 3330  09 10 0e 68 10 70 17 14  19 52 4a a5 94 aa 2a 55  |...h.p...RJ...*U|
-    // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22  |UU*U*RJ...$%IH$"|
-    // 3350  91 01 01 01 01 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3360  00 00 00 55 2a 55 2a 55  55 55 55 aa 2a 55 55 55  |...U*U*UUUU.*UUU|
-    // 3370  2a 55 2a 52 4a a5 94 48  24 22 91 21 44 44 08 58  |*U*RJ..H$".!DD.X|
-    // 3380  02 34 08 d8 09 b4 0f 58  11 08 16 34 17 55 55 55  |.4.....X...4.UUU|
-    // 3390  55 d5 6a d5 6a aa 6a 55  d5 55 55 55 55 aa 2a 55  |U.j.j.jU.UUUU.*U|
-    // 33a0  55 92 24 92 24 22 22 22  22 a4 01 54 06 f8 07 a8  |U.$.$""""..T....|
-    // 33b0  0c d4 0d 84 12 b0 13 d5  6a d5 6a d6 5a ad b5 d6  |........j.j.Z...|
-    // 33c0  5a ad b5 d5 6a d5 6a aa  6a 55 d5 92 24 25 49 48  |Z...j.j.jU..$%IH|
-    // 33d0  24 22 91 a4 01 54 06 f8  07 a8 0c d4 0d fe ff ff  |$"...T..........|
-    // 33e0  ff 6d 6d 6d 6d 6d 6d 6d  6d b6 6d 6d db 6d 6d 6d  |.mmmmmmmm.mm.mmm|
-    // 33f0  6d d6 5a ad b5 25 25 25  25 92 24 92 24 2c 01 dc  |m.Z..%%%%.$.$,..|
-    // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff d5 6a d5 6a d5  |............j.j.|
-    // 3410  6a d5 6a b6 6d 6d db 6d  6d 6d 6d d6 5a ad b5 48  |j.j.mm.mmmm.Z..H|
-    // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4  |$"..$.$,........|
-    // 3430  0c fe ff ff ff 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2  |.....@..........|
-    // 3440  d4 fc fc fc da 02 dc fc  fc fc d0 d2 d2 d2 d2 d6  |................|
-    // 3450  d8 d2 d2 d2 d2 d4 fc da  09 dc fc fc fc da 02 dc  |................|
-    // 3460  fc fc fc da 05 de e4 05  dc fc da 02 e6 e8 ea 02  |................|
-    // 3470  e6 ea 02 dc fc fc fc da  02 dc fc fc fc da 02 e6  |................|
-    // 3480  ea 02 e7 eb 02 e6 ea 02  dc fc da 02 de fc e4 02  |................|
-    // 3490  de e4 02 dc fc fc fc da  02 dc fc fc fc da 02 de  |................|
-    // 34a0  e4 05 de e4 02 dc fc da  02 de fc e4 02 de e4 02  |................|
-    // 34b0  dc fc fc fc da 02 dc fc  fc fc da 02 de f2 e8 e8  |................|
-    // 34c0  ea 02 de e4 02 dc fc da  02 e7 e9 eb 02 e7 eb 02  |................|
-    // 34d0  e7 d2 d2 d2 eb 02 e7 d2  d2 d2 eb 02 e7 e9 e9 e9  |................|
-    // 34e0  eb 02 de e4 02 dc fc da  1b de e4 02 dc fc da 02  |................|
-    // 34f0  e6 e8 f8 02 f6 e8 e8 e8  e8 e8 e8 f8 02 f6 e8 e8  |................|
-    // 3500  e8 ea 02 e6 f8 02 f6 e8  e8 f4 e4 02 dc fc da 02  |................|
-    // 3510  de fc e4 02 f7 e9 e9 f5  f3 e9 e9 f9 02 f7 e9 e9  |................|
-    // 3520  e9 eb 02 de e4 02 f7 e9  e9 f5 e4 02 dc fc da 02  |................|
-    // 3530  de fc e4 05 de e4 0b de  e4 05 de e4 02 dc fc da  |................|
-    // 3540  02 de fc e4 02 e6 ea 02  de e4 02 ec d3 d3 d3 ee  |................|
-    // 3550  02 e6 ea 02 de e4 02 e6  ea 02 de e4 02 dc fc da  |................|
-    // 3560  02 e7 e9 eb 02 de e4 02  e7 eb 02 dc fc fc fc da  |................|
-    // 3570  02 de e4 02 e7 eb 02 de  e4 02 e7 eb 02 dc fc da  |................|
-    // 3580  06 de e4 05 f0 fc fc fc  da 02 de e4 05 de e4 05  |................|
-    // 3590  dc fc fa e8 e8 e8 ea 02  de f2 e8 e8 ea 02 ce fc  |................|
-    // 35a0  fc fc da 02 de f2 e8 e8  ea 02 de f2 e8 e8 ea 02  |................|
-    // 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04  |.....b..........|
-    // 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01  |................|
-    // 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04  |................|
-    // 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
-    // 35f0  01 01 01 01 01 01 01 01  01 03 04 04 0f 03 06 04  |................|
-    // 3600  04 0f 03 06 04 04 01 01  01 0c 03 01 01 01 03 04  |................|
-    // 3610  04 03 0c 03 03 03 04 04  03 0c 03 03 03 04 01 01  |................|
-    // 3620  01 01 03 0c 01 01 01 03  01 01 01 08 18 08 18 04  |................|
-    // 3630  01 01 01 01 03 0c 01 01  01 03 01 01 01 04 04 03  |................|
-    // 3640  0c 03 03 03 04 04 03 0c  03 03 03 04 04 01 01 01  |................|
-    // 3650  0c 03 01 01 01 03 04 04  0f 03 06 04 04 0f 03 06  |................|
-    // 3660  04 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01  |................|
-    // 3670  01 01 01 01 01 01 01 01  01 01 03 04 04 03 0c 06  |................|
-    // 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03  |................|
-    // 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01  |................|
-    // 36a0  01 04 01 01 01                                    |......7#727A7Z7j|
+    uint8_t moveData_330f[];
+
+    // 330f                                                55
+    // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25
+    // 3320  25 25 25 22 22 22 22 01  01 01 01 58 02 08 07 60
+    // 3330  09 10 0e 68 10 70 17 14  19 52 4a a5 94 aa 2a 55
+    // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22
+    // 3350  91 01 01 01 01 00 00 00  00 00 00 00 00 00 00 00
+    // 3360  00 00 00 55 2a 55 2a 55  55 55 55 aa 2a 55 55 55
+    // 3370  2a 55 2a 52 4a a5 94 48  24 22 91 21 44 44 08 58
+    // 3380  02 34 08 d8 09 b4 0f 58  11 08 16 34 17 55 55 55
+    // 3390  55 d5 6a d5 6a aa 6a 55  d5 55 55 55 55 aa 2a 55
+    // 33a0  55 92 24 92 24 22 22 22  22 a4 01 54 06 f8 07 a8
+    // 33b0  0c d4 0d 84 12 b0 13 d5  6a d5 6a d6 5a ad b5 d6
+    // 33c0  5a ad b5 d5 6a d5 6a aa  6a 55 d5 92 24 25 49 48
+    // 33d0  24 22 91 a4 01 54 06 f8  07 a8 0c d4 0d fe ff ff
+    // 33e0  ff 6d 6d 6d 6d 6d 6d 6d  6d b6 6d 6d db 6d 6d 6d
+    // 33f0  6d d6 5a ad b5 25 25 25  25 92 24 92 24 2c 01 dc
+    // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff d5 6a d5 6a d5
+    // 3410  6a d5 6a b6 6d 6d db 6d  6d 6d 6d d6 5a ad b5 48
+    // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
+    // 3430  0c fe ff ff ff 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2
+    // 3440  d4 fc fc fc da 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
+    // 3450  d8 d2 d2 d2 d2 d4 fc da  09 dc fc fc fc da 02 dc
+    // 3460  fc fc fc da 05 de e4 05  dc fc da 02 e6 e8 ea 02
+    // 3470  e6 ea 02 dc fc fc fc da  02 dc fc fc fc da 02 e6
+    // 3480  ea 02 e7 eb 02 e6 ea 02  dc fc da 02 de fc e4 02
+    // 3490  de e4 02 dc fc fc fc da  02 dc fc fc fc da 02 de
+    // 34a0  e4 05 de e4 02 dc fc da  02 de fc e4 02 de e4 02
+    // 34b0  dc fc fc fc da 02 dc fc  fc fc da 02 de f2 e8 e8
+    // 34c0  ea 02 de e4 02 dc fc da  02 e7 e9 eb 02 e7 eb 02
+    // 34d0  e7 d2 d2 d2 eb 02 e7 d2  d2 d2 eb 02 e7 e9 e9 e9
+    // 34e0  eb 02 de e4 02 dc fc da  1b de e4 02 dc fc da 02
+    // 34f0  e6 e8 f8 02 f6 e8 e8 e8  e8 e8 e8 f8 02 f6 e8 e8
+    // 3500  e8 ea 02 e6 f8 02 f6 e8  e8 f4 e4 02 dc fc da 02
+    // 3510  de fc e4 02 f7 e9 e9 f5  f3 e9 e9 f9 02 f7 e9 e9
+    // 3520  e9 eb 02 de e4 02 f7 e9  e9 f5 e4 02 dc fc da 02
+    // 3530  de fc e4 05 de e4 0b de  e4 05 de e4 02 dc fc da
+    // 3540  02 de fc e4 02 e6 ea 02  de e4 02 ec d3 d3 d3 ee
+    // 3550  02 e6 ea 02 de e4 02 e6  ea 02 de e4 02 dc fc da
+    // 3560  02 e7 e9 eb 02 de e4 02  e7 eb 02 dc fc fc fc da
+    // 3570  02 de e4 02 e7 eb 02 de  e4 02 e7 eb 02 dc fc da
+    // 3580  06 de e4 05 f0 fc fc fc  da 02 de e4 05 de e4 05
+    // 3590  dc fc fa e8 e8 e8 ea 02  de f2 e8 e8 ea 02 ce fc
+    // 35a0  fc fc da 02 de f2 e8 e8  ea 02 de f2 e8 e8 ea 02
+    // 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04
+    // 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01
+    // 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04
+    // 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01
+    // 35f0  01 01 01 01 01 01 01 01  01 03 04 04 0f 03 06 04
+    // 3600  04 0f 03 06 04 04 01 01  01 0c 03 01 01 01 03 04
+    // 3610  04 03 0c 03 03 03 04 04  03 0c 03 03 03 04 01 01
+    // 3620  01 01 03 0c 01 01 01 03  01 01 01 08 18 08 18 04
+    // 3630  01 01 01 01 03 0c 01 01  01 03 01 01 01 04 04 03
+    // 3640  0c 03 03 03 04 04 03 0c  03 03 03 04 04 01 01 01
+    // 3650  0c 03 01 01 01 03 04 04  0f 03 06 04 04 0f 03 06
+    // 3660  04 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01
+    // 3670  01 01 01 01 01 01 01 01  01 01 03 04 04 03 0c 06
+    // 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03
+    // 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01
+    // 36a0  01 04 01 01 01                                  
 
     uint8_t data_35b5[] = { 0 };
 
@@ -12127,264 +13032,411 @@ kickWatchdog();
     // 3711  b43d			; 35 2c3a    -POKEY   
     // 3711  303e			; 36 3d3a    "GGGGGGGG"
 
-    // 	;; 36a5 Table Entry 0
-    // 3713
-    { 0xd4, 0x83, 'H', 'I','G','H',0X40,'S','C','O','R','E' },
-    // 371f  2f 8f 2f 80
+    /*  In the ROM, the msg table above contains pointers to the messages.  To
+     *  avoid declaring a table of pointers we just declare a 2D array here.
+     *
+     *  Each msg is the same format.  Two bytes at the start to indicate where
+     *  on the screen the message should be printed, the text of the msg itself,
+     *  terminated by 0x2f and then 4 bytes.  The msg terminator, the colour,
+     *  another terminator and I think a second colour. */
+    uint8_t *msgTable_36a5[] =
+    {
+        // 	;; 36a5 Table Entry 0
+        // 3713
+        {
+            0xd4, 0x83,
+            'H','I','G','H','@','S','C','O','R','E',
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
+        // 371f  2f 8f 2f 80
 
-    // 	;; 36a5 Table Entry 1
-    // 3723  3b 80
-    "CREDIT   "
-    // 372e  2f 8f 2f 80
+        // 	;; 36a5 Table Entry 1
+        // 3723  3b 80
+        {
+            0x3b, 0x80
+            'C','R','E','D','I','T','@','@','@',
+            0x2f, 0x8f, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 2
-    // 3732  3b 80
-    "FREE PLAY"
-    // 373d  2f 8f 2f 80
+        // 	;; 36a5 Table Entry 2
+        // 3732  3b 80
+        {
+            0x3b, 0x80
+            'F','R','E','E','@','P','L','A','Y', 
+            0x2f, 0x8f, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 3
-    // 3741  8c 02
-    "PLAYER ONE"
-    // 374d  2f 85 2f 1010 1a 1a 1a 1a 1a 1a 1010
+        // 	;; 36a5 Table Entry 3
+        // 3741  8c 02
+        {
+            0x8c, 0x02
+            'P','L','A','Y','E','R','@','O','N','E', 
+            0x2f, 0x85, 0x2f, 0x10, 0x10, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a,
+            0x10, 0x10
+        },
 
-    // 	;; 36a5 Table Entry 4
-    // 375a  8c 02
-    "PLAYER TWO"
-    // 3766  2f 85 2f 80
+        // 	;; 36a5 Table Entry 4
+        // 375a  8c 02
+        {
+            0x8c, 0x02
+            'P','L','A','Y','E','R','@','T','W','O',
+            0x2f, 0x85, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 5
-    // 376a  92 02
-    "GAME  OVER"
-    // 3776  2f 81 2f 80
+        // 	;; 36a5 Table Entry 5
+        // 376a  92 02
+        {
+            0x92, 0x02
+            'G','A','M','E','@','@','O','V','E','R',
+            0x2f, 0x81, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 6
-    // 377a  52 02
-    "READY?"
-    // 3782  2f 89 2f 90
+        // 	;; 36a5 Table Entry 6
+        // 377a  52 02
+        {
+            0x52, 0x02
+            'R','E','A','D','Y','?', 
+            0x2f, 0x89, 0x2f, 0x90
+        },
 
-    // 	;; 36a5 Table Entry 7
-    // 3786  ee 02
-    "PUSH START BUTTON"
-    // 3799  2f 87 2f 80
+        // 	;; 36a5 Table Entry 7
+        // 3786  ee 02
+        {
+            0xee, 0x02
+            'P','U','S','H','@','S','T','A','R','T','@',
+            'B','U','T','T','O','N',
+            0x2f, 0x87, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 8
-    // 379d  b2 02
-    "1 PLAYER ONLY "
-    // 37ad  2f 85 2f 80
+        // 	;; 36a5 Table Entry 8
+        // 379d  b2 02
+        {
+            0xb2, 0x02
+            "1@PLAYER@ONLY "
+            0x2f, 0x85, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 9
-    // 37b1  b2 02
-    "1 OR 2 PLAYERS"
-    // 37c1  2f 85 00 2f 00 80
+        // 	;; 36a5 Table Entry 9
+        // 37b1  b2 02
+        {
+            0xb2, 0x02
+            "1@OR@2@PLAYERS"
+            0x2f, 0x85, 0x00, 0x2f 00 80
+        },
 
-    // 	;; 36a5 Table Entry ??
-    // 37c7  00 96 03
-    "BONUS PUCKMAN FOR   000 Pts"
-    // 37e2  2f 8e 2f 80
+        // 	;; 36a5 Table Entry ??
+        // 37c7  00 96 03
+        {
+            0x00, 0x96 03
+            "BONUS@PUCKMAN@FOR@@@000@]^_"
+            0x2f, 0x8e, 0x2f, 0x80
+        },
 
-    // 37e9  ba 02
-    "L "
-    // 37ed  28 29
+        // 37e9  ba 02
+        {
+            0xba, 0x02
+            "'\','@','(',')','*','+',',','-','.','@','1','9','8','0', 
+            0x2f, 0x83, 0x2f, 0x80
+        },
 
-    // 37ef  2a 2b 2c 2d 2e
-    " 1980"
-    // 37f8  2f 83 2f 80
+        // 	;; 36a5 Table Entry c
+        // 37fd  c3 02
+        {
+            0xc3, 0x02
+            'C','H','A','R','A','C','T','E','R','@','/',
+            '@','N','I','C','K','N','A','M','E',
+            0x2f, 0x8f, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry c
-    // 37fd  c3 02
-    "CHARACTER / NICKNAME"
-    // 3813  2f 8f 2f 80
+        // 3817  65 01 
+        {
+            0x65, 0x01 
+            '&','A','K','A','B','E','I','&',
+            0x2f, 0x81, 0x2f, 0x80
+        },
 
-    // 3817  65 01 26
-    "AKABEI"
-    // 3820  26 
-    // 3821  2f 81 2f 80
+        // 3825  45 01 
+        {
+            0x45, 0x01 
+            '&','M','A','C','K','Y','&',
+            0x2f, 0x81, 0x2f, 0x80
+        },
 
-    // 3825  45 01 26
-    "MACKY"
-    // 382d  26 2f 81 2f 80 48 01 26
-    "PINKY"
-    // 383a  26 2f 83 2f 80 48 01 26
-    "MICKY"
-    // 3847  26 2f 83 2f 80
+        // 3832  48 01 
+        {
+            0x48, 0x01 
+            '&','P','I','N','K','Y','&', 
+            0x2f, 0x83, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 11
-    // 384c  76 02
-    // 384e  10
-    " 10 pts"
-    // 3856  2f 9f 2f 80
-    // 
-    // 	;; 36a5 Table Entry 12
-    // 385a  78 02
-    // 385c  14
-    " 50 pts"
-    // 3864  2f 9f 2f 80
+        // 383f  48 01 
+        {
+            0x48, 0x01 
+           '&','M','I','C','K','Y','&', 
+            0x2f, 0x83, 0x2f, 0x80
+        },
 
-    // 3868  5d 02
-    // 386a  28 29
-    // 386c  2a 2b 2c 2d 2e
-    // 3871  2f 83 2f 80 
+        // 	;; 36a5 Table Entry 11
+        // 384c  76 02
+        {
+            0x76, 0x02
+            0x10, '@','1','0','@',']','^','_',
+            0x2f, 0x9f, 0x2f, 0x80
+        },
 
-    // 3875  c5 02
-    " OIKAKE"
-    // 387e  3b 3b 3b 3b
-    // 3882  2f 81 2f 80 
+        // 	;; 36a5 Table Entry 12
+        // 385a  78 02
+        {
+            0x78, 0x02
+        // 385c  14
+            0x14, '@','5','0','@',']','^','_',
+            0x2f, 0x9f, 0x2f, 0x80
+        },
 
-    // 3886  c5 02 
-    " URCHIN"
-    // 388f  3b 3b 3b 3b 3b
-    // 3894  2f 81 2f 80
+        // 3868  5d 02
+        {
+            0x5d, 0x02
+            '(',')','*','+',',','-','.', 
+            0x2f, 0x83, 0x2f, 0x80 
+        },
 
-    // 3898  c8 02
-    " MACHIBUSE"
-    // 38a4  3b 3b
-    // 38a6  2f 83 2f 80 
+        // 3875  c5 02
+            '@','O','I','K','A','K','E',';',';',';',';', 
+            0x2f, 0x81, 0x2f, 0x80 
+        },
 
-    // 38aa  c8 02
-    " BOMP"
-    // 38b1  3b 3b 3b 3b 3b 3b 3b
-    // 38b8  2f 83 2f 80
+        // 3886  c5 02 
+        {
+            0xc5, 0x02 
+            '@','U','R','C','H','I','N',';',';',';',';',';',
+            0x2f, 0x81, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 21
-    // 38bc  12 02
-    // 38be  81 85
-    // 38c0  2f 83 2f 90
+        // 3898  c8 02
+            '@','M','A','C','H','I','B','U','S','E',';',';',
+        // 38a6  2f 83 2f 80 
 
-    // 	;; 36a5 Table Entry 22
-    // 38c4  32 02
-    // 38c6  40 82 85 40
-    // 38ca  2f 83 2f 90
+        // 38aa  c8 02
+        {
+            0xc8, 0x02
+            '@','B','O','M','P',';',';',';',';',';',';',';',
+            0x2f, 0x83, 0x2f, 0x80
+        },
 
-    // 	;; 36a5 Table Entry 23
-    // 38ce  32 02				; OFFSET 
-    // 38d0  40 83 85 40
-    // 38d4  2f 83 2f 90 
+        // 	;; 36a5 Table Entry 21
+        // 38bc  12 02
+        {
+            0x12, 0x02
+            0x81, 0x85,
+            0x2f, 0x83, 0x2f, 0x90
+        },
 
-    // 	;; 36a5 Table Entry 24
-    // 38d8  3202
-    // 38da  40 84 85 40 
-    // 38de  2f 83 2f 90 
+        // 	;; 36a5 Table Entry 22
+        // 38c4  32 02
+        {
+            0x32, 0x02
+            '@', 0x82, 0x85, '@'
+            0x2f, 0x83, 0x2f, 0x90
+        },
 
-    // 38e2  3202
-    // 38e4  40 86 8d 8e 
-    // 38e8  2f 83 2f 90 
+        // 	;; 36a5 Table Entry 23
+        // 38ce  32 02				; OFFSET 
+        {
+            0x32, 0x02				; OFFSET 
+            '@', 0x83, 0x85, '@'
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 38ec  3202
-    // 38ee  87 88 8d 8e 
-    // 38f2  2f 83 2f 90 
+        // 	;; 36a5 Table Entry 24
+        // 38d8  32 02
+        {
+            0x32, 0x02
+            '@', 0x84, 0x85, '@'
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 38f6  3202
-    // 38f8  89 8a 8d 8e 
-    // 38fc  2f 83 2f 90 
+        // 38e2  32 02
+        {
+            0x32, 0x02
+            '@', 0x86, 0x8d, '@'
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 3900  3202
-    // 3902  8b 8c 8d 8e 
-    // 3906  2f 83 2f 90 
+        // 38ec  32 02
+        {
+            0x32, 0x02
+            0x87, 0x88, 0x8d, 0x8e 
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 	;; 36a5 Table Entry 23
-    // 390a  04 03 
-    "MEMORY  OK"
-    // 3916  2f 8f 2f 80 
+        // 38f6  32 02
+        {
+            0x32, 0x02
+            0x89, 0x8a, 0x8d, 0x8e 
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 	;; 36a5 Table Entry 24
-    // 391a  04 
-    // 391b  03 
-    "BAD    R M"
-    // 3926  2f 8f 2f 80 
+        // 3900  32 02
+        {
+            0x32, 0x02
+            0x8b, 0x8c, 0x8d, 0x8e 
+            0x2f, 0x83, 0x2f, 0x90 
+        },
 
-    // 	;; 36a5 Table Entry 26
-    // 392a  08 03 
-    "1 COIN  1 CREDIT "
-    // 393d  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 23
+        // 390a  04 03 
+        {
+            0x04, 0x03 
+            'M','E','M','O','R','Y','@','@','O','K', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 28
-    // 3941  08 03 
-    "2 COINS 1 CREDIT "
-    // 3954  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 24
+        // 391a  04 03 
+        {
+            0x04, 0x03 
+            'B','A','D','@','@','@','@','R','@','M', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 27
-    // 3958  08 03 
-    "1 COIN  2 CREDITS"
-    // 396b  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 26
+        // 392a  08 03 
+        {
+            0x08, 0x03 
+            '1','@','C','O','I','N','@','@','1','@','C','R','E','D',
+            'I','T','@', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 25
-    // 396f  08 
-    // 3970  03 
-    "FREE  PLAY       "
-    // 3982  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 28
+        // 3941  08 03 
+        {
+            0x08, 0x03 
+            '2','@','C','O','I','N','S','@','1','@','C','R','E','D',
+            'I','T','@', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 2a
-    // 3986  0a 03 
-    "BONUS  NONE"
-    // 3993  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 27
+        // 3958  08 03 
+        {
+            0x08, 0x03 
+            '1','@','C','O','I','N','@','@','2','@','C','R','E','D',
+            'I','T','S', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 2b
-    // 3997  0a 03 
-    "BONUS "
-    // 399f  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 25
+        // 396f  08 03 
+        {
+            0x08, 0x03 
+            'F','R','E','E','@','@','P','L','A','Y','@','@','@','@',
+            '@','@','@', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 39a3  0c 03 
-    "PUCKMAN"
-    // 39ac  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 2a
+        // 3986  0a 03 
+        {
+            0x0a, 0x03 
+            'B','O','N','U','S','@','@','N','O','N','E', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 2c
-    // 39b0  0e03      ld      c,#03
-    "TABLE  "
-    // 39b9  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 2b
+        // 3997  0a 03 
+        {
+            0x0a, 0x03 
+            'B','O','N','U','S','@', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 2d
-    // 39bd  0e03      ld      c,#03
-    "UPRIGHT"
-    // 39c6  2f 8f 2f 80 
+        // 39a3  0c 03 
+        {
+            0x0c, 0x03 
+            'P','U','C','K','M','A','N', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry 2e
-    // 39ca  0a 02 
-    "000"
-    // 39cf  2f 8f 2f 80 
+        // 	;; 36a5 Table Entry 2c
+        // 39b0  0e 03
+        {
+            0x0e, 0x03
+            'T','A','B','L','E','@','@', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 	;; 36a5 Table Entry
-    // 39d3  6b 01 26
-    "AOSUKE"
-    // 39dc  26
-    // 39dd  2f 85 2f 80 
+        // 	;; 36a5 Table Entry 2d
+        // 39bd  0e 03
+        {
+            0x0e, 0x03
+            'U','P','R','I','G','H','T', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 39e1  4b
-    // 39e2  0126
-    "MUCKY"
-    // 39e9  26
-    // 39ea  2f 85 2f 80 
-    // 39ee  6e
-    // 39ef  0126
-    "GUZUTA"
-    // 39f7  26
-    // 39f8  2f 87 2f 80 
+        // 	;; 36a5 Table Entry 2e
+        // 39ca  0a 02 
+        {
+            0x0a, 0x02 
+            '0','0','0', 
+            0x2f, 0x8f, 0x2f, 0x80 
+        },
 
-    // 39fc  4e
-    // 39fd  0126
-    "MOCKY"
-    // 3a04  26
-    // 3a05  2f 87 2f 80 
+        // 	;; 36a5 Table Entry
+        // 39d3  6b 01 
+        {
+            0x6b, 0x01 
+            '&','A','O','S','U','K','E','&', 
+            0x2f, 0x85, 0x2f, 0x80 
+        },
 
-    // 3a09  cb02
-    " KIMAGURE"
-    // 3a14  3b
-    // 3a15  3b
-    // 3a16  2f 85 2f 80 
+        // 39e1  4b 01
+        {
+            0x4b, 0x01
+            '&','M','U','C','K','Y','&', 
+            0x2f, 0x85, 0x2f, 0x80 
+        },
+        // 39ee  6e 01
+        {
+            0x6e, 0x01
+            '&','G','U','Z','U','T','A','&', 
+            0x2f, 0x87, 0x2f, 0x80 
+        },
 
-    // 3a1a  cb02
-    " STYLIST"
-    // 3a24  3b 3b 3b 3b 
-    // 3a28  2f 85 2f 80 
+        // 39fc  4e 01
+        {
+            0x4e, 0x01
+            '&','M','O','C','K','Y','&', 
+            0x2f, 0x87, 0x2f, 0x80 
+        },
 
-    // 3a2c  ce02
-    " OTOBOKE"
-    // 3a36  3b 3b 3b 
-    // 3a39  2f 87 2f 80 
+        // 3a09  cb 02
+        {
+            0xcb, 0x02
+            '@','K','I','M','A','G','U','R','E',';',';', 
+            0x2f, 0x85, 0x2f, 0x80 
+        },
 
-    // 3a3d  ce02
-    " CRYBABY"
-    // 3a47  3b 3b 3b 3b 
-    // 3a4b  2f 87 2f 80 
+        // 3a1a  cb 02
+        {
+            0xcb, 0x02
+            '@','S','T','Y','L','I','S','T',';',';',';',';', 
+            0x2f, 0x85, 0x2f, 0x80 
+        },
+
+        // 3a2c  ce 02
+        {
+            0xce, 0x02
+            '@','O','T','O','B','O','K','E',';',';',';', 
+            0x2f, 0x87, 0x2f, 0x80 
+        },
+
+        // 3a3d  ce 02
+        {
+            0xce, 0x02
+            '@','C','R','Y','B','A','B','Y',';',';',';',';', 
+            0x2f, 0x87, 0x2f, 0x80 
+        },
 
     // 3a4f                                                01 
     // 3a50  01 03 01 01 01 03 02 02  02 01 01 01 01 02 04 04 
@@ -12429,214 +13481,236 @@ kickWatchdog();
     // 3b06  18f2      jr      #3afa           ; (-14)
     }
 
-    // 3b08                           90 14 94 0f 98 15 98 15  |.o..:$..........|
-    // 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16  |................|
-    // 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16  |................|
-    // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00  |s ......r ......|
-    // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00  |6 ......6(......|
-    // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00  |60......6<......|
-    // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00  |6H......$.......|
-    // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00  |@p......p.......|
-    // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00  |B.......B.......|
-    // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00  |V.......... ....|
-    // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00  |A ......p.......|
-    // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b  |..... @..W\agmt{|
-    // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c  |.........;.;X<.<|
-    // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82  |.<.<.........pi.|
-    // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b  |pi.pj.pj.pi.pi..|
-    // 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30  |...........gP0G0|
-    // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10  |gP0G0gP0G0K.L.M.|
-    // 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47  |N.gP0G0gP0G0gP0G|
-    // 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50  |0K.L.M.N.gP0G0gP|
-    // 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10  |0G0gP0G0K.L.M.N.|
-    // 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30  |w N.M.L.J.G.F.e0|
-    // 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00  |f0g@p..;........|
-    // 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f  |BPNPIPFPNIpfpCPO|
-    // 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50  |PJPGPOJpgpBPNPIP|
-    // 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49  |FPNIpfpEFGPGHIPI|
-    // 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26  |JKPn.........&g&|
-    // 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67  |g&g#DBG0g*.p&g&g|
-    // 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26  |&g#DBG0g#.p&g&g&|
-    // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b  |g#DBG0g)j+l0,m@+|
-    // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00  |l)jg )j@&.p..<..|
-    // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    uint8_t fruitTable_3b08[];
+
+    // 3b08                           90 14 94 0f 98 15 98 15
+    // 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16
+    // 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16
+    // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00
+    uint8_t data_3b30[] = { 0xd4 };
+    // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00
+    uint8_t data_3b40[] = { 0xd4 };
+    // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00
+    // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00
+    // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00
+    // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00
+    uint8_t data_3b80[] = { 0xd4 };
+    // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00
+    // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00
+    uint8_t data_3bb0[] = { 0x01 };
+    // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b
+    // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c
+    // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82
+    uint8_t data_3bc8[] = { 0xd4 };
+    uint8_t data_3bcc[] = { 0x58 };
+    uint8_t data_3bd0[] = { 0xde };
+    // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b
+    // 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30
+    // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10
+    // 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47
+    // 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50
+    // 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10
+    // 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30
+    // 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00
+    // 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f
+    // 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50
+    // 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49
+    // 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26
+    // 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67
+    // 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26
+    // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b
+    // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00
+    // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
 
     // 	;; 36a5 Table Entry a
-    // 3d00  96        sub     (hl)		
-    // 3d01  03        inc     bc
-    "BONUS@PAC;MAN@FOR@@@000@]^_"
-    // 3d1d  2f        cpl     
-    // 3d1e  8e        adc     a,(hl)
-    // 3d1f  2f        cpl     
-    // 3d20  80        add     a,b
-    // 
+    // 3d00  96 03
+    {
+        0x96, 0x03
+        'B','O','N','U','S','@','P','A','C',';','M','A','N','@','F',
+        'O','R','@','@','@','0','0','0','@',']','^','_', 
+        0x2f, 0x8e, 0x2f, 0x80
+    },
+
     // 	;; 36a5 Table Entry b
-    // 3d21  3a035c    ld      a,(#5c03)
-    "@1980@MIDWAY@MFG%CO%"
-    // 3d38  2f        cpl     
-    // 3d39  83        add     a,e
-    // 3d3a  2f        cpl     
-    // 3d3b  80        add     a,b
+    // 3d21  3a 03
+    {
+        0x3a, 0x03
+        0x5c,'@','1','9','8','0','@','M','I','D','W','A','Y','@',
+        'M','F','G','%','C','O','%', 
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 13
-    // 3d3c  3d        dec     a
-    // 3d3d  03        inc     bc
-    // 3d3e  5c        ld      e,h
-    "@1980@MIDWAY@MFG%CO%"
-    // 3d53  2f        cpl     
-    // 3d54  83        add     a,e
-    // 3d55  2f        cpl     
-    // 3d56  80        add     a,b
+    // 3d3c  3d 03 
+    {
+        0x3d, 0x03 
+        0x5c,'@','1','9','8','0','@','M','I','D','W','A','Y','@',
+        'M','F','G','%','C','O','%',
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 14
-    // 3d57  c5        push    bc
-    // 3d58  02        ld      (bc),a
-    // 3d59  3b        dec     sp
-    "SHADOW@@@"
-    // 3d63  2f        cpl     
-    // 3d64  81        add     a,c
-    // 3d65  2f        cpl     
-    // 3d66  80        add     a,b
-    // 
+    // 3d57  c5 02 
+    {
+        0xc5, 0x02 
+        ';','S','H','A','D','O','W','@','@','@',
+        0x2f, 0x81, 0x2f, 0x80
+    },
+
     // 	;; 36a5 Table Entry d
-    // 3d67  65 01 26
-    "BLINKY&@"
-    // 3d72  2f        cpl     
-    // 3d73  81        add     a,c
-    // 3d74  2f        cpl     
-    // 3d75  80        add     a,b
+    // 3d67  65 01 
+    {
+        0x65, 0x01 
+        '&','B','L','I','N','K','Y','&','@', 
+        0x2f, 0x81, 0x2f, 0x80 
+    },
     // 
     // 	;; 36a5 Table Entry 16
-    // 3d76  c8        ret     z
-    // 3d77  02        ld      (bc),a
-    // 3d78  3b        dec     sp
-    "SPEEDY@@@"
-    // 3d82  2f        cpl     
-    // 3d83  83        add     a,e
-    // 3d84  2f        cpl     
-    // 3d85  80        add     a,b
+    // 3d76  c8 02
+    {
+        0xc8, 0x02
+        ';','S','P','E','E','D','Y','@','@','@', 
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry f
-    // 3d86  68 01 26
-    "PINKY&@@"
-    // 3d91  2f 83 2f 80
+    // 3d86  68 01 
+    {
+        0x68, 0x01 
+        '&','P','I','N','K','Y','&','@','@', 
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 33
-    // 3d95  cb 02 3b
-    "BASHFUL@@"
-    // 3da1  2f 85 2f 80
+    // 3d95  cb 02 
+    {
+        0xcb, 0x02 
+        ';','B','A','S','H','F','U','L','@','@', 
+        0x2f, 0x85, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 2f
-    // 3da5  6b 01 26
-    "INKY&@@@"
-    // 3db0  2f 85 2f 80
+    // 3da5  6b 01 
+    {
+        0x6b, 0x01 
+        '&','I','N','K','Y','&','@','@','@', 
+        0x2f, 0x85, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 35
-    // 3db4  ce023b
-    "POKEY@@@@"
-    // 3dc0  2f 87 2f 80
+    // 3db4  ce 02 
+    {
+        0xce, 0x02 
+        ';','P','O','K','E','Y','@','@','@','@', 
+        0x2f, 0x87, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 31
-    // 3dc4  6e0126
-    "CLYDE&@@"
-    // 3dcf  2f 87 2f 80
+    // 3dc4  6e 01
+    {
+        0x6e, 0x01
+        '&','C','L','Y','D','E','&','@','@', 
+        0x2f, 0x87, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 15
-    // 3dd3  c5023b
-    "AAAAAAAA;"
-    // 3ddf  2f 81 2f 80
+    // 3dd3  c5 02
+    {
+        0xc5, 0x02
+        ';','A','A','A','A','A','A','A','A',';', 
+        0x2f, 0x81, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry e
-    // 3de3  650126
-    "BBBBBBB"
-    // 3ded  262f 812f 80
+    // 3de3  65 01
+    {
+        0x65, 0x01
+        '&','B','B','B','B','B','B','B','&', 
+        0x2f, 0x81, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 17
-    // 3df2  c8        ret     z
-    // 3df3  02        ld      (bc),a
-    // 3df4  3b        dec     sp
-    "CCCCCCCC;"
-    // 3dfe  2f        cpl     
-    // 3dff  83        add     a,e
-    // 3e00  2f        cpl     
-    // 3e01  80        add     a,b
+    // 3df2  c8 02
+    {
+        0xc8, 0x02
+        ';','C','C','C','C','C','C','C','C',';', 
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 10
-    // 3e02  68 01 26
-    "DDDDDDD&"
-    // 3e0d  2f 83 2f 80
+    // 3e02  68 01 
+    {
+        0x68, 0x01 
+        '&','D','D','D','D','D','D','D','&', 
+        0x2f, 0x83, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 34
-    // 3e11  cb 02 3b
-    "EEEEEEEE"
-    // 3e1c  3b        dec     sp
-    // 3e1d  2f        cpl     
-    // 3e1e  85        add     a,l
-    // 3e1f  2f        cpl     
-    // 3e20  80        add     a,b
+    // 3e11  cb 02 
+    {
+        0xcb, 0x02 
+        ';','E','E','E','E','E','E','E','E',';', 
+        0x2f, 0x85, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 30
-    // 3e21  6b        ld      l,e
-    // 3e22  012646    ld      bc,#4626
-    "FFFFFF&"
-    // 3e2c  2f      ld      h,#2f
-    // 3e2d  85        add     a,l
-    // 3e2e  2f        cpl     
-    // 3e2f  80        add     a,b
+    // 3e21  6b 01
+    {
+        0x6b, 0x01
+        '&','F','F','F','F','F','F','F','&', 
+        0x2f, 0x85, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 36
-    // 3e30  ce02      adc     a,#02
-    // 3e32  3b        dec     sp
-    "GGGGGGGG;"
-    // 3e3c  2f        cpl     
-    // 3e3d  87        add     a,a
-    // 3e3e  2f        cpl     
-    // 3e3f  80        add     a,b
+    // 3e30  ce 02
+    {
+        0xce, 0x02
+        ';','G','G','G','G','G','G','G','G',';', 
+        0x2f, 0x87, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 32
-    // 3e40  6e        ld      l,(hl)
-    // 3e41  0126
-    "HHHHHHH&"
-    // 3e4a  2f      ld      h,#2f
-    // 3e4c  87        add     a,a
-    // 3e4d  2f        cpl     
-    // 3e4e  80        add     a,b
+    // 3e40  6e 01
+    {
+        0x6e, 0x01
+        '&','H','H','H','H','H','H','H','&', 
+        0x2f, 0x87, 0x2f, 0x80
+    },
     // 
     // 	;; 36a5 Table Entry 29
-    // 3e4f  0c        inc     c
-    // 3e50  03        inc     bc
-    "PAC;MAN"
-    // 3e58  2f        cpl     
-    // 3e59  8f        adc     a,a
-    // 3e5a  2f        cpl     
-    // 3e5b  80        add     a,b
+    // 3e4f  0c 03
+    {
+        0x0c, 0x03
+        'P','A','C',';','M','A','N', 
+        0x2f, 0x8f, 0x2f, 0x80
+    },
 
-    // 3e5c                                       00 00 00 00  |................|
-    // 3e70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3e80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3e90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ea0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3eb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ec0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ed0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ee0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ef0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f10  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f20  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f30  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-    // 3ff0  00 00 00 00 00 00 00 00  00 00                    |...........0..us|
+    // 3e5c                                       00 00 00 00
+    // 3e70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3e80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3e90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ea0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3eb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ec0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ed0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ee0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ef0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f10  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f20  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f30  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f40  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f50  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f60  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3f90  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3fa0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3fb0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3fc0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    // 3ff0  00 00 00 00 00 00 00 00  00 00                  
 
     // 3ffa  0030				; Interrupt Vector 3000 
     // 3ffc  8d00				; Interrupt Vector 008d 

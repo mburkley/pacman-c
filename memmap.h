@@ -79,7 +79,9 @@ memmap;
 #define IN1_START2      (memory.regs.read.in0 & 0x40)
 #define IN1_CABINET     (memory.regs.read.in0 & 0x80)
 
+#define DIP_SWITCH_FREE (memmap.regs.read.in0 & 0x03)
 #define DIP_SWITCH_TEST (memmap.regs.read.in0 & 0x10)
+#define DIP_SWITCH_BONUS (memmap.regs.read.in0 & 0x30)
 
 #define BLINKY_SPRITE memmap.mem[0x4c02]
 #define BLINKY_COLOUR memmap.mem[0x4c03]
@@ -114,7 +116,7 @@ memmap;
 #define NONISR_TASKS (&memmap.mem[0x4cc0])
 
 #define TASK_CLEAR_SCREEN       0x00
-#define TASK_FLASH_MAZE         0x01  // ????
+#define TASK_FLASH_MAZE         0x01  // ???? TODO
 #define TASK_DRAW_MAZE         0x02
 #define TASK_DRAW_PILLS         0x03
 #define TASK_INIT_POSITIONS         0x04
@@ -142,51 +144,36 @@ typedef union
 }
 XYPOS;
 
-#define BLINKY_POS (XYPOS*)(&memmap.mem[0x4d00])
+#define BLINKY_POS      (XYPOS*)(&memmap.mem[0x4d00])
+// #define BLINKY_Y memmap.mem[0x4d00]
 // #define BLINKY_X memmap.mem[0x4d01]
-#define PINKY_POS (XYPOS*)(&memmap.mem[0x4d02])
+#define PINKY_POS       (XYPOS*)(&memmap.mem[0x4d02])
 // #define PINKY_Y  memmap.mem[0x4d02]
-#define PINKY_X  memmap.mem[0x4d03]
-#define INKY_Y   memmap.mem[0x4d04]
-#define INKY_X   memmap.mem[0x4d05]
-#define CLYDE_Y  memmap.mem[0x4d06]
-#define CLYDE_X  memmap.mem[0x4d07]
-#define PACMAN_POS (XYPOS*)(&memmap.mem[0x4d08])
+// #define PINKY_X  memmap.mem[0x4d03]
+#define INKY_POS        (XYPOS*)(&memmap.mem[0x4d04])
+#define CLYDE_POS       (XYPOS*)(&memmap.mem[0x4d06])
+#define PACMAN_POS      (XYPOS*)(&memmap.mem[0x4d08])
 // #define PACMAN_Y memmap.mem[0x4d08]
 // #define PACMAN_X memmap.mem[0x4d09]
 
-#define BLINKY_Y_TILE memmap.mem[0x4d0a]
-#define BLINKY_X_TILE memmap.mem[0x4d0b]
-#define PINKY_Y_TILE  memmap.mem[0x4d0c]
-#define PINKY_X_TILE  memmap.mem[0x4d0d]
-#define INKY_Y_TILE   memmap.mem[0x4d0e]
-#define INKY_X_TILE   memmap.mem[0x4d0f]
-#define CLYDE_Y_TILE  memmap.mem[0x4d10]
-#define CLYDE_X_TILE  memmap.mem[0x4d11]
-#define PACMAN_DEMO_TILE memmap.mem[0x4d12]
+#define BLINKY_TILE     (XYPOS*)(&memmap.mem[0x4d0a])
+#define PINKY_TILE      (XYPOS*)(&memmap.mem[0x4d0c])
+#define INKY_TILE       (XYPOS*)(&memmap.mem[0x4d0e])
+#define CLYDE_TILE      (XYPOS*)(&memmap.mem[0x4d10])
+#define PACMAN_DEMO_TILE        (XYPOS*)(&memmap.mem[0x4d12])
 // #define PACMAN_X_TILE memmap.mem[0x4d13]
 
-#define BLINKY_Y_TILE_CHANGE memmap.mem[0x4d14]
-#define BLINKY_X_TILE_CHANGE memmap.mem[0x4d15]
-#define PINKY_Y_TILE_CHANGE  memmap.mem[0x4d16]
-#define PINKY_X_TILE_CHANGE  memmap.mem[0x4d17]
-#define INKY_Y_TILE_CHANGE   memmap.mem[0x4d18]
-#define INKY_X_TILE_CHANGE   memmap.mem[0x4d19]
-#define CLYDE_Y_TILE_CHANGE  memmap.mem[0x4d1a]
-#define CLYDE_X_TILE_CHANGE  memmap.mem[0x4d1b]
-#define PACMAN_Y_TILE_CHANGE memmap.mem[0x4d1c]
-#define PACMAN_X_TILE_CHANGE memmap.mem[0x4d1d]
+#define BLINKY_TILE_CHANGE (XYPOS*)(&memmap.mem[0x4d14])
+#define PINKY_TILE_CHANGE  (XYPOS*)(&memmap.mem[0x4d16])
+#define INKY_TILE_CHANGE   (XYPOS*)(&memmap.mem[0x4d18])
+#define CLYDE_TILE_CHANGE  (XYPOS*)(&memmap.mem[0x4d1a])
+#define PACMAN_TILE_CHANGE (XYPOS*)(&memmap.mem[0x4d1c])
 
-#define BLINKY_Y_TILE_CHANGE2 memmap.mem[0x4d1e]
-#define BLINKY_X_TILE_CHANGE2 memmap.mem[0x4d1f]
-#define PINKY_Y_TILE_CHANGE2  memmap.mem[0x4d20]
-#define PINKY_X_TILE_CHANGE2  memmap.mem[0x4d21]
-#define INKY_Y_TILE_CHANGE2   memmap.mem[0x4d22]
-#define INKY_X_TILE_CHANGE2   memmap.mem[0x4d23]
-#define CLYDE_Y_TILE_CHANGE2  memmap.mem[0x4d24]
-#define CLYDE_X_TILE_CHANGE2  memmap.mem[0x4d25]
-#define PACMAN_Y_TILE_CHANGE2 memmap.mem[0x4d26]
-#define PACMAN_X_TILE_CHANGE2 memmap.mem[0x4d27]
+#define BLINKY_TILE_CHANGE2 (XYPOS*)(&memmap.mem[0x4d1e])
+#define PINKY_TILE_CHANGE2  (XYPOS*)(&memmap.mem[0x4d20])
+#define INKY_TILE_CHANGE2   (XYPOS*)(&memmap.mem[0x4d22])
+#define CLYDE_TILE_CHANGE2  (XYPOS*)(&memmap.mem[0x4d24])
+#define PACMAN_TILE_CHANGE2 (XYPOS*)(&memmap.mem[0x4d26])
 
 #define BLINKY_PREV_ORIENTATION memmap.mem[0x4d28]
 #define PINKY_PREV_ORIENTATION  memmap.mem[0x4d29]
@@ -200,14 +187,10 @@ XYPOS;
 
 #define PACMAN_ORIENTATION  memmap.mem[0x4d30]
 
-#define BLINKY_Y_TILE2 memmap.mem[0x4d31]
-#define BLINKY_X_TILE2 memmap.mem[0x4d32]
-#define PINKY_Y_TILE2  memmap.mem[0x4d33]
-#define PINKY_X_TILE2  memmap.mem[0x4d34]
-#define INKY_Y_TILE2   memmap.mem[0x4d35]
-#define INKY_X_TILE2   memmap.mem[0x4d36]
-#define CLYDE_Y_TILE2  memmap.mem[0x4d37]
-#define CLYDE_X_TILE2  memmap.mem[0x4d38]
+#define BLINKY_TILE2 (XYPOS*)(&memmap.mem[0x4d31])
+#define PINKY_TILE2  (XYPOS*)(&memmap.mem[0x4d33])
+#define INKY_TILE2   (XYPOS*)(&memmap.mem[0x4d35])
+#define CLYDE_TILE2  (XYPOS*)(&memmap.mem[0x4d37])
 #define PACMAN_TILE2 (XYPOS*)(&memmap.mem[0x4d39])
 
 #define BEST_ORIENTATION_FOUND memmap.mem[0x4d3b]
@@ -215,6 +198,8 @@ XYPOS;
 #define OPPOSITE_ORIENTATION memmap.mem[0x4d3d]
 #define CURRENT_TILE_POS (XYPOS*)(&memmap.mem[0x4d3e])
 #define DEST_TILE_POS (XYPOS*)(&memmap.mem[0x4d40])
+#define TMP_RESULT_POS (XYPOS*)(&memmap.mem[0x4d42])
+#define MIN_DIST_FOUND (*(uint16_t*)&memmap.mem[0x4d44])
 #define PACMAN_MOVE_PAT_NORMAL1        memmap.mem[0x4d46]
 #define PACMAN_MOVE_PAT_NORMAL2        memmap.mem[0x4d48]
 #define PACMAN_MOVE_PAT_BIG_PILL1        memmap.mem[0x4d4a]
@@ -302,7 +287,9 @@ XYPOS;
 #define ORIENTATION_CHANGE_COUNT        (*(uint16_t*)&memmap.mem[0x4dc2])
 #define COUNTER_TO_8                    memmap.mem[0x4dc4]
 #define COUNT_SINCE_PAC_KILLED          (*(uint16_t*)&memmap.mem[0x4dc5])
+#define TRIAL_ORIENTATON                memmap.mem[0x4dc7]
 #define GHOST_COL_POWERUP_COUNTER       memmap.mem[0x4dc8]
+#define RND_VAL_PTR                     (*(uint16_t*)&memmap.mem[0x4dc9])
 #define EDIBLE_REMAIN_COUNT             (*(uint16_t*)&memmap.mem[0x4dcb])
 
 #define PILL_CHANGE_COUNTER             memmap.mem[0x4dcf]
@@ -372,6 +359,23 @@ XYPOS;
 #define P2_SCORE                        (*(uint32_t*)&memmap.mem[0x4e84])
 #define HIGH_SCORE                      (*(uint32_t*)&memmap.mem[0x4e88])
 
+CH1_FREQ0       EQU     4e8c    ; 20 bits
+CH1_FREQ1       EQU     4e8d
+CH1_FREQ2       EQU     4e8e
+CH1_FREQ3       EQU     4e8f
+CH1_FREQ4       EQU     4e90
+CH1_VOL         EQU     4e91
+CH2_FREQ1       EQU     4e92    ; 16 bits
+CH2_FREQ2       EQU     4e93
+CH2_FREQ3       EQU     4e94
+CH2_FREQ4       EQU     4e95
+CH2_VOL         EQU     4e96
+CH3_FREQ1       EQU     4e97    ; 16 bits
+CH3_FREQ2       EQU     4e98
+CH3_FREQ3       EQU     4e99
+CH3_FREQ4       EQU     4e9a
+CH3_VOL         EQU     4e9b
+
 #define SND_CH1_EFF_NUM                 memmap.mem[0x4e9c];
 #define SND_CH2_EFF_NUM                 memmap.mem[0x4eac];
 #define SND_CH3_EFF_NUM                 memmap.mem[0x4ebc];
@@ -386,4 +390,23 @@ XYPOS;
     MEM(addr1) = MEM(addr2); MEM(addr1+1) = MEM(addr2+1); \
     MEM(addr2) = tmp1; MEM(addr2+1) = tmp2; \
 }
+
+/*  Function to emulate the Z80 daa instruction.  Convert a value to BCD by
+ *  examining each nybble.  If low nybble is higher than 9 then add 6 to carry
+ *  to the higher nybble.  If the higher nyblle is higher than 9 then substract
+ *  0xa0 and return true to indicate carry to next byte */
+static inline int bcdAdjust (uint8_t *value)
+{
+    if ((*value & 0xf) > 9)
+        *value += 6;
+
+    if ((*value & 0xf0) > 0x90)
+    {
+        *value -= 0xa0;
+        return 1;
+    }
+
+    return 0;
+}
+
 
