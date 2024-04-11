@@ -4,6 +4,7 @@
 // Video : https://www.walkofmind.com/programming/pie/video_memory.htm
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct
 {
@@ -49,39 +50,46 @@ memmap;
 #define VIDEO memmap.video
 #define COLOUR memmap.colour
 #define SOUND memmap.regs.write.soundRegs
-#define SPRITES memmap.mem.block.sprites
-#define INTENABLE memmap.regs.write.outputs[0] // 0x5000
-#define COINCOUNTER memmap.regs.write.coinCounter
-#define COINLOCKOUT memmap.regs.write.coinLockout
-#define REGSWRITE memmap.regs.write
+#define SPRITES memmap.sprites
+#define INTENABLE memmap.regs.write.intEnable
 #define SOUNDENABLE memmap.regs.write.soundEnable
+#define AUXENABLE memmap.regs.write.auxEnable
+#define FLIPSCREEN memmap.regs.write.flipScreen
+#define P1START memmap.regs.write.player1Start
+#define P2START memmap.regs.write.player2Start
+#define COINLOCKOUT memmap.regs.write.coinLockout
+#define COINCOUNTER memmap.regs.write.coinCounter
+#define REGSWRITE memmap.regs.write
 
 #define INPUT_UP        0x01
 #define INPUT_LEFT      0x02
 #define INPUT_RIGHT     0x04
 #define INPUT_DOWN      0x08
 
-#define IN0_UP          (memory.regs.read.in0 & 0x01)
-#define IN0_LEFT        (memory.regs.read.in0 & 0x02)
-#define IN0_RIGHT       (memory.regs.read.in0 & 0x04)
-#define IN0_DOWN        (memory.regs.read.in0 & 0x08)
-#define IN0_TEST        (memory.regs.read.in0 & 0x10)
-#define IN0_COIN1       (memory.regs.read.in0 & 0x20)
-#define IN0_COIN2       (memory.regs.read.in0 & 0x40)
-#define IN0_COIN3       (memory.regs.read.in0 & 0x80)
+#define IO_INPUT0       memmap.regs.read.in0[0]
+#define IO_INPUT1       memmap.regs.read.in1[0]
 
-#define IN1_UP          (memory.regs.read.in0 & 0x01)
-#define IN1_LEFT        (memory.regs.read.in0 & 0x02)
-#define IN1_RIGHT       (memory.regs.read.in0 & 0x04)
-#define IN1_DOWN        (memory.regs.read.in0 & 0x08)
-#define IN1_SERVICE     (memory.regs.read.in0 & 0x10)
-#define IN1_START1      (memory.regs.read.in0 & 0x20)
-#define IN1_START2      (memory.regs.read.in0 & 0x40)
-#define IN1_CABINET     (memory.regs.read.in0 & 0x80)
+#define IN0_UP          (IO_INPUT0 & INPUT_UP)
+#define IN0_LEFT        (IO_INPUT0 & INPUT_LEFT)
+#define IN0_RIGHT       (IO_INPUT0 & INPUT_RIGHT)
+#define IN0_DOWN        (IO_INPUT0 & INPUT_DOWN)
+#define IN0_TEST        (IO_INPUT0 & 0x10)
+#define IN0_COIN1       (IO_INPUT0 & 0x20)
+#define IN0_COIN2       (IO_INPUT0 & 0x40)
+#define IN0_COIN3       (IO_INPUT0 & 0x80)
 
-#define DIP_SWITCH_FREE (memmap.regs.read.in0 & 0x03)
-#define DIP_SWITCH_TEST (memmap.regs.read.in0 & 0x10)
-#define DIP_SWITCH_BONUS (memmap.regs.read.in0 & 0x30)
+#define IN1_UP          (IO_INPUT1 & INPUT_UP)
+#define IN1_LEFT        (IO_INPUT1 & INPUT_LEFT)
+#define IN1_RIGHT       (IO_INPUT1 & INPUT_RIGHT)
+#define IN1_DOWN        (IO_INPUT1 & INPUT_DOWN)
+#define IN1_SERVICE     (IO_INPUT1 & 0x10)
+#define IN1_START1      (IO_INPUT1 & 0x20)
+#define IN1_START2      (IO_INPUT1 & 0x40)
+#define IN1_CABINET     (IO_INPUT1 & 0x80)
+
+#define DIP_SWITCH_FREE (memmap.regs.read.in0[0] & 0x03)
+#define DIP_SWITCH_TEST (memmap.regs.read.in0[0] & 0x10)
+#define DIP_SWITCH_BONUS (memmap.regs.read.in0[0] & 0x30)
 
 #define BLINKY_SPRITE memmap.mem[0x4c02]
 #define BLINKY_COLOUR memmap.mem[0x4c03]
@@ -133,47 +141,47 @@ memmap;
 /*  X and Y coords are frequently stored together and accessed as a single 16-
  *  bit value (e.g. through the hl reg).  To simplify C code, declare a union of
  *  y and x byte values with a 16 bit hl reg */
-typedef union
+typedef struct // union
 {
-    struct
-    {
+    // struct
+    // {
         uint8_t y; // l
         uint8_t x; // h
-    }
-    uint16_t hl;
+    // };
+    // uint16_t hl;
 }
 XYPOS;
 
-#define BLINKY_POS      (XYPOS*)(&memmap.mem[0x4d00])
+#define BLINKY_POS      (*(XYPOS*)(&memmap.mem[0x4d00]))
 // #define BLINKY_Y memmap.mem[0x4d00]
 // #define BLINKY_X memmap.mem[0x4d01]
-#define PINKY_POS       (XYPOS*)(&memmap.mem[0x4d02])
+#define PINKY_POS       (*(XYPOS*)(&memmap.mem[0x4d02]))
 // #define PINKY_Y  memmap.mem[0x4d02]
 // #define PINKY_X  memmap.mem[0x4d03]
-#define INKY_POS        (XYPOS*)(&memmap.mem[0x4d04])
-#define CLYDE_POS       (XYPOS*)(&memmap.mem[0x4d06])
-#define PACMAN_POS      (XYPOS*)(&memmap.mem[0x4d08])
+#define INKY_POS        (*(XYPOS*)(&memmap.mem[0x4d04]))
+#define CLYDE_POS       (*(XYPOS*)(&memmap.mem[0x4d06]))
+#define PACMAN_POS      (*(XYPOS*)(&memmap.mem[0x4d08]))
 // #define PACMAN_Y memmap.mem[0x4d08]
 // #define PACMAN_X memmap.mem[0x4d09]
 
-#define BLINKY_TILE     (XYPOS*)(&memmap.mem[0x4d0a])
-#define PINKY_TILE      (XYPOS*)(&memmap.mem[0x4d0c])
-#define INKY_TILE       (XYPOS*)(&memmap.mem[0x4d0e])
-#define CLYDE_TILE      (XYPOS*)(&memmap.mem[0x4d10])
-#define PACMAN_DEMO_TILE        (XYPOS*)(&memmap.mem[0x4d12])
+#define BLINKY_TILE     (*(XYPOS*)(&memmap.mem[0x4d0a]))
+#define PINKY_TILE      (*(XYPOS*)(&memmap.mem[0x4d0c]))
+#define INKY_TILE       (*(XYPOS*)(&memmap.mem[0x4d0e]))
+#define CLYDE_TILE      (*(XYPOS*)(&memmap.mem[0x4d10]))
+#define PACMAN_TILE        (*(XYPOS*)(&memmap.mem[0x4d12]))
 // #define PACMAN_X_TILE memmap.mem[0x4d13]
 
-#define BLINKY_TILE_CHANGE (XYPOS*)(&memmap.mem[0x4d14])
-#define PINKY_TILE_CHANGE  (XYPOS*)(&memmap.mem[0x4d16])
-#define INKY_TILE_CHANGE   (XYPOS*)(&memmap.mem[0x4d18])
-#define CLYDE_TILE_CHANGE  (XYPOS*)(&memmap.mem[0x4d1a])
-#define PACMAN_TILE_CHANGE (XYPOS*)(&memmap.mem[0x4d1c])
+#define BLINKY_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d14]))
+#define PINKY_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d16]))
+#define INKY_TILE_CHANGE   (*(XYPOS*)(&memmap.mem[0x4d18]))
+#define CLYDE_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d1a]))
+#define PACMAN_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d1c]))
 
-#define BLINKY_TILE_CHANGE2 (XYPOS*)(&memmap.mem[0x4d1e])
-#define PINKY_TILE_CHANGE2  (XYPOS*)(&memmap.mem[0x4d20])
-#define INKY_TILE_CHANGE2   (XYPOS*)(&memmap.mem[0x4d22])
-#define CLYDE_TILE_CHANGE2  (XYPOS*)(&memmap.mem[0x4d24])
-#define PACMAN_TILE_CHANGE2 (XYPOS*)(&memmap.mem[0x4d26])
+#define BLINKY_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d1e]))
+#define PINKY_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d20]))
+#define INKY_TILE_CHANGE2   (*(XYPOS*)(&memmap.mem[0x4d22]))
+#define CLYDE_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d24]))
+#define PACMAN_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d26]))
 
 #define BLINKY_PREV_ORIENTATION memmap.mem[0x4d28]
 #define PINKY_PREV_ORIENTATION  memmap.mem[0x4d29]
@@ -187,25 +195,25 @@ XYPOS;
 
 #define PACMAN_ORIENTATION  memmap.mem[0x4d30]
 
-#define BLINKY_TILE2 (XYPOS*)(&memmap.mem[0x4d31])
-#define PINKY_TILE2  (XYPOS*)(&memmap.mem[0x4d33])
-#define INKY_TILE2   (XYPOS*)(&memmap.mem[0x4d35])
-#define CLYDE_TILE2  (XYPOS*)(&memmap.mem[0x4d37])
-#define PACMAN_TILE2 (XYPOS*)(&memmap.mem[0x4d39])
+#define BLINKY_TILE2 (*(XYPOS*)(&memmap.mem[0x4d31]))
+#define PINKY_TILE2  (*(XYPOS*)(&memmap.mem[0x4d33]))
+#define INKY_TILE2   (*(XYPOS*)(&memmap.mem[0x4d35]))
+#define CLYDE_TILE2  (*(XYPOS*)(&memmap.mem[0x4d37]))
+#define PACMAN_TILE2 (*(XYPOS*)(&memmap.mem[0x4d39]))
 
 #define BEST_ORIENTATION_FOUND memmap.mem[0x4d3b]
 #define PACMAN_DESIRED_ORIENTATION      memmap.mem[0x4d3c]
 #define OPPOSITE_ORIENTATION memmap.mem[0x4d3d]
-#define CURRENT_TILE_POS (XYPOS*)(&memmap.mem[0x4d3e])
-#define DEST_TILE_POS (XYPOS*)(&memmap.mem[0x4d40])
-#define TMP_RESULT_POS (XYPOS*)(&memmap.mem[0x4d42])
-#define MIN_DIST_FOUND (*(uint16_t*)&memmap.mem[0x4d44])
-#define PACMAN_MOVE_PAT_NORMAL1        memmap.mem[0x4d46]
-#define PACMAN_MOVE_PAT_NORMAL2        memmap.mem[0x4d48]
-#define PACMAN_MOVE_PAT_BIG_PILL1        memmap.mem[0x4d4a]
-#define PACMAN_MOVE_PAT_BIG_PILL2        memmap.mem[0x4d4c]
-#define PACMAN_MOVE_PAT_DIFF2_1         memmap.mem[0x4d4e]
-#define PACMAN_MOVE_PAT_DIFF2_2         memmap.mem[0x4d50]
+#define CURRENT_TILE_POS (*(XYPOS*)(&memmap.mem[0x4d3e]))
+#define DEST_TILE_POS (*(XYPOS*)(&memmap.mem[0x4d40]))
+#define TMP_RESULT_POS (*(XYPOS*)(&memmap.mem[0x4d42]))
+#define MIN_DISTANCE_FOUND              (*(uint16_t*)&memmap.mem[0x4d44])
+#define PACMAN_MOVE_PAT_NORMAL1         memmap.mem[0x4d46]
+#define PACMAN_MOVE_PAT_NORMAL2         memmap.mem[0x4d48]
+#define PACMAN_MOVE_PAT_POWERUP1        memmap.mem[0x4d4a]
+#define PACMAN_MOVE_PAT_POWERUP2        memmap.mem[0x4d4c]
+#define PACMAN_MOVE_PAT_DIFF2_1         (*(uint16_t*)&memmap.mem[0x4d4e])
+#define PACMAN_MOVE_PAT_DIFF2_2         (*(uint16_t*)&memmap.mem[0x4d50])
 #define PACMAN_MOVE_PAT_DIFF1_1         memmap.mem[0x4d52]
 #define PACMAN_MOVE_PAT_DIFF1_2         memmap.mem[0x4d54]
 #define BLINKY_MOVE_PAT_NORMAL1         memmap.mem[0x4d56]
@@ -232,32 +240,32 @@ XYPOS;
 #define CLYDE_MOVE_PAT_EDIBLE2         memmap.mem[0x4d80]
 #define CLYDE_MOVE_PAT_TUNNEL1         memmap.mem[0x4d82]
 #define CLYDE_MOVE_PAT_TUNNEL2         memmap.mem[0x4d84]
-#define DIFFICULTY_TABLE                (*(uint16_t*)&memmap.mem[0x4d86])
+#define DIFFICULTY_TABLE                ((uint16_t*)&memmap.mem[0x4d86])
 
-#define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94];
+#define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94]
 #define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
 #define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
-#define BLINKY_AUX_POS                  memmap.mem[0x4d99];
-#define PINKY_AUX_POS                  memmap.mem[0x4d9a];
-#define INKY_AUX_POS                  memmap.mem[0x4d9b];
-#define CLYDE_AUX_POS                  memmap.mem[0x4d9c];
-#define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d];
-#define EATEN_SINCE_MOVE                memmap.mem[0x4d9e];
-#define EATEN_PILLS_COUNT               memmap.mem[0x4d9f];
+#define BLINKY_AUX_POS                  memmap.mem[0x4d99]
+#define PINKY_AUX_POS                  memmap.mem[0x4d9a]
+#define INKY_AUX_POS                  memmap.mem[0x4d9b]
+#define CLYDE_AUX_POS                  memmap.mem[0x4d9c]
+#define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d]
+#define EATEN_SINCE_MOVE                memmap.mem[0x4d9e]
+#define EATEN_PILLS_COUNT               memmap.mem[0x4d9f]
 
-#define BLINKY_SUBSTATE                 memmap.mem[0x4da0];
-#define PINKY_SUBSTATE                  memmap.mem[0x4da1];
-#define INKY_SUBSTATE                   memmap.mem[0x4da2];
-#define CLYDE_SUBSTATE                  memmap.mem[0x4da3];
+#define BLINKY_SUBSTATE                 memmap.mem[0x4da0]
+#define PINKY_SUBSTATE                  memmap.mem[0x4da1]
+#define INKY_SUBSTATE                   memmap.mem[0x4da2]
+#define CLYDE_SUBSTATE                  memmap.mem[0x4da3]
 
 #define KILLED_GHOST_INDEX              memmap.mem[0x4da4]
 #define PAC_DEAD_ANIM_STATE             memmap.mem[0x4da5]
 #define PILL_EFFECT                     memmap.mem[0x4da6]
-#define BLINKY_EDIBLE                   memmap.mem[0x4da7];
-#define PINKY_EDIBLE                    memmap.mem[0x4da8];
-#define INKY_EDIBLE                     memmap.mem[0x4da9];
-#define CLYDE_EDIBLE                    memmap.mem[0x4daa];
-#define GHOST_STATE                     memmap.mem[0x4dab];
+#define BLINKY_EDIBLE                   memmap.mem[0x4da7]
+#define PINKY_EDIBLE                    memmap.mem[0x4da8]
+#define INKY_EDIBLE                     memmap.mem[0x4da9]
+#define CLYDE_EDIBLE                    memmap.mem[0x4daa]
+#define GHOST_STATE                     memmap.mem[0x4dab]
 #define BLINKY_STATE                    memmap.mem[0x4dac]
 #define PINKY_STATE                     memmap.mem[0x4dad]
 #define INKY_STATE                      memmap.mem[0x4dae]
@@ -266,38 +274,40 @@ XYPOS;
 #define GHOST_ALIVE     0
 #define GHOST_DEAD      1
 
-#define REL_DIFF                        memmap.mem[0x4db0];
-#define BLINKY_ORIENT_CHG_FLAG          memmap.mem[0x4db1];
-#define PINKY_ORIENT_CHG_FLAG           memmap.mem[0x4db2];
-#define INKY_ORIENT_CHG_FLAG            memmap.mem[0x4db3];
-#define CLYDE_ORIENT_CHG_FLAG           memmap.mem[0x4db4];
-#define PACMAN_ORIENT_CHG_FLAG          memmap.mem[0x4db5];
-#define DIFF_FLAG_1                     memmap.mem[0x4db6];
-#define DIFF_FLAG_2                     memmap.mem[0x4db7];
-#define PINKY_LEAVE_HOME_COUNTER        memmap.mem[0x4db8];
-#define INKY_LEAVE_HOME_COUNTER         memmap.mem[0x4db9];
-#define CLYDE_LEAVE_HOME_COUNTER        memmap.mem[0x4dba];
-#define PILLS_REM_DIFF_1                memmap.mem[0x4dbb];
-#define PILLS_REM_DIFF_2                memmap.mem[0x4dbc];
+#define REL_DIFF                        memmap.mem[0x4db0]
+#define BLINKY_ORIENT_CHG_FLAG          memmap.mem[0x4db1]
+#define PINKY_ORIENT_CHG_FLAG           memmap.mem[0x4db2]
+#define INKY_ORIENT_CHG_FLAG            memmap.mem[0x4db3]
+#define CLYDE_ORIENT_CHG_FLAG           memmap.mem[0x4db4]
+#define PACMAN_ORIENT_CHG_FLAG          memmap.mem[0x4db5]
+#define DIFF_FLAG_1                     memmap.mem[0x4db6]
+#define DIFF_FLAG_2                     memmap.mem[0x4db7]
+#define PINKY_LEAVE_HOME_COUNTER        memmap.mem[0x4db8]
+#define INKY_LEAVE_HOME_COUNTER         memmap.mem[0x4db9]
+#define CLYDE_LEAVE_HOME_COUNTER        memmap.mem[0x4dba]
+#define PILLS_REM_DIFF_1                memmap.mem[0x4dbb]
+#define PILLS_REM_DIFF_2                memmap.mem[0x4dbc]
 #define GHOST_EDIBLE_TIME               (*(uint16_t*)&memmap.mem[0x4dbd])
-#define PACMAN_ENTERING_TUNNEL          memmap.mem[0x4dbf];
+#define PACMAN_ENTERING_TUNNEL          memmap.mem[0x4dbf]
 
 #define GHOST_ANIMATION                 memmap.mem[0x4dc0]
 #define NONRANDOM_MOVEMENT              memmap.mem[0x4dc1]
 #define ORIENTATION_CHANGE_COUNT        (*(uint16_t*)&memmap.mem[0x4dc2])
 #define COUNTER_TO_8                    memmap.mem[0x4dc4]
 #define COUNT_SINCE_PAC_KILLED          (*(uint16_t*)&memmap.mem[0x4dc5])
-#define TRIAL_ORIENTATON                memmap.mem[0x4dc7]
+#define TRIAL_ORIENTATION               memmap.mem[0x4dc7]
 #define GHOST_COL_POWERUP_COUNTER       memmap.mem[0x4dc8]
 #define RND_VAL_PTR                     (*(uint16_t*)&memmap.mem[0x4dc9])
 #define EDIBLE_REMAIN_COUNT             (*(uint16_t*)&memmap.mem[0x4dcb])
+#define COIN_TIMER                      memmap.mem[0x4dce]
 
 #define PILL_CHANGE_COUNTER             memmap.mem[0x4dcf]
 #define KILLED_COUNT                    memmap.mem[0x4dd0]
 #define KILLED_STATE                    memmap.mem[0x4dd1]
-#define FRUIT_POS                       (XYPOS *)(&memmap.mem[0x4dd2])
+#define FRUIT_POS                       (*(XYPOS *)(&memmap.mem[0x4dd2]))
 
 #define FRUIT_POINTS                    memmap.mem[0x4dd4]
+#define WAIT_START_BUTTON               memmap.mem[0x4dd6]
 
 #define MAIN_STATE                      memmap.mem[0x4e00]
 #define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
@@ -355,33 +365,38 @@ XYPOS;
 #define COCKTAIL_MODE                   memmap.mem[0x4e72]
 #define DIFFICULTY_PTR                  (*(uint16_t*)&memmap.mem[0x4e73])
 #define GHOST_NAMES_MODE                memmap.mem[0x4e75]
-#define P1_SCORE                        (*(uint32_t*)&memmap.mem[0x4e80])
-#define P2_SCORE                        (*(uint32_t*)&memmap.mem[0x4e84])
-#define HIGH_SCORE                      (*(uint32_t*)&memmap.mem[0x4e88])
+#define P1_SCORE                        (&memmap.mem[0x4e80])
+#define P2_SCORE                        (&memmap.mem[0x4e84])
+#define HIGH_SCORE                      (&memmap.mem[0x4e88])
 
-CH1_FREQ0       EQU     4e8c    ; 20 bits
-CH1_FREQ1       EQU     4e8d
-CH1_FREQ2       EQU     4e8e
-CH1_FREQ3       EQU     4e8f
-CH1_FREQ4       EQU     4e90
-CH1_VOL         EQU     4e91
-CH2_FREQ1       EQU     4e92    ; 16 bits
-CH2_FREQ2       EQU     4e93
-CH2_FREQ3       EQU     4e94
-CH2_FREQ4       EQU     4e95
-CH2_VOL         EQU     4e96
-CH3_FREQ1       EQU     4e97    ; 16 bits
-CH3_FREQ2       EQU     4e98
-CH3_FREQ3       EQU     4e99
-CH3_FREQ4       EQU     4e9a
-CH3_VOL         EQU     4e9b
+#define CH1_FREQ0       memmap.mem[0x4e8c]   // 20 bits
+#define CH1_FREQ1       memmap.mem[0x4e8d]
+#define CH1_FREQ2       memmap.mem[0x4e8e]
+#define CH1_FREQ3       memmap.mem[0x4e8f]
+#define CH1_FREQ4       memmap.mem[0x4e90]
+#define CH1_VOL         memmap.mem[0x4e91]
+#define CH2_FREQ1       memmap.mem[0x4e92]   // 16 bits
+#define CH2_FREQ2       memmap.mem[0x4e93]
+#define CH2_FREQ3       memmap.mem[0x4e94]
+#define CH2_FREQ4       memmap.mem[0x4e95]
+#define CH2_VOL         memmap.mem[0x4e96]
+#define CH3_FREQ1       memmap.mem[0x4e97]   // 16 bits
+#define CH3_FREQ2       memmap.mem[0x4e98]
+#define CH3_FREQ3       memmap.mem[0x4e99]
+#define CH3_FREQ4       memmap.mem[0x4e9a]
+#define CH3_VOL         memmap.mem[0x4e9b]
 
-#define SND_CH1_EFF_NUM                 memmap.mem[0x4e9c];
-#define SND_CH2_EFF_NUM                 memmap.mem[0x4eac];
-#define SND_CH3_EFF_NUM                 memmap.mem[0x4ebc];
-#define SND_CH1_WAV_NUM                 memmap.mem[0x4ecc];
-#define SND_CH2_WAV_NUM                 memmap.mem[0x4edc];
-#define SND_CH3_WAV_NUM                 memmap.mem[0x4eec];
+#define SND_CH1_EFF_NUM                 memmap.mem[0x4e9c]
+#define SND_CH2_EFF_NUM                 memmap.mem[0x4eac]
+#define SND_CH3_EFF_NUM                 memmap.mem[0x4ebc]
+#define SND_CH1_WAV_NUM                 memmap.mem[0x4ecc]
+#define SND_CH2_WAV_NUM                 memmap.mem[0x4edc]
+#define SND_CH3_WAV_NUM                 memmap.mem[0x4eec]
+
+#define ORIENT_RIGHT    0
+#define ORIENT_DOWN     1
+#define ORIENT_LEFT     2
+#define ORIENT_UP       3
 
 #define SWAP16(addr1,addr2)\
 { \
@@ -410,3 +425,345 @@ static inline int bcdAdjust (uint8_t *value)
 }
 
 
+void start_230b ();
+uint16_t getScreenOffset_202d (XYPOS hl);
+    void kickWatchdog();
+void func_01dc();
+void dispatchISRTasks_0221();
+void advanceGameState  ();
+void func_039d (void);
+void func_1490();
+void drawMazeTBD_2419 (int param);
+int main (void);
+uint8_t* getPlayerScorePtr_2b0b (void);
+void addISRTask(uint8_t *ptr, int count, uint8_t* data);
+void addTask (uint8_t task, uint8_t param);
+void addToScore_2a5a(int b);
+void advanceGameState  ();
+void advanceStartState();
+void blinkySubstateTBD_268b(int param);
+void checkCoinInput_0267 ();
+void checkPacmanGhostCoincidence_171d();
+void checkStartButtons ();
+void clearColour_240d (int param);
+void clearMaze_2400 (void);
+void clearPills_24c9();
+void clearScreen_23f3 (void);
+void decrementLives_1353();
+void dispatchISRTasks_0221();
+void displayCredits ();
+void displayMsg_2c5e (int b);
+void drawBlankSquare_2b7e(uint8_t *hl);
+void drawCharSquare_2b80 (uint8_t *hl, int a);
+void drawFruit_2b8f (uint8_t *hl, int a);
+void drawPills_2448(int param);
+void drawPlayerScore_2aaf (uint8_t *score);
+void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks);
+void extraLife_2b33(int de);
+void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
+void func_01dc();
+void func_02ad();
+void func_03dc (void);
+void func_03fe();
+void func_045f();
+void func_0471();
+void func_048b();
+void func_0499();
+void func_049f();
+void func_04a5();
+void func_04b3();
+void func_04b9();
+void func_04bf();
+void func_04cd();
+void func_04d3();
+void func_04d8();
+void func_04e0();
+void func_051c();
+void func_0524 (uint8_t *hl, int b, int a);
+void func_052c();
+void func_054b();
+void func_0556();
+void func_0561();
+void func_056c();
+void func_057c();
+void func_0580(int c);
+void func_0585(int c);
+void func_0593(int c);
+XYPOS func_05a5 (void);
+void func_05bf (int hl, int a);
+void func_06a8();
+void func_06be();
+void func_070e(int b);
+void setupMovePat_0814(uint8_t *hl);
+void func_08cd();
+void func_0940();
+void func_0972();
+void func_0988 ();
+void func_09d2();
+void func_09d8();
+void func_09e8();
+void func_09fe();
+void func_0a02();
+void func_0a04();
+void func_0a06();
+void func_0a08();
+void func_0a0a();
+void func_0a0c();
+void func_0a0e();
+void func_0a7c();
+void func_0aa0();
+void func_0aa3();
+void func_0aa6();
+void func_0ac3();
+void func_0c0d();
+void func_0c42();
+void func_0e23();
+void func_0e36 ();
+void func_0ead();
+void func_1000();
+void func_100b();
+void func_1017 ();
+void func_1066();
+void func_1094();
+void func_109e();
+void func_10a8();
+void func_10b4();
+void func_10c0();
+void func_10d2();
+void func_1101();
+void func_1118();
+void func_112a();
+void func_116e();
+void func_118f();
+void func_11c9();
+void func_11db();
+void func_11fc();
+void func_1235();
+void func_12cb();
+void func_12f9();
+void func_1306();
+void func_130e();
+void func_1316();
+void func_131e();
+void func_1326();
+void func_132e();
+void func_1336();
+void func_133e();
+void func_1346();
+void func_1376();
+void func_141f (void);
+void func_1490();
+void func_14fe();
+void func_1562();
+void func_15e6();
+void func_162d();
+void func_16d6();
+void func_16f7();
+void func_1763 (int b);
+void func_1789 ();
+void func_1806 (void);
+void func_18e4 (int b);
+void func_1985(XYPOS pos);
+void func_1a19 ();
+void func_1a6a ();
+void func_1a70 ();
+void func_1b36();
+void func_1c4b ();
+void func_1d22();
+void func_1df9();
+bool func_1ed0(int ghost);
+void reverseBlinky_1efe (void);
+void func_1f25();
+void func_1f4c();
+void func_1f73();
+void func_205a(XYPOS pos, uint8_t *aux);
+void func_208c();
+void func_20af();
+void func_2108();
+void func_211a();
+void func_2130();
+void func_2136();
+void func_2140();
+void func_214b();
+void func_2170();
+void func_217b();
+void func_2186();
+void func_219e();
+void func_21c2(uint16_t iy);
+void func_21e1(uint16_t iy);
+void func_21f5(uint16_t iy);
+void func_220c(uint16_t iy);
+void func_2237();
+void func_2244(uint16_t iy);
+void func_225d(uint16_t iy);
+void func_226a(uint16_t iy);
+void func_2286(uint16_t iy);
+void func_228d(uint16_t iy);
+void func_2297();
+void func_22be();
+void func_22dd();
+void func_22e4();
+void func_22f5();
+void func_22fe();
+void func_26a2();
+void tileChangePinky_276c (int param);
+void tileChangeInky_27a9 (int param);
+void tileChangeClyde_27f1 (int param);
+void func_28e3();
+void func_2a35();
+void func_2ae0();
+void func_2b6a();
+void func_2c44(uint8_t a);
+void func_2cc1 (void);
+void func_2d44(int ix, int iy, uint8_t data[]);
+void func_2da5(int a);
+void func_2df4(int ix, int iy);
+void func_2e1b(int c);
+void func_2f22();
+void func_2f26();
+void func_2f2b();
+void func_2f30();
+void func_2f3c();
+void func_2f43();
+void func_2f55();
+void func_2f65();
+void func_4da3();
+void incLevelStateSubr_0894();
+void incMainSub2_06a3();
+void initLeaveHomeCounters_083a(uint8_t *hl);
+void isr();
+void jumpClearScreen_23ed(int param);
+void nothing (void);
+void oneBlank (uint8_t *ix);
+void oneUp (uint8_t *ix);
+void pacmanDeadAnimation_12d6(int ch, int count);
+void playerDied_090d();
+void playerUp ();
+uint8_t random_2a23 (void);
+void resetGameState_2698();
+void resetGhostPosition_267e (int y, int x);
+void resetPlayerParams_0879();
+void resetPositions_2675();
+void schedISRTask (uint8_t time, uint8_t routine, uint8_t param);
+void schedTask (int b, int c);
+void selectPacmanLeftSprite_168c (void);
+void selectPacmanDownSprite_16b1 (void);
+void selectPacmanRightSprite_16d6 (void);
+void selectPacmanUpSprite_16f7 (void);
+void setConfig_26d0();
+void setGhostColour_0bd6();
+void setMemory (int addr, int count, uint8_t value);
+void showBonusLifeScore_26b2();
+void start_230b ();
+void tableCall (void (*func[])(), uint8_t index, uint8_t param);
+void tileChangeBlinky_283b();
+void tileChangeClyde_28b9();
+void tileChangeInky_288f();
+void tileChangePinky_2865();
+void twoBlank (uint8_t *iy);
+void twoUp (uint8_t *iy);
+void updatePillsFromScreen_2487 (int param);
+void waitForever (void);
+void func_02fd (void);
+void func_2d0c (void);
+void interruptEnable ();
+void interruptDisable();
+void interruptMode (int mode);
+void interruptVector (int vector);
+bool interruptActive (void);
+uint8_t data_0219[];
+void func_058e(void);
+void addTask_0042 (uint8_t task, uint8_t param);
+void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data);
+void func_1272 (void);
+void displayReady_0263 (void);
+void func_212b (void);
+void func_21f0 (void);
+bool checkCoinCredit_02df (void);
+void func_22b9 (void);
+void func_05e5 (void);
+void func_047f(void );
+void func_0485(void );
+void func_05f3(void );
+void func_0674(void );
+void func_0899(void );
+void func_0a2c (void);
+    uint8_t data_0796[];
+    XYPOS moveVectorData_32ff[];
+    XYPOS moveVectorRight_32ff;
+    XYPOS moveVectorDown_3301;
+    XYPOS moveVectorLeft_3303;
+    XYPOS moveVectorUp_3305;
+void selectFruit_0ead (void);
+    uint8_t fruitData_0efd[];
+    uint8_t moveData_330f[];
+    uint8_t data_0843[];
+    uint8_t data_084f[];
+    uint8_t data_0861[];
+    uint8_t data_0873[];
+void func_2bea (int param);
+void func_13dd (void);
+void func_0e6c (void);
+void func_0a6f (void);
+XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy);
+void func_1f2e (void);
+void func_1f55 (void);
+void func_1f7c (void);
+void func_1291 (void);
+void func_2069 (void);
+void func_115c(void);
+void func_1bd8 (void);
+void func_1caf (void);
+void func_1d86 (void);
+void func_1e5d (void);
+void func_123f (void);
+void func_12b7 (void);
+void func_1652 (void);
+void func_1940 (int b);
+void func_1950 (void);
+void pacmanOrientLeft_1ac9 (void);
+void pacmanOrientRight_1ad9 (void);
+void pacmanOrientUp_1ae8 (void);
+void pacmanOrientDown_1af8 (void);
+uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos);
+XYPOS pixelToTile_2018 (XYPOS pos);
+void func_1004 (void);
+void func_1b08 (void);
+void func_1a5c (void);
+void func_20d7 (void);
+uint16_t getColourOffset_2052 (XYPOS pos);
+void func_0506 (void);
+void func_221e (uint16_t param);
+void func_22a7 (void);
+void func_24d7(int param);
+void initialisePositions_25d3 (int param);
+void func_2730 (int param);
+void func_23e8 (int param);
+    uint8_t data_3445[];
+    uint8_t data_35b5[];
+    uint8_t bonusLifeData[];
+    uint8_t difficultyData[];
+XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, uint8_t *a);
+uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy);
+XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation);
+uint16_t calcSquare_2a12(uint8_t a);
+uint16_t scoreTable_2b17[];
+int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks);
+uint16_t displayLives_2b4a (int lives);
+    XYPOS data_3b30[];
+    XYPOS data_3b40[];
+    uint8_t fruitTable_3b08[];
+    uint8_t *msgTable_36a5[];
+    uint8_t data_3bc8[];
+    uint8_t data_3bb0[];
+    uint8_t data_3bb8[];
+    uint8_t data_3bcc[];
+    uint8_t data_3bd0[];
+void func_2dee (uint8_t *ix, uint8_t *iy);
+    uint8_t data_3b80[];
+void func_2f65();
+void func_2f77 (void);
+void func_2f89 (void);
+void func_2f9b (void);
+void func_2fad (void);
+void func_2dd7 (void);

@@ -1,8 +1,22 @@
 /*  C translation of original pac-man ROM code.  Original code remains as
  *  comments.  Assembly that has been translated is boxed off with //---- 
+ *
+ *  NOTES:
+ *
+ *  Principles:
+ *
+ *  If conforming creates excessive code, shortcut
+ *
+ *  tablelookup of a non byte type just index an array instead of doing
+ *  excessive casts.
+ *
+ *  Tailcalls.  Many functions execute a jump to the tail end of another
+ *  function that updates a state or other operation.  In many cases I've just
+ *  inserted the action into the caller code instead of creating a fucntion.
  */
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "memmap.h"
 #include "protos.h"
@@ -15,29 +29,43 @@ int main (void)
     // 0003  ed47      ld      i,a		; Interrupt page = 0x3f
     // 0005  c30b23    jp      #230b		; Run startup tests
     //-------------------------------
+    interruptDisable ();
     start_230b();
 }
 
-void setMemory (int addr, int count, uint8_t value)
+/* Fill "hl" to "hl+b" with "a" */
+void setMemory_0008 (uint8_t *hl, uint8_t b, uint8_t a)
 {
     //-------------------------------
-    // 	;; Fill "hl" to "hl+b" with "a"
     // 0008  77        ld      (hl),a
     // 0009  23        inc     hl
     // 000a  10fc      djnz    #0008           ; (-4)
     // 000c  c9        ret     
+    //-------------------------------
+    memset (hl, a, b);
+}
+
+void func_000d (int param)
+{
+    //-------------------------------
     // 000d  c30e07    jp      #070e
     //-------------------------------
-    memset (&MEM[addr], value, count);
+    func_070e(param);
 }
 
 /*  Memory location 000c is referenced in several tables.  It is just a return
  *  so define an empty function to add to the jump tables */
-void nothing (void)
+void nothing_000c (void)
 {
 }
 
-uint8_t fetchOffset (uint8_t **addr, uint8_t offset)
+/*  Same as above but takes a parameter */
+void nothingParam_000c (uint16_t unused)
+{
+}
+
+/*  Add b to hl, fetch return the byte at *(hl+b).  hl is also modified */
+uint8_t fetchOffset_0010 (uint8_t **hl, uint8_t b)
 {
     //-------------------------------
     // 	;; hl = hl + a, (hl) -> a
@@ -49,14 +77,17 @@ uint8_t fetchOffset (uint8_t **addr, uint8_t offset)
     // 0016  7e        ld      a,(hl)
     // 0017  c9        ret     
     //-------------------------------
-    (*addr) += offset;
-    return **addr;
+    (*hl) += b;
+    return **hl;
 }
 
-uint16_t tableLookup (uint8_t **addr, uint8_t offset)
+/*  Do a table lookup using b as an offset.  Fetch a byte value into de and
+ *  return.
+ *
+ *  hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl */
+uint16_t tableLookup_0018 (uint8_t *hl, uint8_t b)
 {
     //-------------------------------
-    // 	;; hl = hl + 2*b,  (hl) -> e, (++hl) -> d, de -> hl
     // 0018  78        ld      a,b		; b -> a 
     // 0019  87        add     a,a		; 2*a -> a 
     // 001a  d7        rst     #10
@@ -66,13 +97,18 @@ uint16_t tableLookup (uint8_t **addr, uint8_t offset)
     // 001e  eb        ex      de,hl
     // 001f  c9        ret     
     //-------------------------------
-    int e = fetchOffset(addr, offset*2);
-    (*addr)++;
-    int d = **addr;
-    return e+d<<8;
+    int e = fetchOffset_0010(&hl, b*2);
+    hl++;
+    int d = *hl;
+    return e + d<<8;
 }
 
-void tableCall (void (*func[])(), uint8_t index, uint8_t param)
+/*  Lookup a function address in a table pointed to by the return address.  The
+ *  number of function addresses is variable.  This function calls functions
+ *  that have a void parameter list.  When calling functions that need
+ *  parameters, this method isn't used and the functions are called by directly
+ *  indexing the array.  */
+void tableCall_0020 (void (*func[])(), uint8_t a)
 {
     //-------------------------------
     // 0020  e1        pop     hl
@@ -84,7 +120,7 @@ void tableCall (void (*func[])(), uint8_t index, uint8_t param)
     // 0026  eb        ex      de,hl
     // 0027  e9        jp      (hl)
     //-------------------------------
-    func[index](param);
+    func[a]();
 }
 
 /*  Fetches two bytes following caller return address and places in a ring.  The
@@ -101,7 +137,7 @@ void schedTask (int b, int c)
     // 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
     // 002e  1812      jr      #0042           ; (18)
     //-------------------------------
-    addTask (b, c);
+    addTask_0042 (b, c);
 }
 
 /*  Fetches 3 bytes and stores them to a free location starting at 0x4c90.  In C
@@ -117,16 +153,19 @@ void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
     data[0] = time;
     data[1] = routine;
     data[2] = param;
-    addISRTask (ISR_TASKS, 0x10, data);
+    addISRTask_0051 (ISR_TASKS, 0x10, data);
 }
 
-void waitForever (void)
+/* Loop forever with interrupts disabled.  Continuously reset interrupt enable
+ * and coin counter */
+void waitForever_0038 (void)
 {
-    // 	;; Loop waiting for interrupt?
+    //-------------------------------
     // 0038  af        xor     a
     // 0039  320050    ld      (#5000),a
     // 003c  320750    ld      (#5007),a
     // 003f  c33800    jp      #0038
+    //-------------------------------
     while (1)
     {
         INTENABLE = 0;
@@ -137,7 +176,7 @@ void waitForever (void)
 /*  The task list is from 0x4cc0-0x4cff.  High byte doesn't change so only
  *  increment l.  If the low byte is 00 then we have hit the end so we need to
  *  wrap around to 0x4cc0 again. */
-void addTask (uint8_t task, uint8_t param)
+void addTask_0042 (uint8_t task, uint8_t param)
 {
     //-------------------------------
     // 0042  2a804c    ld      hl,(#4c80)       ; task list start value
@@ -157,7 +196,8 @@ void addTask (uint8_t task, uint8_t param)
         TASK_LIST_BEGIN = 0x4cc0;
 }
 
-void addISRTask(uint8_t *ptr, int count, uint8_t* data)
+/*  Called from rst #30.  Adds a task to the ISR task queue */
+void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data)
 {
     //-------------------------------
     // 	;; Jump from rst 0x30
@@ -204,7 +244,7 @@ void addISRTask(uint8_t *ptr, int count, uint8_t* data)
     //-------------------------------
 }
 
-uint16_t getScreenOffset_0065(XY *pos)
+uint16_t getScreenOffset_0065(XYPOS pos)
 {
     //-------------------------------
     // 0065  c32d20    jp      #202d
@@ -217,7 +257,8 @@ uint16_t getScreenOffset_0065(XY *pos)
     // 0070  08 09 0a 0b 0c 0d 0e 0f  10 11 12 13 14 01 03 04
     // 0080  06 07 08 09 0a 0b 0c 0d  0e 0f 10 11 14         
     //-------------------------------
-uint8_t data_68[] = { 0 };
+
+uint8_t data_0068[] = { 0 };
 
 void isr()
 {
@@ -244,7 +285,7 @@ void isr()
     // 00a3  011000    ld      bc,#0010
     // 00a6  edb0      ldir
     //-------------------------------
-    memcpy (&SOUND[0x10], &MEM(0x4e8c), 0x10);
+    memcpy (&SOUND[0x10], &CH1_FREQ0, 0x10);
 
     //-------------------------------
     // 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
@@ -256,7 +297,7 @@ void isr()
     // 00b1  3a9f4e    ld      a,(#4e9f)
     // 00b4  324550    ld      (#5045),a
     //-------------------------------
-    a = MEM[0x4ecf];
+    int a = MEM[0x4ecf];
 
     if (MEM[0x4ecc] == 0)
     {
@@ -314,7 +355,7 @@ void isr()
     // 00e8  07        rlca    
     // 00e9  dd7702    ld      (ix+#02),a
     //-------------------------------
-    MEM[0x4c22] = (MEM[0x4c22] << 2) | (MEM[0x4c22]>>6);
+    *SPRITE_POS = (*SPRITE_POS << 2) | (*SPRITE_POS>>6);
 
     //-------------------------------
     // 00ec  dd7e04    ld      a,(ix+#04)
@@ -371,7 +412,7 @@ void isr()
         // 0124  1600      ld      d,#00
         // 0126  dd19      add     ix,de
         //-------------------------------
-        ix = SPRITE_POS + KILLED_GHOST_INDEX*2;
+        uint8_t *ix = SPRITE_POS + KILLED_GHOST_INDEX*2;
 
         //-------------------------------
         // 0128  2a244c    ld      hl,(#4c24)
@@ -396,8 +437,8 @@ void isr()
         // 014d  dd7310    ld      (ix+#10),e
         // 0150  dd7211    ld      (ix+#11),d
         //-------------------------------
-        SWAP16 (0x4c24, ix);
-        SWAP16 (0x4c34, ix+0x10);
+        // SWAP16 (0x4c24, ix);
+        // SWAP16 (0x4c34, ix+0x10);
     }
 
     //-------------------------------
@@ -417,8 +458,8 @@ void isr()
         // 016e  ed432a4c  ld      (#4c2a),bc
         // 0172  ed533a4c  ld      (#4c3a),de
         //-------------------------------
-        SWAP16 (0x4c22, 0x4c2a);
-        SWAP16 (0x4c32, 0x4c3a);
+        // SWAP16 (0x4c22, 0x4c2a);
+        // SWAP16 (0x4c32, 0x4c3a);
     }
 
     //-------------------------------
@@ -457,12 +498,12 @@ void isr()
     // 01a7  cdad02    call    #02ad
     // 01aa  cdfd02    call    #02fd
     //-------------------------------
-    if (GAME_STATE != 0)
+    if (MAIN_STATE != 0)
     {
         func_039d();
         func_1490();
         func_141f();
-        checkCoinInput();
+        checkCoinInput_0267();
         func_02ad();
         func_02fd();
     }
@@ -472,7 +513,7 @@ void isr()
     // 01b0  3d        dec     a
     // 01b1  2006      jr      nz,#01b9        ; (6)
     //-------------------------------
-    if (GAME_STATE == 1)
+    if (MAIN_STATE == 1)
     {
         //-------------------------------
         // 01b3  32ac4e    ld      (#4eac),a
@@ -506,8 +547,9 @@ void isr()
     // 01da  f1        pop     af
     // 01db  c9        ret     
     //-------------------------------
-    if (GAME_STATE != 0 && IN0_TEST)
-        reset();
+    if (MAIN_STATE != 0 && IN0_TEST)
+        // reset();
+        exit(1);
 
     INTENABLE = 1;
     interruptEnable ();
@@ -522,21 +564,21 @@ void func_01dc()
     // 01e1  35        dec     (hl)
     // 01e2  23        inc     hl
     //-------------------------------
-    hl = 0x4c84;
-    MEM[hl++]++;
-    MEM[hl++]--;
+    uint8_t *ptr = SOUND_COUNTER;
+    (*ptr)++; ptr++;
+    (*ptr)--; ptr++;
 
     //-------------------------------
     // 01e3  111902    ld      de,#0219
     // 01e6  010104    ld      bc,#0401
-    de=data_219;
-    bc=0x0401;
+    uint8_t *data=data_0219;
+    int c =1;
 
     for (int b = 0; b < 4; b++)
     {
         // 01e9  34        inc     (hl)
         //-------------------------------
-        MEM[hl]++;
+        (*ptr)++;
 
         //-------------------------------
         // 01ea  7e        ld      a,(hl)
@@ -545,8 +587,8 @@ void func_01dc()
         // 01ee  be        cp      (hl)
         // 01ef  2013      jr      nz,#0204        ; (19)
         //-------------------------------
-        a = MEM[hl] & 0x0f;
-        int tmp = hl; hl = de; de = tmp;
+        int a = *ptr & 0x0f;
+        // int tmp = hl; hl = de; de = tmp;
 
         if (a == 0x06)
         {
@@ -558,12 +600,13 @@ void func_01dc()
             // 01f7  12        ld      (de),a
             //-------------------------------
             c++;
-            a = MEM[de] = (MEM[de]+0x10) & 0xf0;
+            *ptr = (*ptr+0x10) & 0xf0;
+
 
             // 01f8  23        inc     hl
             // 01f9  be        cp      (hl)
             // 01fa  2008      jr      nz,#0204        ; (8)
-            if (MEM[de] != MEM[++hl])
+            if (*ptr != *data++)
                 break;
 
             // 01fc  0c        inc     c
@@ -573,9 +616,8 @@ void func_01dc()
             // 0201  13        inc     de
             // 0202  10e5      djnz    #01e9           ; (-27)
             c++;
-            int tmp = hl; hl = de; de = tmp;
-            MEM[hl++] = 0;
-            de++;
+            // int tmp = hl; hl = de; de = tmp;
+            *ptr++ = 0;
         }
     }
 
@@ -612,7 +654,7 @@ void func_01dc()
     //-------------------------------
     // 0219  06 a0 0a 60 0a 60 0a a0 
     //-------------------------------
-uint8_t data_219[] = { 0x06, 0xa0, 0x0a, 0x60, 0x0a, 0x60, 0x0a, 0xa0 };
+uint8_t data_0219[] = { 0x06, 0xa0, 0x0a, 0x60, 0x0a, 0x60, 0x0a, 0xa0 };
 
 void dispatchISRTasks_0221()
 {
@@ -622,8 +664,8 @@ void dispatchISRTasks_0221()
     // 0227  4f        ld      c,a
     // 0228  0610      ld      b,#10
     //-------------------------------
-    c = COUNTER_LIMITS_CHANGES;
-    hl = ISR_TASKS;
+    int c = COUNTER_LIMITS_CHANGES;
+    uint8_t *hl = ISR_TASKS;
 
     for (int b = 0; b < 0x10; b++)
     {
@@ -632,7 +674,7 @@ void dispatchISRTasks_0221()
         // 022b  a7        and     a
         // 022c  282f      jr      z,#025d         ; (47)
         //-------------------------------
-        a = MEM[hl];
+        int a = *hl;
         if (a != 0)
         {
             //-------------------------------
@@ -642,6 +684,7 @@ void dispatchISRTasks_0221()
             // 0232  b9        cp      c
             // 0233  3028      jr      nc,#025d        ; (40)
             //-------------------------------
+            /*  TODO how can 0xc0 << 2 be anything other than 0 ? */
             a &= 0xc0;
             a>>=6;
             if(a<c)
@@ -652,7 +695,7 @@ void dispatchISRTasks_0221()
                 // 0237  e63f      and     #3f
                 // 0239  2022      jr      nz,#025d        ; (34)
                 //-------------------------------
-                a = (--MEM[hl] & 0x3f);
+                a = (*--hl & 0x3f);
                 if (a == 0)
                 {
                     //-------------------------------
@@ -666,10 +709,9 @@ void dispatchISRTasks_0221()
                     // 0242  215b02    ld      hl,#025b         ; return to 025b
                     // 0245  e5        push    hl
                     //-------------------------------
-                    MEM[hl]=0;
-                    a=MEM[hl++];
-                    b=MEM[hl++];
-                    hl=0x25b;
+                    *hl=0;
+                    a=*++hl;
+                    b=*++hl;
 
                     //-------------------------------
                     // 0246  e7        rst     #20
@@ -681,10 +723,11 @@ void dispatchISRTasks_0221()
                     // 025b  e1        pop     hl
                     // 025c  c1        pop     bc
                     //-------------------------------
-                    void (*func)()[] = { incLevelStateSubr_0894, incMainSub2_06a3, func_058e, func_1272,
-                                         func_1000, func_100b, func_0263, func_212b,
+                    void (*func[])() = { incLevelStateSubr_0894, incMainSub2_06a3, func_058e, func_1272,
+                                         func_1000, func_100b, displayReady_0263, func_212b,
                                          func_21f0, func_22b9 };
-                    tableCall (MEM[hl], func);
+                    tableCall_0020 (func, a);
+                    /*  No return as this addr was pushed as ret addr */
                 }
             }
         }
@@ -695,14 +738,14 @@ void dispatchISRTasks_0221()
         // 025f  2c        inc     l
         // 0260  10c8      djnz    #022a           ; (-56)
         //-------------------------------
-        l+=3;
+        hl+=3;
     }
     //-------------------------------
     // 0262  c9        ret     
     //-------------------------------
 }
 
-func_0263()
+void displayReady_0263 (void)
 {
     //-------------------------------
     // 0263  ef        rst     #28
@@ -712,10 +755,10 @@ func_0263()
     schedTask(TASK_DISPLAY_MSG, 0x86);
 }
 
-void checkCoinInput ()
+/*  Check/debounce coin inputs */
+void checkCoinInput_0267 (void)
 {
     //-------------------------------
-    // 	;; Check/debounce coin inputs
     // 0267  3a6e4e    ld      a,(#4e6e)
     // 026a  fe99      cp      #99
     // 026c  17        rla     
@@ -737,13 +780,13 @@ void checkCoinInput ()
     // 027c  e60f      and     #0f
     // 027e  32664e    ld      (#4e66),a
     //-------------------------------
-    COIN3_LAST_STATE=((COIN3_LAST_STATE<<1) & 0x0f) | (IN0_COIN3?1:0);
+    SERVICE1_DEBOUNCE=((SERVICE1_DEBOUNCE<<1) & 0x0f) | (IN0_COIN3?1:0);
     //-------------------------------
     // 0281  d60c      sub     #0c
     // 0283  ccdf02    call    z,#02df		; Add Coin
     //-------------------------------
-    if (COIN_LAST_STATE==12)
-        checkCoinCredit();
+    if (COIN2_DEBOUNCE==12)
+        checkCoinCredit_02df();
     //-------------------------------
     // 0286  cb00      rlc     b                    ; Move MSB (COIN2) to carry flag
     // 0288  3a674e    ld      a,(#4e67)
@@ -751,14 +794,14 @@ void checkCoinInput ()
     // 028c  e60f      and     #0f
     // 028e  32674e    ld      (#4e67),a
     //-------------------------------
-    COIN2_LAST_STATE=((COIN2_LAST_STATE<<1)&0x0f) | (IN0_COIN2?1:0);
+    COIN2_DEBOUNCE=((COIN2_DEBOUNCE<<1)&0x0f) | (IN0_COIN2?1:0);
     //-------------------------------
     // 0291  d60c      sub     #0c
     // 0293  c29a02    jp      nz,#029a
     // 0296  21694e    ld      hl,#4e69
     // 0299  34        inc     (hl)
     //-------------------------------
-    if (COIN2_LAST_STATE == 0xc)
+    if (COIN2_DEBOUNCE == 0xc)
         COIN_COUNTER++;
 
     //-------------------------------
@@ -767,13 +810,13 @@ void checkCoinInput ()
     // 029f  17        rla     
     // 02a0  e60f      and     #0f
     //-------------------------------
-    COIN1_LAST_STATE=((COIN1_LAST_STATE>>1)&0x0f) | (IN0_COIN1?1:0);
+    COIN1_DEBOUNCE=((COIN1_DEBOUNCE>>1)&0x0f) | (IN0_COIN1?1:0);
     //-------------------------------
     // 02a2  32684e    ld      (#4e68),a
     // 02a5  d60c      sub     #0c
     // 02a7  c0        ret     nz
     //-------------------------------
-    if (COIN1_LAST_STATE != 0xc)
+    if (COIN1_DEBOUNCE != 0xc)
         return;
     //-------------------------------
     // 02a8  21694e    ld      hl,#4e69
@@ -783,7 +826,7 @@ void checkCoinInput ()
     COIN_COUNTER++;
 }
 
-void func_02ad()
+void func_02ad (void)
 {
     //-------------------------------
     // 02ad  3a694e    ld      a,(#4e69)
@@ -808,7 +851,7 @@ void func_02ad()
         // 02c1  cddf02    call    #02df
         //-------------------------------
         COIN_COUNTER=1;
-        checkCoinCredit ();
+        checkCoinCredit_02df ();
     }
 
     //-------------------------------
@@ -847,24 +890,24 @@ void func_02ad()
     // 02de  c9        ret     
     //-------------------------------
     COIN_COUNTER_TIMEOUT -= 0x10;
-    COIN_COUNT--;
+    COIN_COUNTER--;
 }
 
-bool checkCoinCredit ()
+/* Coins -> credits routine */
+bool checkCoinCredit_02df (void)
 {
     //-------------------------------
-    // 	;; Coins -> credits routine
     // 02df  3a6b4e    ld      a,(#4e6b)		; #coins per #credits 
-    // 02e2  216c4e    ld      hl,#partialCredit		; #leftover coins 
+    // 02e2  216c4e    ld      hl,#4e6c		; #leftover coins 
     // 02e5  34        inc     (hl)			; add 1 
     // 02e6  96        sub     (hl)
     // 02e7  c0        ret     nz			; not enough coins for credit 
     // 02e8  77        ld      (hl),a		; store leftover coins 
     //-------------------------------
-    if (++partialCredit < COINS_PER_CREDIT)
+    if (++PARTIAL_CREDIT < COINS_PER_CREDIT)
         return false;
 
-    partialCredit -= COINS_PER_CREDIT;
+    PARTIAL_CREDIT -= COINS_PER_CREDIT;
 
     //-------------------------------
     // 02e9  3a6d4e    ld      a,(#CREDITS_PER_COIN)		; #credits per #coins 
@@ -886,7 +929,10 @@ bool checkCoinCredit ()
     // 02fc  c9        ret     
     //-------------------------------
     MEM[0x4e9c] |= 1;
+}
 
+void func_02fd (void)
+{
     //-------------------------------
     // 02fd  21ce4d    ld      hl,#4dce
     // 0300  34        inc     (hl)
@@ -894,11 +940,9 @@ bool checkCoinCredit ()
     // 0302  e60f      and     #0f
     // 0304  201f      jr      nz,#0325        ; (31)
     //-------------------------------
-    uint16_t hl = 0x4dce;
-    int a = MEM[hl]++;
-    char b = *a & 0xf;
+    int a = COIN_TIMER++;
 
-    if (b == 0)
+    if (a & 0xf == 0)
     {
         //-------------------------------
         // 0306  7e        ld      a,(hl)
@@ -907,8 +951,7 @@ bool checkCoinCredit ()
         // 0309  0f        rrca    
         // 030a  0f        rrca    
         //-------------------------------
-        b = *a;
-        b = (b>>4) | ((b&0xf)<<4);
+        int b = (a>>4) | ((a&0xf)<<4);
 
         //-------------------------------
         // 030b  47        ld      b,a
@@ -916,7 +959,7 @@ bool checkCoinCredit ()
         // 030f  2f        cpl     
         // 0310  b0        or      b
         //-------------------------------
-        a = b | ~MEM[0x4dd6];
+        b |= ~WAIT_START_BUTTON;
 
         //-------------------------------
         // 0311  4f        ld      c,a
@@ -924,10 +967,10 @@ bool checkCoinCredit ()
         // 0315  d601      sub     #01
         // 0317  3002      jr      nc,#031b        ; (2)
         //-------------------------------
-        c = a;
+        int c = b;
         a = CREDITS-1;
 
-        if (a < 0)
+        if (CREDITS < 1)
         {
             //-------------------------------
             // 0319  af        xor     a
@@ -946,8 +989,8 @@ bool checkCoinCredit ()
         // 0321  79        ld      a,c
         // 0322  320450    ld      (#5004),a
         //-------------------------------
-        regsWrite.player2Start = a;
-        regsWrite.player1Start = c;
+        P1START = a;
+        P2START = c;
     }
 
     //-------------------------------
@@ -957,16 +1000,16 @@ bool checkCoinCredit ()
     // 0330  fe03      cp      #03
     // 0332  ca4403    jp      z,#0344
     //-------------------------------
-    ix = 0x43d8;
-    iy = 0x43c5;
-    if (GAME_STATE != 3)
+    uint8_t *ix = &VIDEO[0x3d8];
+    uint8_t *iy = &VIDEO[0x3c5];
+    if (MAIN_STATE != 3)
     {
         //-------------------------------
         // 0335  3a034e    ld      a,(#4e03)
         // 0338  fe02      cp      #02
         // 033a  d24403    jp      nc,#0344
         //-------------------------------
-        a = MEM[0x4e03];
+        a = MAIN_STATE_SUB2;
         if (a >= 2)
         {
             //-------------------------------
@@ -974,15 +1017,12 @@ bool checkCoinCredit ()
             // 0340  cd7603    call    #0376
             // 0343  c9        ret     
             //-------------------------------
-            oneUp();
-            twoUp();
+            oneUp(ix);
+            twoUp(iy);
             return;
         }
     }
-}
 
-void playerUp ()
-{
     //-------------------------------
     // 0344  3a094e    ld      a,(#4e09)
     // 0347  a7        and     a
@@ -998,9 +1038,9 @@ void playerUp ()
         // 0356  c36103    jp      #0361
         //-------------------------------
         if ((MEM[0x4dce] & 0x10) == 0)
-            oneUp();
+            oneUp(ix);
         else
-            oneBlank();
+            oneBlank(ix);
     }
     else
     {
@@ -1010,9 +1050,9 @@ void playerUp ()
         // 035e  c49003    call    nz,#0390
         //-------------------------------
         if ((MEM[0x4dce] & 0x10) == 0)
-            twoUp();
+            twoUp(iy);
         else
-            twoBlank();
+            twoBlank(iy);
     }
 
     //-------------------------------
@@ -1022,7 +1062,7 @@ void playerUp ()
     // 0368  c9        ret     
     //-------------------------------
     if (TWO_PLAYERS == 0)
-        twoBlank();
+        twoBlank(iy);
 }
 
 void oneUp (uint8_t *ix)
@@ -1075,14 +1115,14 @@ void twoBlank (uint8_t *iy)
     *iy = *(iy+1) = *(iy+2) = 0x40;
 }
 
-bool func_039d (void)
+void func_039d (void)
 {
     //-------------------------------
     // 039d  3a064e    ld      a,(#4e06)
     // 03a0  d605      sub     #05
     // 03a2  d8        ret     c
     //-------------------------------
-    if (MEM[0x4e06] < 5)
+    if (SCENE1_STATE < 5)
         return;
 
     //-------------------------------
@@ -1092,28 +1132,32 @@ bool func_039d (void)
     // 03aa  7d        ld      a,l
     // 03ab  32064d    ld      (#4d06),a
     // 03ae  32d24d    ld      (#4dd2),a
+    //-------------------------------
+    CLYDE_POS.y = 
+    FRUIT_POS.y = PACMAN_POS.y;
+    //-------------------------------
     // 03b1  91        sub     c
     // 03b2  32024d    ld      (#4d02),a
     // 03b5  32044d    ld      (#4d04),a
+    //-------------------------------
+    PINKY_POS.y =
+    INKY_POS.y = PACMAN_POS.y - 0x10;
+    //-------------------------------
     // 03b8  7c        ld      a,h
     // 03b9  80        add     a,b
     // 03ba  32034d    ld      (#4d03),a
     // 03bd  32074d    ld      (#4d07),a
+    //-------------------------------
+    PINKY_POS.x =
+    CLYDE_POS.x = PACMAN_POS.x + 8;
+    //-------------------------------
     // 03c0  91        sub     c
     // 03c1  32054d    ld      (#4d05),a
     // 03c4  32d34d    ld      (#4dd3),a
     // 03c7  c9        ret     
     //-------------------------------
-    uint8_t h = MEM[0x4d09];
-    uint8_t l = MEM[0x4d08];
-    MEM[0x4d06] = l;
-    MEM[0x4dd2] = l;
-    MEM[0x4d02] = l-10;
-    MEM[0x4d04] = l-10;
-    MEM[0x4d03] = h+8;
-    MEM[0x4d07] = h+8;
-    MEM[0x4d05] = h-2;
-    MEM[0x4dd3] = h-2;
+    INKY_POS.x =
+    FRUIT_POS.x = PACMAN_POS.x - 8;
 }
 
 /*  4e00 has 4 states.  Call a func for the state */
@@ -1128,8 +1172,8 @@ void advanceGameState  ()
     // 03d0  e505
     // 03d2  be06
     //-------------------------------
-    void (*func)()[] = { advanceStartState, func_03fe, func_05e5, func_06be };
-    tableCall (GAME_STATE, func);
+    void (*func[])() = { advanceStartState, func_03fe, func_05e5, func_06be };
+    tableCall_0020 (func, MAIN_STATE);
 }
 
 /*  4e00==0, switch 4e01 */
@@ -1142,12 +1186,12 @@ void advanceStartState()
     // 03d8  dc03
     // 03da  0c00
     //-------------------------------
-    void (*func)()[] = { func_03dc, nothing };
-    tableCall (START_STATE, func);
+    void (*func[])() = { func_03dc, nothing_000c };
+    tableCall_0020 (func, MAIN_STATE_SUB0);
 }
 
 /*  4e00==0 && 4e01 == 0 => 4e01=1 */
-void func_03dc()
+void func_03dc (void)
 {
     //-------------------------------
     // 03dc  ef        rst     #28
@@ -1183,7 +1227,7 @@ void func_03dc()
     // 03fb  3601      ld      (hl),#01
     // 03fd  c9        ret     
     //-------------------------------
-    START_STATE++;
+    MAIN_STATE_SUB0++;
     SOUNDENABLE=1;
 }
 
@@ -1210,7 +1254,7 @@ void func_03fe()
         // 0412  c9        ret     
         //-------------------------------
         MAIN_STATE_SUB1 = LEVEL_STATE_SUBR = 0;
-        GAME_STATE++;
+        MAIN_STATE++;
         return;
     }
 
@@ -1224,16 +1268,17 @@ void func_03fe()
     // 0440  04 0c 00 cd 04 0c 00 d3  04 0c 00 d8 04 0c 00 e0
     // 0450  04 0c 00 1c 05 4b 05 56  05 61 05 6c 05 7c 05 
     //-------------------------------
-    void (*func)()[] = { func_045f, nothing, func_0471, nothing,
-                         func_047f, nothing, func_0485, nothing,
-                         func_048b, nothing, func_0499, nothing,
-                         func_049f, nothing, func_04a5, nothing,
-                         func_04b3, nothing, func_04b9, nothing,
-                         func_04bf, nothing, func_04cd, nothing,
-                         func_04d3, nothing, func_04d8, nothingm
-                         func_04e0, nothing, func_051c, func_054b,
+    void (*func[])() =
+    { func_045f, nothing_000c, func_0471, nothing_000c,
+                         func_047f, nothing_000c, func_0485, nothing_000c,
+                         func_048b, nothing_000c, func_0499, nothing_000c,
+                         func_049f, nothing_000c, func_04a5, nothing_000c,
+                         func_04b3, nothing_000c, func_04b9, nothing_000c,
+                         func_04bf, nothing_000c, func_04cd, nothing_000c,
+                         func_04d3, nothing_000c, func_04d8, nothing_000c,
+                         func_04e0, nothing_000c, func_051c, func_054b,
                          func_0556, func_0561, func_056c, func_057c };
-    tableCall (MAIN_STATE_SUB1, func);
+    tableCall_0020 (func, MAIN_STATE_SUB1);
 }
 
 void func_045f()
@@ -1278,7 +1323,7 @@ void func_0471()
     func_0585(0xc);
 }
 
-func_047f()
+void func_047f(void )
 {
     //-------------------------------
     // 047f  0e14      ld      c,#14
@@ -1288,7 +1333,7 @@ func_047f()
     func_0593(0x14);
 }
 
-func_0485()
+void func_0485(void )
 {
     //-------------------------------
     // 0485  0e0d      ld      c,#0d
@@ -1298,7 +1343,7 @@ func_0485()
     func_0585(0xd);
 }
 
-void func_048b()
+void func_048b(void )
 {
     //-------------------------------
     // 048b  210743    ld      hl,#4307
@@ -1315,7 +1360,7 @@ void func_048b()
     func_0585(0xc);
 }
 
-void func_0499()
+void func_0499(void )
 { 
     //-------------------------------
     // 0499  0e16      ld      c,#16
@@ -1325,7 +1370,7 @@ void func_0499()
     func_0593(0x16);
 }
 
-void func_049f()
+void func_049f(void )
 {
     //-------------------------------
     // 049f  0e0f      ld      c,#0f
@@ -1335,7 +1380,7 @@ void func_049f()
     func_0593(0xf);
 }
 
-void func_04a5()
+void func_04a5(void )
 {
     //-------------------------------
     // 04a5  210a43    ld      hl,#430a
@@ -1349,7 +1394,7 @@ void func_04a5()
     func_0585(0xc);
 }
 
-void func_04b3()
+void func_04b3(void )
 {
     //-------------------------------
     // 04b3  0e33      ld      c,#33
@@ -1359,7 +1404,7 @@ void func_04b3()
     func_0593(0x33);
 }
 
-void func_04b9()
+void func_04b9(void )
 {
     //-------------------------------
     // 04b9  0e2f      ld      c,#2f
@@ -1369,7 +1414,7 @@ void func_04b9()
     func_0593(0x2f);
 }
 
-void func_04bf()
+void func_04bf(void )
 {
     //-------------------------------
     // 04bf  210d43    ld      hl,#430d
@@ -1383,7 +1428,7 @@ void func_04bf()
     func_0585(0xc);
 }
 
-void func_04cd()
+void func_04cd(void )
 {
     //-------------------------------
     // 04cd  0e35      ld      c,#35
@@ -1393,7 +1438,7 @@ void func_04cd()
     func_0593(0x35);
 }
 
-void func_04d3()
+void func_04d3(void )
 {
     //-------------------------------
     // 04d3  0e31      ld      c,#31
@@ -1402,7 +1447,7 @@ void func_04d3()
     func_0580(0x31);
 }
 
-void func_04d8()
+void func_04d8(void )
 {
     //-------------------------------
     // 04d8  ef        rst     #28
@@ -1416,7 +1461,7 @@ void func_04d8()
     func_0585(0x12);
 }
 
-void func_04e0()
+void func_04e0(void )
 {
     //-------------------------------
     // 04e0  0e13      ld      c,#13
@@ -1459,13 +1504,18 @@ void func_04e0()
     // 0504  3614      ld      (hl),#14
     //-------------------------------
     VIDEO[0x332]=0x14;
+    func_0506();
+}
+
+void func_0506 (void)
+{
     //-------------------------------
     // 0506  3efc      ld      a,#fc
     // 0508  112000    ld      de,#0020
     // 050b  061c      ld      b,#1c
     // 050d  dd214040  ld      ix,#4040
     //-------------------------------
-    ix=0x40;
+    int ix=0x40;
     for (int b = 0; b < 0x1c; b++)
     {
         //-------------------------------
@@ -1483,17 +1533,17 @@ void func_04e0()
     //-------------------------------
 }
 
-void func_051c()
+void func_051c(void )
 {
     //-------------------------------
     // 051c  21a04d    ld      hl,#4da0
     // 051f  0621      ld      b,#21
     // 0521  3a3a4d    ld      a,(#4d3a)
     //-------------------------------
-    func_0524 (0x4da0, 0x21, PACMAN_TILE2);
+    func_0524 (&BLINKY_SUBSTATE, 0x21, PACMAN_TILE2.x);
 }
 
-void func_0524(int hl, int b, int a)
+void func_0524 (uint8_t *hl, int b, int a)
 {
     //-------------------------------
     // 0524  90        sub     b
@@ -1503,7 +1553,7 @@ void func_0524(int hl, int b, int a)
     //-------------------------------
     if (a == 0x21)
     {
-        MEM[hl]=1;
+        *hl=1;
         func_058e();
         return;
     }
@@ -1531,13 +1581,13 @@ void func_052c()
     func_0c0d();
     setGhostColour_0bd6();
     func_05a5();
-    func_1efe();
+    reverseBlinky_1efe();
     func_1f25();
     func_1f4c();
     func_1f73();
 }
 
-void func_054b()
+void func_054b(void )
 {
     //-------------------------------
     // 054b  21a14d    ld      hl,#4da1
@@ -1545,10 +1595,10 @@ void func_054b()
     // 0550  3a324d    ld      a,(#4d32)
     // 0553  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da1, 0x20, BLINK_TILE2);
+    func_0524 (&PINKY_SUBSTATE, 0x20, BLINKY_TILE2.x);
 }
 
-void func_0556()
+void func_0556(void )
 {
     //-------------------------------
     // 0556  21a24d    ld      hl,#4da2
@@ -1556,10 +1606,10 @@ void func_0556()
     // 055b  3a324d    ld      a,(#4d32)
     // 055e  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da2, 0x22, BLINKY_TILE2);
+    func_0524 (&INKY_SUBSTATE, 0x22, BLINKY_TILE2.x);
 }
 
-void func_0561()
+void func_0561(void )
 {
     //-------------------------------
     // 0561  21a34d    ld      hl,#4da3
@@ -1567,10 +1617,10 @@ void func_0561()
     // 0566  3a324d    ld      a,(#4d32)
     // 0569  c32405    jp      #0524
     //-------------------------------
-    func_0524 (0x4da3, 0x24, BLINKY_TILE2);
+    func_0524 (&CLYDE_SUBSTATE, 0x24, BLINKY_TILE2.x);
 }
 
-void func_056c()
+void func_056c(void )
 {
     //-------------------------------
     // 056c  3ad04d    ld      a,(#4dd0)
@@ -1591,7 +1641,7 @@ void func_056c()
     func_052c();
 }
 
-void func_057c()
+void func_057c(void )
 {
     //-------------------------------
     // 057c  cdbe06    call    #06be
@@ -1620,7 +1670,7 @@ void func_0585(int c)
     // 0585  061c      ld      b,#1c
     // 0587  cd4200    call    #0042
     //-------------------------------
-    addTask (TASK_DISPLAY_MSG, c);
+    addTask_0042 (TASK_DISPLAY_MSG, c);
 
     //-------------------------------
     // 058a  f7        rst     #30
@@ -1628,6 +1678,11 @@ void func_0585(int c)
     //-------------------------------
     schedISRTask (0x4a, 0x02, 0x00);
 
+    func_058e();
+}
+
+void func_058e(void)
+{
     //-------------------------------
     // 058e  21024e    ld      hl,#4e02
     // 0591  34        inc     (hl)
@@ -1636,7 +1691,7 @@ void func_0585(int c)
     MAIN_STATE_SUB1++;
 }
 
-void func_0593()
+void func_0593(int c)
 {
     //-------------------------------
     // 0593  3a754e    ld      a,(#4e75)
@@ -1645,7 +1700,7 @@ void func_0593()
     // 0598  061c      ld      b,#1c
     // 059a  cd4200    call    #0042
     //-------------------------------
-    addTask (TASK_DISPLAY_MSG, c+mem[0x4e75]);
+    addTask_0042 (TASK_DISPLAY_MSG, c+GHOST_NAMES_MODE);
 
     //-------------------------------
     // 059d  f7        rst     #30
@@ -1657,15 +1712,17 @@ void func_0593()
     func_058e();
 }
 
-void func_05a5 ()
+XYPOS func_05a5 (void)
 {
     //-------------------------------
     // 05a5  3ab54d    ld      a,(#4db5)
     // 05a8  a7        and     a
     // 05a9  c8        ret     z
     //-------------------------------
+    XYPOS vector = { 0, 0 };
+
     if (PACMAN_ORIENT_CHG_FLAG == 0)
-        return;
+        return vector;
 
     //-------------------------------
     // 05aa  af        xor     a
@@ -1677,7 +1734,7 @@ void func_05a5 ()
     // 05b1  ee02      xor     #02
     // 05b3  323c4d    ld      (#4d3c),a
     //-------------------------------
-    PACMAN_DESIRED_ORIENTATON = PACMAN_ORIENTATION ^ 2;
+    PACMAN_DESIRED_ORIENTATION = PACMAN_ORIENTATION ^ 2;
 
     //-------------------------------
     // 05b6  47        ld      b,a
@@ -1686,7 +1743,9 @@ void func_05a5 ()
     // 05bb  22264d    ld      (#4d26),hl
     // 05be  c9        ret     
     //-------------------------------
-    PACMAN_TILE_CHANGE2=tableLookup (moveData_32ff, PACMAN_DESIRED_ORIENTATON); // TODO
+    vector = moveVectorData_32ff[PACMAN_DESIRED_ORIENTATION];
+    PACMAN_TILE_CHANGE2 = vector;
+    return vector;
 }
 
 /*  hl = offset into video buffer, a = colour? */
@@ -1699,9 +1758,9 @@ void func_05bf (int hl, int a)
     // 05c4  2c        inc     l
     // 05c5  36b5      ld      (hl),#b5
     //-------------------------------
-    MEM[hl++] = 0xb1;
-    MEM[hl++] = 0xb3;
-    MEM[hl++] = 0xb5;
+    VIDEO[hl++] = 0xb1;
+    VIDEO[hl++] = 0xb3;
+    VIDEO[hl++] = 0xb5;
     //-------------------------------
     // 05c7  011e00    ld      bc,#001e
     // 05ca  09        add     hl,bc
@@ -1714,9 +1773,9 @@ void func_05bf (int hl, int a)
     // 05d0  2c        inc     l
     // 05d1  36b4      ld      (hl),#b4
     //-------------------------------
-    MEM[hl++] = 0xb0;
-    MEM[hl++] = 0xb2;
-    MEM[hl++] = 0xb4;
+    VIDEO[hl++] = 0xb0;
+    VIDEO[hl++] = 0xb2;
+    VIDEO[hl++] = 0xb4;
     //-------------------------------
     // 05d3  110004    ld      de,#0400
     // 05d6  19        add     hl,de
@@ -1729,9 +1788,9 @@ void func_05bf (int hl, int a)
     // 05da  2d        dec     l
     // 05db  77        ld      (hl),a
     //-------------------------------
-    MEM[hl--]=a;
-    MEM[hl--]=a;
-    MEM[hl--]=a;
+    VIDEO[hl--]=a;
+    VIDEO[hl--]=a;
+    VIDEO[hl--]=a;
     //-------------------------------
     // 05dc  a7        and     a
     // 05dd  ed42      sbc     hl,bc
@@ -1745,13 +1804,13 @@ void func_05bf (int hl, int a)
     // 05e3  77        ld      (hl),a
     // 05e4  c9        ret     
     //-------------------------------
-    MEM[hl--]=a;
-    MEM[hl--]=a;
-    MEM[hl--]=a;
+    VIDEO[hl--]=a;
+    VIDEO[hl--]=a;
+    VIDEO[hl--]=a;
 }
 
 /*  4e00 == 2 */
-func_05e5()
+void func_05e5 (void)
 {
     //-------------------------------
     // 05e5  3a034e    ld      a,(#4e03)
@@ -1760,13 +1819,13 @@ func_05e5()
     // 05e9  f305 1b06 7406 0c00
     // 05f1  a806
     //-------------------------------
-    void (*func)()[] = { func_05f3, checkStartButtons, func_0674, nothing,
+    void (*func[])() = { func_05f3, checkStartButtons, func_0674, nothing_000c,
                          func_06a8 };
-    tableCall (MEM[0x4e03], func);
+    tableCall_0020 (func, MAIN_STATE_SUB2);
 }
 
 /*  4e00 ==2 && 4e03 == 0, advance 4e03 to 1 */
-func_05f3()
+void func_05f3(void )
 {
     //-------------------------------
     // 05f3  cda12b    call    #2ba1
@@ -1796,8 +1855,8 @@ func_05f3()
     // 0609  3e01      ld      a,#01
     // 060b  32d64d    ld      (#4dd6),a
     //-------------------------------
-    MEM[0x4e03]++;
-    MEM[0x4dd6]=1;
+    MAIN_STATE_SUB2++;
+    WAIT_START_BUTTON=1;
     //-------------------------------
     // 060e  3a714e    ld      a,(#4e71)
     // 0611  feff      cp      #ff
@@ -1817,7 +1876,7 @@ func_05f3()
 }
 
 /*  4e00==0 && 4e03==1, if start pushed, 4e03=2 */
-void checkStartButtons ()
+void checkStartButtons (void )
 {
     //-------------------------------
     // 	;; Display 1/2 player and check start buttons
@@ -1848,14 +1907,14 @@ void checkStartButtons ()
     // 063c  32704e    ld      (#4e70),a
     // 063f  c34906    jp      #0649
     //-------------------------------
-    if (CREDITS!=1 && IN_START2)
+    if (CREDITS!=1 && IN1_START2)
         TWO_PLAYERS=1;
 
     //-------------------------------
     // 0642  cb6f      bit     5,a
     // 0644  c0        ret     nz
     //-------------------------------
-    else if (!IN_START1)
+    else if (!IN1_START1)
         return;
  
     //-------------------------------
@@ -1909,7 +1968,7 @@ void checkStartButtons ()
     // 0664  21034e    ld      hl,#4e03
     // 0667  34        inc     (hl)
     //-------------------------------
-    MEM[0x4e03]++;
+    MAIN_STATE_SUB2++;
     //-------------------------------
     // 0668  af        xor     a
     // 0669  32d64d    ld      (#4dd6),a
@@ -1918,13 +1977,13 @@ void checkStartButtons ()
     // 0670  32dc4e    ld      (#4edc),a
     // 0673  c9        ret     
     //-------------------------------
-    MEM[0x4dd6] = 0;
-    MEM[0x4ecc] = 1;
-    MEM[0x4edc] = 1;
+    WAIT_START_BUTTON = 0;
+    SND_CH1_WAV_NUM =
+    SND_CH2_WAV_NUM = 1;
 }
 
 /*  4e00 == 2 && 4e03 == 2.  Play start sound? 4e03=3 */
-func_0674()
+void func_0674(void )
 {
     //-------------------------------
     // 0674  ef        rst     #28
@@ -1980,7 +2039,7 @@ func_0674()
     incMainSub2_06a3();
 }
 
-void incMainSub2_06a3()
+void incMainSub2_06a3(void )
 {
     //-------------------------------
     // 06a3  21034e    ld      hl,#4e03
@@ -1990,7 +2049,7 @@ void incMainSub2_06a3()
     MAIN_STATE_SUB2++;
 }
 
-void func_06a8()
+void func_06a8(void )
 {
     //-------------------------------
     // 06a8  21154e    ld      hl,#4e15
@@ -2012,11 +2071,11 @@ void func_06a8()
     MAIN_STATE_SUB1 =
     MAIN_STATE_SUB2 =
     LEVEL_STATE_SUBR = 0;
-    GAME_STATE++;
+    MAIN_STATE++;
 }
 
 /*  4e00 == 3 */
-void func_06be()
+void func_06be(void )
 {
     //-------------------------------
     // 06be  3a044e    ld      a,(#4e04)
@@ -2028,20 +2087,19 @@ void func_06be()
     // 06f0  0c 00 08 0a 0c 00 0a 0a  0c 00 0c 0a 0c 00 0e 0a 
     // 0700  0c 00 2c 0a 0c 00 7c 0a  a0 0a 0c 00 a3 0a      
     //-------------------------------
-    void (*func)()[] = { resetPlayerParams_0879, func_0899, nothing, func_08cd,
-                            playerDied_090d, nothing, func_0940, nothing, 
-                            func_0972, func_0988, nothing, func_09d2,
-                            func_09d8, nothing, func_09e8, nothing, 
-                            func_09fe, nothing, func_0a02, nothing, 
-                            func_0a04, nothing, func_0a06, nothing, 
-                            func_0a08, nothing, func_0a0a, nothing, 
-                            func_0a0c, nothing, func_0a0e, nothing, 
-                            func_0a2c, nothing, func_0a7c, func_0aa0, 
-                            nothing, func_0aa3 };
+    void (*func[])() = { resetPlayerParams_0879, func_0899, nothing_000c, func_08cd,
+                            playerDied_090d, nothing_000c, func_0940, nothing_000c, 
+                            func_0972, func_0988, nothing_000c, func_09d2,
+                            func_09d8, nothing_000c, func_09e8, nothing_000c, 
+                            func_09fe, nothing_000c, func_0a02, nothing_000c, 
+                            func_0a04, nothing_000c, func_0a06, nothing_000c, 
+                            func_0a08, nothing_000c, func_0a0a, nothing_000c, 
+                            func_0a0c, nothing_000c, func_0a0e, nothing_000c, 
+                            func_0a2c, nothing_000c, func_0a7c, func_0aa0, 
+                            nothing_000c, func_0aa3 };
 }
 
-/*  Jump from addr 0x000d which doesn't look reachable */
-void func_070e(int b)
+void func_070e (int b)
 {
     //-------------------------------
     // 070e  78        ld      a,b
@@ -2052,8 +2110,7 @@ void func_070e(int b)
     //-------------------------------
     if (b == 0)
     {
-        hl=P1_CURR_DIFFICULTY
-        a=MEM[hl];
+        b = P1_CURR_DIFFICULTY;
     }
 
     //-------------------------------
@@ -2071,7 +2128,7 @@ void func_070e(int b)
     //-------------------------------
     // 0724  dd7e00    ld      a,(ix+#00)
     //-------------------------------
-    a=ix[0];
+    int a=ix[0];
     //-------------------------------
     // 0727  87        add     a,a
     // 0728  47        ld      b,a
@@ -2089,13 +2146,13 @@ void func_070e(int b)
     // 0733  210f33    ld      hl,#330f
     // 0736  19        add     hl,de
     //-------------------------------
-    uint8_t *hl=data_330f[0x21 * a];
+    uint8_t *hl=&moveData_330f[0x21 * a];
 
     // 0737  cd1408    call    #0814
-    func_0814(hl);
+    setupMovePat_0814(hl);
     // 073a  dd7e01    ld      a,(ix+#01)
     // 073d  32b04d    ld      (#4db0),a
-    DIFFICULTY=ix[1];
+    REL_DIFF=ix[1];
 
     //-------------------------------
     // 0740  dd7e02    ld      a,(ix+#02)
@@ -2119,7 +2176,7 @@ void func_070e(int b)
     // 0757  fd214f08  ld      iy,#084f
     // 075b  fd19      add     iy,de
     //-------------------------------
-    iy=data_084f+2*ix[3];
+    uint8_t *iy=data_084f+2*ix[3];
 
     //-------------------------------
     // 075d  fd6e00    ld      l,(iy+#00)
@@ -2166,7 +2223,7 @@ void func_070e(int b)
     // 0792  cdea2b    call    #2bea
     // 0795  c9        ret     
     //-------------------------------
-    func_2bea ();
+    func_2bea (b);
 }
 
     //-------------------------------
@@ -2180,16 +2237,16 @@ void func_070e(int b)
     // 0800  07 02 05 02 03 07 08 02  05 02 03 07 08 02 06 02
     // 0810  03 07 08 02                                    
     //-------------------------------
-    uint8_t data_0796[];
+    uint8_t data_0796[] = { 0x03 };
 
-void func_0814(uint8_t *hl)
+void setupMovePat_0814(uint8_t *hl)
 {
     //-------------------------------
     // 0814  11464d    ld      de,#4d46
     // 0817  011c00    ld      bc,#001c
     // 081a  edb0      ldir    
     //-------------------------------
-    memcpy (&PACMAN_MOV_PAT_NORMAL1, hl, 0x1c);
+    memcpy (&PACMAN_MOVE_PAT_NORMAL1, hl, 0x1c);
     hl += 0x1c;
 
     //-------------------------------
@@ -2202,7 +2259,7 @@ void func_0814(uint8_t *hl)
     /*  move pattern table + 0x1c is from PACMAN to PINKY but subtract 0xc from
      *  hl causes data for BLINKY to be reused for PINKY */
     hl-=0xc;
-    memcpy (&PINKY_MOV_PAT_NORMAL1, hl, 0xc);
+    memcpy (&PINKY_MOVE_PAT_NORMAL1, hl, 0xc);
 
     //-------------------------------
     // 0824  010c00    ld      bc,#000c
@@ -2213,7 +2270,7 @@ void func_0814(uint8_t *hl)
 
     /*  Reuse move data for INKY */
     hl-=0xc;
-    memcpy (&INKY_MOV_PAT_NORMAL1, hl, 0xc);
+    memcpy (&INKY_MOVE_PAT_NORMAL1, hl, 0xc);
 
     //-------------------------------
     // 082c  010c00    ld      bc,#000c
@@ -2224,14 +2281,15 @@ void func_0814(uint8_t *hl)
 
     /*  Reuse move data for CLYDE */
     hl-=0xc;
-    memcpy (&CLYDE_MOV_PAT_NORMAL1, hl, 0xc);
+    memcpy (&CLYDE_MOVE_PAT_NORMAL1, hl, 0xc);
 
     //-------------------------------
     // 0834  010e00    ld      bc,#000e
     // 0837  edb0      ldir    
     // 0839  c9        ret     
     //-------------------------------
-    memcpy (&DIFFICULTY_TABLE, hl, 0xe);
+    memcpy (DIFFICULTY_TABLE, hl, 0xe);
+}
 
 void initLeaveHomeCounters_083a(uint8_t *hl)
 {
@@ -2251,12 +2309,12 @@ void initLeaveHomeCounters_083a(uint8_t *hl)
 
     uint8_t data_0843[] = { 0x14, 0x1e, 0x46, 0x00, 0x1e, 0x3c, 0x00, 0x00,
                             0x32, 0x00, 0x00, 0x00};
-    uint8_t data_084f[];
-    uint8_t data_0861[];
-    uint8_t data_0873[];
+    uint8_t data_084f[] = { 0x14 };
+    uint8_t data_0861[] = { 0xc0 };
+    uint8_t data_0873[] = { 0xf0 };
 
 /*  side-effect: Sets HL to 0x4e04 */
-void resetPlayerParams_0879()
+void resetPlayerParams_0879(void )
 {
     //-------------------------------
     // 0879  21094e    ld      hl,#4e09
@@ -2283,7 +2341,7 @@ void resetPlayerParams_0879()
     incLevelStateSubr_0894();
 }
 
-void incLevelStateSubr_0894()
+void incLevelStateSubr_0894(void )
 {
     //-------------------------------
     // 0894  21044e    ld      hl,#4e04
@@ -2293,7 +2351,7 @@ void incLevelStateSubr_0894()
     LEVEL_STATE_SUBR++;
 }
 
-func_0899()
+void func_0899(void )
 {
     //-------------------------------
     // 0899  3a004e    ld      a,(#4e00)
@@ -2303,7 +2361,7 @@ func_0899()
     // 08a1  32044e    ld      (#4e04),a
     // 08a4  c9        ret     
     //-------------------------------
-    if (GAME_STATE == 1)
+    if (MAIN_STATE == 1)
     {
          LEVEL_STATE_SUBR = 9;
          return;
@@ -2344,18 +2402,14 @@ func_0899()
     // 08c2  47        ld      b,a
     // 08c3  3a094e    ld      a,(#4e09)
     // 08c6  a0        and     b
-    //-------------------------------
-    b = (COCKTAIL_MODE & MEM[4e09]);
-
-    //-------------------------------
     // 08c7  320350    ld      (#5003),a
     // 08ca  c39408    jp      #0894
     //-------------------------------
-    FLIPSCREEN=1;
+    FLIPSCREEN = (COCKTAIL_MODE & PLAYER);
     incLevelStateSubr_0894();
 }
 
-void func_08cd()
+void func_08cd(void )
 {
     //-------------------------------
     // 08cd  3a0050    ld      a,(#5000)
@@ -2413,21 +2467,21 @@ void func_08cd()
     func_0e23();
     func_0e36();
     func_0ac3();
-    func_0bd6();
+    setGhostColour_0bd6();
     func_0c0d();
     func_0e6c();
-    func_0ead();
+    selectFruit_0ead();
 }
 
-void playerDied_090d()
+void playerDied_090d(void )
 {
     //-------------------------------
     // 090d  3e01      ld      a,#01
     // 090f  32124e    ld      (#4e12),a
     // 0912  cd8724    call    #2487
     //-------------------------------
-    DIED_IN_LEVEL=1;
-    updatePillsFromScreen_2487();
+    P1_DIED_IN_LEVEL=1;
+    updatePillsFromScreen_2487(0);
     //-------------------------------
     // 0915  21044e    ld      hl,#4e04
     // 0918  34        inc     (hl)
@@ -2461,7 +2515,7 @@ void playerDied_090d()
                 // 0931  061c      ld      b,#1c
                 // 0933  cd4200    call    #0042
                 //-------------------------------
-                addTask (TASK_DISPLAY_MSG, PLAYER+3); // player one or two
+                addTask_0042 (TASK_DISPLAY_MSG, PLAYER+3); // player one or two
 
                 //-------------------------------
                 // 0936  ef        rst     #28
@@ -2485,7 +2539,7 @@ void playerDied_090d()
 }
 
 // TODO fix up jump logic here
-void func_0940()
+void func_0940(void )
 {
     // 0940  3a704e    ld      a,(#4e70)
     // 0943  a7        and     a
@@ -2536,7 +2590,7 @@ void func_0940()
     LEVEL_STATE_SUBR = 9;
 }
 
-void func_0972()
+void func_0972(void )
 {
     //-------------------------------
     // 0972  af        xor     a
@@ -2557,7 +2611,7 @@ void func_0972()
     // 0984  32004e    ld      (#4e00),a
     // 0987  c9        ret     
     //-------------------------------
-    GAME_STATE=1;
+    MAIN_STATE=1;
 }
 
 void func_0988 ()
@@ -2626,7 +2680,7 @@ void func_0988 ()
     // 09bd  3d        dec     a
     // 09be  2804      jr      z,#09c4         ; (4)
     //-------------------------------
-    if (GAME_STATE==1)
+    if (MAIN_STATE==1)
     {
         //-------------------------------
         // 09c0  f7        rst     #30
@@ -2643,11 +2697,11 @@ void func_0988 ()
     // 09cc  320350    ld      (#5003),a
     // 09cf  c39408    jp      #0894
     //-------------------------------
-    regs.write.flipScreen = (COCKTAIL_MODE & PLAYER);
+    FLIPSCREEN = (COCKTAIL_MODE & PLAYER);
     incLevelStateSubr_0894();
 }
 
-void func_09d2()
+void func_09d2(void )
 {
     //-------------------------------
     // 09d2  3e03      ld      a,#03
@@ -2657,7 +2711,7 @@ void func_09d2()
     LEVEL_STATE_SUBR=3;
 }
 
-void func_09d8()
+void func_09d8(void )
 {
     //-------------------------------
     // 09d8  f7        rst     #30
@@ -2678,14 +2732,14 @@ void func_09d8()
     MEM[0x4ebc] = 0;
 }
 
-void func_09e8()
+void func_09e8(void )
 {
     //-------------------------------
     // 09e8  0e02      ld      c,#02
     // 09ea  0601      ld      b,#01
     // 09ec  cd4200    call    #0042
     //-------------------------------
-    addTask (TASK_FLASH_MAZE, 0x02);
+    addTask_0042 (TASK_FLASH_MAZE, 0x02);
 
     //-------------------------------
     // 09ef  f7        rst     #30
@@ -2704,17 +2758,17 @@ void func_09e8()
     LEVEL_STATE_SUBR++;
 }
 
-void func_09fe()
+void func_09fe(void )
 {
     //-------------------------------
     // 09fe  0e00      ld      c,#00
     // 0a00  18e8      jr      #09ea           ; (-24)
     //-------------------------------
     // TODO does more than just this
-    addTask (TASK_FLASH_MAZE, 0x00);
+    addTask_0042 (TASK_FLASH_MAZE, 0x00);
 }
 
-void func_0a02()
+void func_0a02(void )
 {
     //-------------------------------
     // 0a02  18e4      jr      #09e8           ; (-28)
@@ -2722,7 +2776,7 @@ void func_0a02()
     func_09e8();
 }
 
-void func_0a04()
+void func_0a04(void )
 {
     //-------------------------------
     // 0a04  18f8      jr      #09fe           ; (-8)
@@ -2730,7 +2784,7 @@ void func_0a04()
     func_09fe();
 }
 
-void func_0a06()
+void func_0a06(void )
 {
     //-------------------------------
     // 0a06  18e0      jr      #09e8           ; (-32)
@@ -2738,7 +2792,7 @@ void func_0a06()
     func_09e8();
 }
 
-void func_0a08()
+void func_0a08(void )
 {
     //-------------------------------
     // 0a08  18f4      jr      #09fe           ; (-12)
@@ -2746,7 +2800,7 @@ void func_0a08()
     func_09fe();
 }
 
-void func_0a0a()
+void func_0a0a(void )
 {
     //-------------------------------
     // 0a0a  18dc      jr      #09e8           ; (-36)
@@ -2754,7 +2808,7 @@ void func_0a0a()
     func_09e8();
 }
 
-void func_0a0c()
+void func_0a0c(void )
 {
     //-------------------------------
     // 0a0c  18f0      jr      #09fe           ; (-16)
@@ -2762,7 +2816,7 @@ void func_0a0c()
     //-------------------------------
 }
 
-void func_0a0e()
+void func_0a0e(void )
 {
     //-------------------------------
     // 0a0e  ef        rst     #28
@@ -2797,7 +2851,10 @@ void func_0a0e()
     // 0a2b  c9        ret     
     //-------------------------------
     LEVEL_STATE_SUBR++;
+}
 
+void func_0a2c (void)
+{
     //-------------------------------
     // 0a2c  af        xor     a
     // 0a2d  32ac4e    ld      (#4eac),a
@@ -2818,7 +2875,7 @@ void func_0a0e()
     // 0a40  3802      jr      c,#0a44         ; (2)
     // 0a42  3e14      ld      a,#14
     //-------------------------------
-    int a = LEVEL;
+    int a = P1_LEVEL;
     if (a >= 20)
         a=20;
     //-------------------------------
@@ -2828,14 +2885,17 @@ void func_0a0e()
     // 0a50  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 97 22 6f
     // 0a60  0a 6f 0a 6f 0a 97 22 6f  0a 6f 0a 6f 0a 6f 0a  
     //-------------------------------
-    void (*func)()[] = { func_0a6f,  func_2108, func_0a6f, func_0a6f,
+    void (*func[])() = { func_0a6f,  func_2108, func_0a6f, func_0a6f,
                          func_219e, func_0a6f,  func_0a6f, func_0a6f,
                          func_2297, func_0a6f,  func_0a6f, func_0a6f,
                          func_2297, func_0a6f,  func_0a6f, func_0a6f,
                          func_2297, func_0a6f,  func_0a6f, func_0a6f,
                          func_0a6f };
-    tableCall (a, func);
+    tableCall_0020 (func, a);
+}
 
+void func_0a6f (void)
+{
     //-------------------------------
     // 0a6f  21044e    ld      hl,#4e04
     // 0a72  34        inc     (hl)
@@ -2850,7 +2910,7 @@ void func_0a0e()
     SND_CH2_WAV_NUM = 0;
 }
 
-void func_0a7c()
+void func_0a7c(void)
 {
     //-------------------------------
     // 0a7c  af        xor     a
@@ -2888,8 +2948,7 @@ void func_0a7c()
     // 0a98  fe14      cp      #14
     // 0a9a  c8        ret     z
     //-------------------------------
-    hl=P1_CURR_DIFFICULTY;
-    if (MEM[hl] == 0x14)
+    if (P1_CURR_DIFFICULTY == 0x14)
         return;
 
     //-------------------------------
@@ -2923,8 +2982,8 @@ void func_0aa6()
     // 0aa8  dd210a4e  ld      ix,#4e0a
     // 0aac  fd21384e  ld      iy,#4e38
     //-------------------------------
-    ix=P1_CURR_DIFFICULTY;
-    iy=P2_CURR_DIFFICULTY;
+    uint16_t ix=P1_CURR_DIFFICULTY;
+    uint16_t iy=P2_CURR_DIFFICULTY;
     for (int i = 0; i < 0x2e; i++)
     {
         //-------------------------------
@@ -2936,7 +2995,7 @@ void func_0aa6()
         // 0abe  fd23      inc     iy
         // 0ac0  10ee      djnz    #0ab0           ; (-18)
         //-------------------------------
-        SWAP(*ix++,*iy++);
+        // SWAP(*ix++,*iy++);
     }
     //-------------------------------
     // 0ac2  c9        ret     
@@ -3256,10 +3315,10 @@ void func_0ac3()
     // 0bd2  fd3500    dec     (iy+#00)
     // 0bd5  c9        ret     
     //-------------------------------
-    GHOST_COLOUR_POWER_COUNTER--;
+    GHOST_COL_POWERUP_COUNTER--;
 }
 
-void setGhostColour_bd6()
+void setGhostColour_0bd6()
 {
     //-------------------------------
     // 0bd6  0619      ld      b,#19
@@ -3355,7 +3414,7 @@ void func_0c0d()
         // 0c1e  216444    ld      hl,#4464
         // 0c21  3e10      ld      a,#10
         //-------------------------------
-        a=0x10;
+        int a=0x10;
         // 0c23  be        cp      (hl)
         // 0c24  2002      jr      nz,#0c28        ; (2)
         // 0c26  3e00      ld      a,#00
@@ -3385,7 +3444,7 @@ void func_0c0d()
         // 0c33  213247    ld      hl,#4732
         // 0c36  3e10      ld      a,#10
         //-------------------------------
-        a=0x10;
+        int a=0x10;
         //-------------------------------
         // 0c38  be        cp      (hl)
         // 0c39  2002      jr      nz,#0c3d        ; (2)
@@ -3439,7 +3498,7 @@ void func_0c42()
         // 0c5e  cd0020    call    #2000
         // 0c61  22004d    ld      (#4d00),hl
         //-------------------------------
-        BLINKY_POS=addXYOffset_2000 (MOVE_DATA_UP, BLINKY_POS);
+        BLINKY_POS=addXYOffset_2000 (moveVectorUp_3305, BLINKY_POS);
 
         //-------------------------------
         // 0c64  3e03      ld      a,#03
@@ -3453,21 +3512,21 @@ void func_0c42()
         // 0c6f  fe64      cp      #64
         // 0c71  c2900c    jp      nz,#0c90
         //-------------------------------
-        if (BLINKY_POS->y == 0x64)
+        if (BLINKY_POS.y == 0x64)
         {
             //-------------------------------
             // 0c74  212c2e    ld      hl,#2e2c
             // 0c77  220a4d    ld      (#4d0a),hl
             //-------------------------------
-            BLINKY_TILE->y = 0x2c;
-            BLINKY_TILE->x = 0x2e;
+            BLINKY_TILE.y = 0x2c;
+            BLINKY_TILE.x = 0x2e;
             //-------------------------------
             // 0c7a  210001    ld      hl,#0100
             // 0c7d  22144d    ld      (#4d14),hl
             // 0c80  221e4d    ld      (#4d1e),hl
             //-------------------------------
-            BLINKY_TILE_CHANGE->y = BLINKY_TILE_CHANGE2->y = 0x00;
-            BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
+            BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
+            BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
             //-------------------------------
             // 0c83  3e02      ld      a,#02
             // 0c85  32284d    ld      (#4d28),a
@@ -3502,7 +3561,7 @@ void func_0c42()
             // 0ca5  fe80      cp      #80
             // 0ca7  cc2e1f    call    z,#1f2e
             //-------------------------------
-            if (PINKY_POS->y == 0x78 || PINKY_POS->y == 0x80)
+            if (PINKY_POS.y == 0x78 || PINKY_POS.y == 0x80)
                 func_1f2e();
             //-------------------------------
             // 0caa  3a2d4d    ld      a,(#4d2d)
@@ -3529,7 +3588,7 @@ void func_0c42()
             // 0cc9  cd0020    call    #2000
             // 0ccc  22024d    ld      (#4d02),hl
             //-------------------------------
-            PINKY_POS=addXYOffset_2000 (MOVE_DATA_UP, PINKY_POS);
+            PINKY_POS=addXYOffset_2000 (moveVectorUp_3305, PINKY_POS);
             //-------------------------------
             // 0ccf  3e03      ld      a,#03
             // 0cd1  322d4d    ld      (#4d2d),a
@@ -3542,21 +3601,21 @@ void func_0c42()
             // 0cda  fe64      cp      #64
             // 0cdc  c2fb0c    jp      nz,#0cfb
             //-------------------------------
-            if (PINKY_POS->y==0x64)
+            if (PINKY_POS.y==0x64)
             {
                 //-------------------------------
                 // 0cdf  212c2e    ld      hl,#2e2c
                 // 0ce2  220c4d    ld      (#4d0c),hl
                 //-------------------------------
-                PINKY_TILE->y = 0x2c;
-                PINKY_POS_TILE->x = 0x2e;
+                PINKY_TILE.y = 0x2c;
+                PINKY_TILE.x = 0x2e;
                 //-------------------------------
                 // 0ce5  210001    ld      hl,#0100
                 // 0ce8  22164d    ld      (#4d16),hl
                 // 0ceb  22204d    ld      (#4d20),hl
                 //-------------------------------
-                PINKY_TILE_CHANGE->y = PINKY_TILE_CHANGE2->y = 0x00;
-                PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x01;
+                PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x00;
+                PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x01;
 
                 //-------------------------------
                 // 0cee  3e02      ld      a,#02
@@ -3593,7 +3652,7 @@ void func_0c42()
             // 0d10  fe80      cp      #80
             // 0d12  cc551f    call    z,#1f55
             //-------------------------------
-            if (INKY_POS->y == 0x78 || INKY_POS->y == 0x80)
+            if (INKY_POS.y == 0x78 || INKY_POS.y == 0x80)
                 func_1f55();
 
             //-------------------------------
@@ -3628,7 +3687,7 @@ void func_0c42()
                 // 0d3c  cd0020    call    #2000
                 // 0d3f  22044d    ld      (#4d04),hl
                 //-------------------------------
-                INKY_POS=addXYOffset_2000 (MOVE_DATA_LEFT, INKY_POS);
+                INKY_POS=addXYOffset_2000 (moveVectorRight_32ff, INKY_POS);
 
                 //-------------------------------
                 // 0d42  af        xor     a
@@ -3641,7 +3700,7 @@ void func_0c42()
                 // 0d4c  fe80      cp      #80
                 // 0d4e  c2930d    jp      nz,#0d93
                 //-------------------------------
-                if (INKY_POS->x==0x80)
+                if (INKY_POS.x==0x80)
                 {
                     //-------------------------------
                     // 0d51  3e02      ld      a,#02
@@ -3661,7 +3720,7 @@ void func_0c42()
                 // 0d61  cd0020    call    #2000
                 // 0d64  22044d    ld      (#4d04),hl
                 //-------------------------------
-                INKY_POS=addXYOffset_2000 (MOVE_DATA_UP, INKY_POS);
+                INKY_POS=addXYOffset_2000 (moveVectorUp_3305, INKY_POS);
                 //-------------------------------
                 // 0d67  3e03      ld      a,#03
                 // 0d69  322a4d    ld      (#4d2a),a
@@ -3673,21 +3732,21 @@ void func_0c42()
                 // 0d72  fe64      cp      #64
                 // 0d74  c2930d    jp      nz,#0d93
                 //-------------------------------
-                if (INKY_POS->y==0x64)
+                if (INKY_POS.y==0x64)
                 {
                     //-------------------------------
                     // 0d77  212c2e    ld      hl,#2e2c
                     // 0d7a  220e4d    ld      (#4d0e),hl
                     //-------------------------------
-                    INKY_POS_TILE->y = 0x2c;
-                    INKY_POS_TILE->x = 0x2e;
+                    INKY_TILE.y = 0x2c;
+                    INKY_TILE.x = 0x2e;
                     //-------------------------------
                     // 0d7d  210001    ld      hl,#0100
                     // 0d80  22184d    ld      (#4d18),hl
                     // 0d83  22224d    ld      (#4d22),hl
                     //-------------------------------
-                    INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0x00;
-                    INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x01;
+                    INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0x00;
+                    INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x01;
                     //-------------------------------
                     // 0d86  3e02      ld      a,#02
                     // 0d88  322a4d    ld      (#4d2a),a
@@ -3724,7 +3783,7 @@ void func_0c42()
         // 0da6  fe80      cp      #80
         // 0da8  cc7c1f    call    z,#1f7c
         //-------------------------------
-        if (CLYDE_POS->y == 0x78 || CLYDE_POS->y == 0x80)
+        if (CLYDE_POS.y == 0x78 || CLYDE_POS.y == 0x80)
             func_1f7c();
         //-------------------------------
         // 0dab  3a2f4d    ld      a,(#4d2f)
@@ -3754,7 +3813,7 @@ void func_0c42()
         // 0dd0  cd0020    call    #2000
         // 0dd3  22064d    ld      (#4d06),hl
         //-------------------------------
-        CLYDE_POS=addXYOffset_2000 (MOVE_DATA_RIGHT, CLYDE_POS);
+        CLYDE_POS=addXYOffset_2000 (moveVectorLeft_3303, CLYDE_POS);
         //-------------------------------
         // 0dd6  3e02      ld      a,#02
         // 0dd8  322b4d    ld      (#4d2b),a
@@ -3766,7 +3825,7 @@ void func_0c42()
         // 0de1  fe80      cp      #80
         // 0de3  c0        ret     nz
         //-------------------------------
-        if (CLYDE_POS->x != 0x80)
+        if (CLYDE_POS.x != 0x80)
             return;
         //-------------------------------
         // 
@@ -3784,7 +3843,7 @@ void func_0c42()
     // 0df2  cd0020    call    #2000
     // 0df5  22064d    ld      (#4d06),hl
     //-------------------------------
-    CLYDE_POS->y=addXYOffset_2000 (MOVE_DATA_UP, CLYDE_POS);
+    CLYDE_POS = addXYOffset_2000 (moveVectorUp_3305, CLYDE_POS);
     //-------------------------------
     // 0df8  3e03      ld      a,#03
     // 0dfa  322b4d    ld      (#4d2b),a
@@ -3796,21 +3855,21 @@ void func_0c42()
     // 0e03  fe64      cp      #64
     // 0e05  c0        ret     nz
     //-------------------------------
-    if (CLYDE_POS->y!=0x64)
+    if (CLYDE_POS.y!=0x64)
         return;
     //-------------------------------
     // 0e06  212c2e    ld      hl,#2e2c
     // 0e09  22104d    ld      (#4d10),hl
     //-------------------------------
-    CLYDE_POS_TILE->y = 0x2c;
-    CLYDE_POS_TILE->x = 0x2e;
+    CLYDE_TILE.y = 0x2c;
+    CLYDE_TILE.x = 0x2e;
     //-------------------------------
     // 0e0c  210001    ld      hl,#0100
     // 0e0f  221a4d    ld      (#4d1a),hl
     // 0e12  22244d    ld      (#4d24),hl
     //-------------------------------
-    CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0x00;
-    CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x01;
+    CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0x00;
+    CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x01;
     //-------------------------------
     // 0e15  3e02      ld      a,#02
     // 0e17  322b4d    ld      (#4d2b),a
@@ -3902,7 +3961,10 @@ void func_0e36 ()
     PINKY_ORIENT_CHG_FLAG =
     INKY_ORIENT_CHG_FLAG =
     CLYDE_ORIENT_CHG_FLAG = 0x01;
+}
 
+void func_0e6c (void)
+{
     //-------------------------------
     // 0e6c  3aa54d    ld      a,(#4da5)
     // 0e6f  a7        and     a
@@ -3996,7 +4058,7 @@ void func_0e36 ()
     SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM &0xe0)|0x01;
 }
 
-void func_0ead()
+void selectFruit_0ead (void)
 {
     //-------------------------------
     // 0ead  3aa54d    ld      a,(#4da5)
@@ -4057,13 +4119,13 @@ void func_0ead()
     // 0ed5  219480    ld      hl,#8094
     // 0ed8  22d24d    ld      (#4dd2),hl
     //-------------------------------
-    FRUIT_POS[0]=0x80;
-    FRUIT_POS[1]=0x94;
+    FRUIT_POS.x=0x80;
+    FRUIT_POS.y=0x94;
     //-------------------------------
     // 0edb  21fd0e    ld      hl,#0efd
     // 0ede  3a134e    ld      a,(#4e13)
     //-------------------------------
-    a = P1_LEVEL;
+    int a = P1_LEVEL;
     //-------------------------------
     // 0ee1  fe14      cp      #14
     // 0ee3  3802      jr      c,#0ee7         ; (2)
@@ -4078,16 +4140,23 @@ void func_0ead()
     a*=3;
     //-------------------------------
     // 0eea  d7        rst     #10
-    //-------------------------------
-    fetchOffset (data_0efd, a);
-    //-------------------------------
     // 0eeb  320c4c    ld      (#4c0c),a
+    //-------------------------------
+    uint8_t *hl = fruitData_0efd;
+    FRUIT_SPRITE = fetchOffset_0010 (&hl, a);
+    //-------------------------------
     // 0eee  23        inc     hl
     // 0eef  7e        ld      a,(hl)
     // 0ef0  320d4c    ld      (#4c0d),a
+    //-------------------------------
+    FRUIT_COLOUR = *hl++;
+    //-------------------------------
     // 0ef3  23        inc     hl
     // 0ef4  7e        ld      a,(hl)
     // 0ef5  32d44d    ld      (#4dd4),a
+    //-------------------------------
+    FRUIT_POINTS = *hl;
+    //-------------------------------
     // 0ef8  f7        rst     #30
     // 0ef9  8a0400
     //-------------------------------
@@ -4115,20 +4184,54 @@ void func_0ead()
     // 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36
 
-void func_1000()
+    /*  Fruit data.  3 byte sets contains sprite, colour and points */
+    uint8_t fruitData_0efd[] =
+    {
+        0x00, 0x14, 0x06,
+        0x01, 0x0f, 0x07,
+        0x02, 0x15, 0x08,
+        0x02, 0x15, 0x08,
+        0x04, 0x14, 0x09,
+        0x04, 0x14, 0x09,
+        0x05, 0x17, 0x0a,
+        0x05, 0x17, 0x0a,
+        0x06, 0x09, 0x0b,
+        0x06, 0x09, 0x0b,
+        0x03, 0x16, 0x0c,
+        0x03, 0x16, 0x0c,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d,
+        0x07, 0x16, 0x0d 
+    };
+
+void func_1000 (void)
 {
     //-------------------------------
     // 1000  af        xor     a
     // 1001  32d44d    ld      (#4dd4),a
+    //-------------------------------
+    FRUIT_POINTS=0;
+    func_1004 ();
+}
+
+void func_1004 (void)
+{
+    //-------------------------------
     // 1004  210000    ld      hl,#0000
     // 1007  22d24d    ld      (#4dd2),hl
     // 100a  c9        ret     
     //-------------------------------
-    FRUIT_POINTS=0;
-    FRUIT_POS=0;
+    FRUIT_POS.y=
+    FRUIT_POS.x=0;
 }
 
-void func_100b()
+void func_100b (void)
 {
     //-------------------------------
     // 100b  ef        rst     #28
@@ -4141,7 +4244,7 @@ void func_100b()
     // 1011  3d        dec     a
     // 1012  c8        ret     z
     //-------------------------------
-    if (GAME_STATE == 1)
+    if (MAIN_STATE == 1)
         return;
 
     //-------------------------------
@@ -4318,8 +4421,8 @@ void func_1094()
     // 1097  e7        rst     #20
     // 1098  0c00 c010 d210 
     //-------------------------------
-    void (*func)()[] = { nothing, func_100c, func_10d2 };
-    tableCall (BLINKY_STATE, func);
+    void (*func[])() = { nothing_000c, func_10c0, func_10d2 };
+    tableCall_0020 (func, BLINKY_STATE);
 }
 
 void func_109e()
@@ -4329,8 +4432,8 @@ void func_109e()
     // 10a1  e7        rst     #20
     // 10a2  0c00 1811 2a11
     //-------------------------------
-    void (*func)()[] = { nothing, func_1118, func_112a };
-    tableCall (PINKY_STATE, func);
+    void (*func[])() = { nothing_000c, func_1118, func_112a };
+    tableCall_0020 (func, PINKY_STATE);
 }
 
 void func_10a8()
@@ -4340,8 +4443,8 @@ void func_10a8()
     // 10ab  e7        rst     #20
     // 10ac  0c00 5c11 6e11 8f11
     //-------------------------------
-    void (*func)()[] = { nothing, func_115c, func_116e, func_118f };
-    tableCall (INKY_STATE, func);
+    void (*func[])() = { nothing_000c, func_115c, func_116e, func_118f };
+    tableCall_0020 (func, INKY_STATE);
 }
 
 void func_10b4()
@@ -4351,8 +4454,8 @@ void func_10b4()
     // 10b7  e7        rst     #20
     // 10b8  0c00 c911 db11 fc11
     //-------------------------------
-    void (*func)()[] = { nothing, func_11c9, func_11db, func_11fc };
-    tableCall (CLYDE_STATE, func);
+    void (*func[])() = { nothing_000c, func_11c9, func_11db, func_11fc };
+    tableCall_0020 (func, CLYDE_STATE);
 }
 
 void func_10c0()
@@ -4366,7 +4469,7 @@ void func_10c0()
     // 10cc  c0        ret     nz
     //-------------------------------
     func_1bd8();
-    if (BLINKY_POS->y!=0x80 || BLINKY_POS->x !=0x64)
+    if (BLINKY_POS.y!=0x80 || BLINKY_POS.x !=0x64)
         return;
 
     //-------------------------------
@@ -4385,28 +4488,28 @@ void func_10d2()
     // 10da  cd0020    call    #2000
     // 10dd  22004d    ld      (#4d00),hl
     //-------------------------------
-    BLINKY_POS=addXYOffset_2000(MOVE_DATA_DOWN, BLINKY_POS);
+    BLINKY_POS=addXYOffset_2000(moveVectorDown_3301, BLINKY_POS);
     //-------------------------------
     // 10e0  3e01      ld      a,#01
     // 10e2  32284d    ld      (#4d28),a
     // 10e5  322c4d    ld      (#4d2c),a
     //-------------------------------
-    BLINKY_PREV_ORIENTATON=
-    BLINKY_ORIENTATON=1;
+    BLINKY_PREV_ORIENTATION=
+    BLINKY_ORIENTATION=1;
     //-------------------------------
     // 10e8  3a004d    ld      a,(#4d00)
     // 10eb  fe80      cp      #80
     // 10ed  c0        ret     nz
     //-------------------------------
-    if (BLINKY_POS->y!=0x80)
+    if (BLINKY_POS.y!=0x80)
         return;
     //-------------------------------
     // 10ee  212f2e    ld      hl,#2e2f
     // 10f1  220a4d    ld      (#4d0a),hl
     // 10f4  22314d    ld      (#4d31),hl
     //-------------------------------
-    BLINKY_POS_TILE->y = 0x2e;
-    BLINKY_POS_TILE2->y = 0x2f;
+    BLINKY_TILE.y = 0x2e;
+    BLINKY_TILE2.y = 0x2f;
     //-------------------------------
     // 10f7  af        xor     a
     // 10f8  32a04d    ld      (#4da0),a
@@ -4451,7 +4554,7 @@ void func_1118()
     // 1124  c0        ret     nz
     //-------------------------------
     func_1caf();
-    if (PINKY_POS->y!=0x80 || PINKY_POS->x !=0x64)
+    if (PINKY_POS.y!=0x80 || PINKY_POS.x !=0x64)
         return;
 
     //-------------------------------
@@ -4470,7 +4573,7 @@ void func_112a()
     // 1132  cd0020    call    #2000
     // 1135  22024d    ld      (#4d02),hl
     //-------------------------------
-    PINKY_POS=addXYOffset_2000(MOVE_DATA_DOWN, PINKY_POS);
+    PINKY_POS=addXYOffset_2000(moveVectorDown_3301, PINKY_POS);
 
     //-------------------------------
     // 1138  3e01      ld      a,#01
@@ -4483,15 +4586,15 @@ void func_112a()
     // 1143  fe80      cp      #80
     // 1145  c0        ret     nz
     //-------------------------------
-    if (PINKY_POS->y != 0x80)
+    if (PINKY_POS.y != 0x80)
         return;
     //-------------------------------
     // 1146  212f2e    ld      hl,#2e2f
     // 1149  220c4d    ld      (#4d0c),hl
     // 114c  22334d    ld      (#4d33),hl
     //-------------------------------
-    PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x2f;
-    PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x2e;
+    PINKY_TILE.y = PINKY_TILE2.y = 0x2f;
+    PINKY_TILE.x = PINKY_TILE2.x = 0x2e;
     //-------------------------------
     // 114f  af        xor     a
     // 1150  32a14d    ld      (#4da1),a
@@ -4507,7 +4610,7 @@ void func_112a()
     func_1101();
 }
 
-void func_11fc()
+void func_115c(void)
 {
     //-------------------------------
     // 115c  cd861d    call    #1d86
@@ -4520,7 +4623,7 @@ void func_11fc()
     // 1166  ed52      sbc     hl,de
     // 1168  c0        ret     nz
     //-------------------------------
-    if (INKY_POS->y != 0x64 || INKY_POS->x != 0x80)
+    if (INKY_POS.y != 0x64 || INKY_POS.x != 0x80)
         return;
     //-------------------------------
     // 1169  21ae4d    ld      hl,#4dae
@@ -4538,7 +4641,7 @@ void func_116e()
     // 1176  cd0020    call    #2000
     // 1179  22044d    ld      (#4d04),hl
     //-------------------------------
-    INKY_POS=addXYOffset_2000(MOVE_DATA_DOWN, INKY_POS);
+    INKY_POS=addXYOffset_2000(moveVectorDown_3301, INKY_POS);
     //-------------------------------
     // 117c  3e01      ld      a,#01
     // 117e  322a4d    ld      (#4d2a),a
@@ -4550,7 +4653,7 @@ void func_116e()
     // 1187  fe80      cp      #80
     // 1189  c0        ret     nz
     //-------------------------------
-    if (INKY_POS->y != 0x80)
+    if (INKY_POS.y != 0x80)
         return;
     //-------------------------------
     // 118a  21ae4d    ld      hl,#4dae
@@ -4568,7 +4671,7 @@ void func_118f()
     // 1197  cd0020    call    #2000
     // 119a  22044d    ld      (#4d04),hl
     //-------------------------------
-    INKY_POS=addXYOffset_2000(MOVE_DATA_RIGHT, INKY_POS);
+    INKY_POS=addXYOffset_2000(moveVectorLeft_3303, INKY_POS);
 
     //-------------------------------
     // 119d  3e02      ld      a,#02
@@ -4582,7 +4685,7 @@ void func_118f()
     // 11a8  fe90      cp      #90
     // 11aa  c0        ret     nz
     //-------------------------------
-    if (INKY_POS->x !=0x90)
+    if (INKY_POS.x !=0x90)
         return;
 
     //-------------------------------
@@ -4590,8 +4693,8 @@ void func_118f()
     // 11ae  220e4d    ld      (#4d0e),hl
     // 11b1  22354d    ld      (#4d35),hl
     //-------------------------------
-    INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x2f;
-    INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x30;
+    INKY_TILE.y = INKY_TILE2.y = 0x2f;
+    INKY_TILE.x = INKY_TILE2.x = 0x30;
     //-------------------------------
     // 11b4  3e01      ld      a,#01
     // 11b6  322a4d    ld      (#4d2a),a
@@ -4627,7 +4730,7 @@ void func_11c9()
     // 11d3  ed52      sbc     hl,de
     // 11d5  c0        ret     nz
     //-------------------------------
-    if (CLYDE_POS->y != 0x64 || CLYDE_POS->x != 0x80)
+    if (CLYDE_POS.y != 0x64 || CLYDE_POS.x != 0x80)
         return;
     //-------------------------------
     // 11d6  21af4d    ld      hl,#4daf
@@ -4645,7 +4748,7 @@ void func_11db()
     // 11e3  cd0020    call    #2000
     // 11e6  22064d    ld      (#4d06),hl
     //-------------------------------
-    CLYDE_POS=addXYOffset_2000(MOVE_DATA_DOWN, CLYDE_POS);
+    CLYDE_POS=addXYOffset_2000(moveVectorDown_3301, CLYDE_POS);
 
     //-------------------------------
     // 11e9  3e01      ld      a,#01
@@ -4658,7 +4761,7 @@ void func_11db()
     // 11f4  fe80      cp      #80
     // 11f6  c0        ret     nz
     //-------------------------------
-    if (CLYDE_POS->y != 0x80)
+    if (CLYDE_POS.y != 0x80)
         return;
     //-------------------------------
     // 11f7  21af4d    ld      hl,#4daf
@@ -4676,7 +4779,7 @@ void func_11fc()
     // 1204  cd0020    call    #2000
     // 1207  22064d    ld      (#4d06),hl
     //-------------------------------
-    CLYDE_POS=addXYOffset_2000(MOVE_DATA_LEFT, CLYDE_POS);
+    CLYDE_POS=addXYOffset_2000(moveVectorRight_32ff, CLYDE_POS);
     //-------------------------------
     // 120a  af        xor     a
     // 120b  322b4d    ld      (#4d2b),a
@@ -4688,15 +4791,15 @@ void func_11fc()
     // 1214  fe70      cp      #70
     // 1216  c0        ret     nz
     //-------------------------------
-    if (CLYDE_POS->x !=0x70)
+    if (CLYDE_POS.x !=0x70)
         return;
     //-------------------------------
     // 1217  212f2c    ld      hl,#2c2f
     // 121a  22104d    ld      (#4d10),hl
     // 121d  22374d    ld      (#4d37),hl
     //-------------------------------
-    CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x2f;
-    CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x2c;
+    CLYDE_TILE.y = CLYDE_TILE2.y = 0x2f;
+    CLYDE_TILE.x = CLYDE_TILE2.x = 0x2c;
     //-------------------------------
     // 1220  3e01      ld      a,#01
     // 1222  322b4d    ld      (#4d2b),a
@@ -4725,8 +4828,12 @@ void func_1235()
     // 1238  e7        rst     #20
     // 1239  3f 12 0c 00 3f 12 
     //-------------------------------
-    void (*func)()[] = { func_123f, nothing, func_123f };
-    tableCall (func, KILLED_STATE);
+    void (*func[])() = { func_123f, nothing_000c, func_123f };
+    tableCall_0020 (func, KILLED_STATE);
+}
+
+void func_123f (void)
+{
     //-------------------------------
     // 123f  21004c    ld      hl,#4c00
     // 1242  3aa44d    ld      a,(#4da4)
@@ -4735,7 +4842,7 @@ void func_1235()
     // 1247  1600      ld      d,#00
     // 1249  19        add     hl,de
     //-------------------------------
-    hl=0x4c00+KILLED_GHOST_INDEX*2;
+    uint8_t *hl=&BLINKY_SPRITE + KILLED_GHOST_INDEX * 2 - 2;
     //-------------------------------
     // 124a  3ad14d    ld      a,(#4dd1)
     // 124d  a7        and     a
@@ -4749,7 +4856,7 @@ void func_1235()
         // 1255  80        add     a,b
         // 1256  47        ld      b,a
         //-------------------------------
-        b=KILLED_COUNT+0x27;
+        int b=KILLED_COUNT+0x27;
         //-------------------------------
         // 1257  3a724e    ld      a,(#4e72)
         // 125a  4f        ld      c,a
@@ -4768,13 +4875,13 @@ void func_1235()
         //-------------------------------
         // 1265  70        ld      (hl),b
         //-------------------------------
-        MEM[hl]=b;
+        hl[0]=b;
 
         //-------------------------------
         // 1266  23        inc     hl
         // 1267  3618      ld      (hl),#18
         //-------------------------------
-        MEM[hl+1]=0x18;
+        hl[1]=0x18;
         //-------------------------------
         // 1269  3e00      ld      a,#00
         // 126b  320b4c    ld      (#4c0b),a
@@ -4797,7 +4904,7 @@ void func_1235()
     //-------------------------------
     // 1277  3620      ld      (hl),#20
     //-------------------------------
-    MEM[hl]=0x20;
+    hl[0]=0x20;
     //-------------------------------
     // 1279  3e09      ld      a,#09
     // 127b  320b4c    ld      (#4c0b),a
@@ -4820,7 +4927,10 @@ void func_1235()
     // 128e  cbf6      set     6,(hl)
     // 1290  c9        ret     
     //-------------------------------
+}
 
+void func_1291 (void)
+{
     //-------------------------------
     // 1291  3aa54d    ld      a,(#4da5)
     // 1294  e7        rst     #20
@@ -4829,15 +4939,20 @@ void func_1235()
     // 12a0  12 f9 12 06 13 0e 13 16  13 1e 13 26 13 2e 13 36 
     // 12b0  13 3e 13 46 13 53 13                             
     //-------------------------------
-    void (*func)()[] = { nothing, func_12b7, func_12b7, func_12b7,
+    void (*func[])() = { nothing_000c, func_12b7, func_12b7, func_12b7,
                          func_12b7, func_12cb, func_12f9, func_1306,
                          func_130e, func_1316, func_131e, func_1326,
                          func_132e, func_1336, func_133e, func_1346,
                          decrementLives_1353 };
-    tableCall (func, PAC_DEAD_ANIM_STATE);
+    tableCall_0020 (func, PAC_DEAD_ANIM_STATE);
 }
 
-bool func_12b7()
+void func_1272 (void)
+{
+    KILLED_STATE++;
+}
+
+void func_12b7 (void)
 {
     //-------------------------------
     // 12b7  2ac54d    ld      hl,(#4dc5)
@@ -5052,8 +5167,8 @@ void decrementLives_1353()
     // 136d  35        dec     (hl)
     // 136e  cd7526    call    #2675
     //-------------------------------
-    REAL_LIVES--;
-    DISPLAY_LIVES--;
+    P1_REAL_LIVES--;
+    P1_DISPLAY_LIVES--;
     resetPositions_2675();
     //-------------------------------
     // 1371  21044e    ld      hl,#4e04
@@ -5167,7 +5282,7 @@ void func_1376()
     //-------------------------------
     EDIBLE_REMAIN_COUNT=0;
     PILL_EFFECT = 0;
-    GHOST_COL_POWERP_COUNTER = 0;
+    GHOST_COL_POWERUP_COUNTER = 0;
     KILLED_COUNT=0;
 
     //-------------------------------
@@ -5177,7 +5292,10 @@ void func_1376()
     // 13dc  c9        ret     
     //-------------------------------
     SND_CH2_EFF_NUM &= 0x5f;
+}
 
+void func_13dd (void)
+{
     //-------------------------------
     // 13dd  219e4d    ld      hl,#4d9e
     // 13e0  3a0e4e    ld      a,(#4e0e)
@@ -5224,9 +5342,9 @@ void func_1376()
     // 140b  f1        pop     af
     // 140c  c8        ret     z
     //-------------------------------
-    if (PINKY_SUBSTATE)
+    if (PINKY_SUBSTATE == 0)
     {
-        func_2086();
+        PINKY_SUBSTATE = 2;
         return;
     }
 
@@ -5240,7 +5358,7 @@ void func_1376()
     //-------------------------------
     if (INKY_SUBSTATE)
     {
-        func_20a9();
+        INKY_SUBSTATE = 3;
         return;
     }
 
@@ -5250,8 +5368,8 @@ void func_1376()
     // 141b  ccd120    call    z,#20d1
     // 141e  c9        ret     
     //-------------------------------
-    if (CLYDE_SUBSTATE)
-        func_20d1();
+    if (CLYDE_SUBSTATE == 0)
+        CLYDE_SUBSTATE = 2;
 }
 
 void func_141f (void)
@@ -5276,59 +5394,59 @@ void func_141f (void)
     // 1436  83        add     a,e
     // 1437  dd7713    ld      (ix+#13),a
     //-------------------------------
-    MEM[0x4c13]=BLINKY_POS->y+8;
+    MEM[0x4c13]=BLINKY_POS.y+8;
     //-------------------------------
     // 143a  3a014d    ld      a,(#4d01)
     // 143d  2f        cpl     
     // 143e  82        add     a,d
     // 143f  dd7712    ld      (ix+#12),a
     //-------------------------------
-    MEM[0x4c12]=7-BLINKY_POS->x;
+    MEM[0x4c12]=7-BLINKY_POS.x;
     //-------------------------------
     // 1442  3a024d    ld      a,(#4d02)
     // 1445  83        add     a,e
     // 1446  dd7715    ld      (ix+#15),a
     //-------------------------------
-    MEM[0x4c15]=PINKY_POS->y+8;
+    MEM[0x4c15]=PINKY_POS.y+8;
     //-------------------------------
     // 1449  3a034d    ld      a,(#4d03)
     // 144c  2f        cpl     
     // 144d  82        add     a,d
     // 144e  dd7714    ld      (ix+#14),a
     //-------------------------------
-    MEM[0x4c14]=7-PINKY_POS->x;
+    MEM[0x4c14]=7-PINKY_POS.x;
     //-------------------------------
     // 1451  3a044d    ld      a,(#4d04)
     // 1454  83        add     a,e
     // 1455  dd7717    ld      (ix+#17),a
     //-------------------------------
-    MEM[0x4c17]=INKY_POS->y+8;
+    MEM[0x4c17]=INKY_POS.y+8;
     //-------------------------------
     // 1458  3a054d    ld      a,(#4d05)
     // 145b  2f        cpl     
     // 145c  81        add     a,c
     // 145d  dd7716    ld      (ix+#16),a
     //-------------------------------
-    MEM[0x4c16]=7-INKY_POS->x;
+    MEM[0x4c16]=7-INKY_POS.x;
     //-------------------------------
     // 1460  3a064d    ld      a,(#4d06)
     // 1463  83        add     a,e
     // 1464  dd7719    ld      (ix+#19),a
     //-------------------------------
-    MEM[0x4c19]=CLYDE_POS->y+8;
+    MEM[0x4c19]=CLYDE_POS.y+8;
     //-------------------------------
     // 1467  3a074d    ld      a,(#4d07)
     // 146a  2f        cpl     
     // 146b  81        add     a,c
     // 146c  dd7718    ld      (ix+#18),a
     //-------------------------------
-    MEM[0x4c18]=7-CLYDE_POS->x;
+    MEM[0x4c18]=7-CLYDE_POS.x;
     //-------------------------------
     // 146f  3a084d    ld      a,(#4d08)
     // 1472  83        add     a,e
     // 1473  dd771b    ld      (ix+#1b),a
     //-------------------------------
-    MEM[0x4c1b]=PACMAN_POS->y+8;
+    MEM[0x4c1b]=PACMAN_POS.y+8;
 
     //-------------------------------
     // 1476  3a094d    ld      a,(#4d09)
@@ -5336,13 +5454,13 @@ void func_141f (void)
     // 147a  81        add     a,c
     // 147b  dd771a    ld      (ix+#1a),a
     //-------------------------------
-    MEM[0x4c1a]=8-PACMAN_POS->x;
+    MEM[0x4c1a]=8-PACMAN_POS.x;
     //-------------------------------
     // 147e  3ad24d    ld      a,(#4dd2)
     // 1481  83        add     a,e
     // 1482  dd771d    ld      (ix+#1d),a
     //-------------------------------
-    MEM[0x4c1d]=FRUIT_POS[0]+8;
+    MEM[0x4c1d]=FRUIT_POS.y+8;
     //-------------------------------
     // 1485  3ad34d    ld      a,(#4dd3)
     // 1488  2f        cpl     
@@ -5350,7 +5468,7 @@ void func_141f (void)
     // 148a  dd771c    ld      (ix+#1c),a
     // 148d  c3fe14    jp      #14fe
     //-------------------------------
-    MEM[0x4c1c]=8-FRUIT_POS[1];
+    MEM[0x4c1c]=8-FRUIT_POS.x;
     func_14fe();
 }
 
@@ -5377,14 +5495,14 @@ void func_1490()
     // 14a8  83        add     a,e
     // 14a9  dd7713    ld      (ix+#13),a
     //-------------------------------
-    MEM[0x4c13]=9-BLINKY_POS->y;
+    MEM[0x4c13]=9-BLINKY_POS.y;
 
     //-------------------------------
     // 14ac  3a014d    ld      a,(#4d01)
     // 14af  82        add     a,d
     // 14b0  dd7712    ld      (ix+#12),a
     //-------------------------------
-    MEM[0x4c12]=BLINKY_POS->x+6;
+    MEM[0x4c12]=BLINKY_POS.x+6;
 
     //-------------------------------
     // 14b3  3a024d    ld      a,(#4d02)
@@ -5392,14 +5510,14 @@ void func_1490()
     // 14b7  83        add     a,e
     // 14b8  dd7715    ld      (ix+#15),a
     //-------------------------------
-    MEM[0x4c15]=9-PINKY_POS->y;
+    MEM[0x4c15]=9-PINKY_POS.y;
 
     //-------------------------------
     // 14bb  3a034d    ld      a,(#4d03)
     // 14be  82        add     a,d
     // 14bf  dd7714    ld      (ix+#14),a
     //-------------------------------
-    MEM[0x4c14]=PINKY_POS->x+6;
+    MEM[0x4c14]=PINKY_POS.x+6;
 
     //-------------------------------
     // 14c2  3a044d    ld      a,(#4d04)
@@ -5407,14 +5525,14 @@ void func_1490()
     // 14c6  83        add     a,e
     // 14c7  dd7717    ld      (ix+#17),a
     //-------------------------------
-    MEM[0x4c17]=9-INKY_POS->y;
+    MEM[0x4c17]=9-INKY_POS.y;
 
     //-------------------------------
     // 14ca  3a054d    ld      a,(#4d05)
     // 14cd  81        add     a,c
     // 14ce  dd7716    ld      (ix+#16),a
     //-------------------------------
-    MEM[0x4c16]=INKY_POS->x+6;
+    MEM[0x4c16]=INKY_POS.x+6;
 
     //-------------------------------
     // 14d1  3a064d    ld      a,(#4d06)
@@ -5422,14 +5540,14 @@ void func_1490()
     // 14d5  83        add     a,e
     // 14d6  dd7719    ld      (ix+#19),a
     //-------------------------------
-    MEM[0x4c19]=9-CLYDE_POS->y;
+    MEM[0x4c19]=9-CLYDE_POS.y;
 
     //-------------------------------
     // 14d9  3a074d    ld      a,(#4d07)
     // 14dc  81        add     a,c
     // 14dd  dd7718    ld      (ix+#18),a
     //-------------------------------
-    MEM[0x4c18]=CLYDE_POS->x+6;
+    MEM[0x4c18]=CLYDE_POS.x+6;
 
     //-------------------------------
     // 14e0  3a084d    ld      a,(#4d08)
@@ -5437,14 +5555,14 @@ void func_1490()
     // 14e4  83        add     a,e
     // 14e5  dd771b    ld      (ix+#1b),a
     //-------------------------------
-    MEM[0x4c1b]=9-PACMAN_POS->y;
+    MEM[0x4c1b]=9-PACMAN_POS.y;
 
     //-------------------------------
     // 14e8  3a094d    ld      a,(#4d09)
     // 14eb  81        add     a,c
     // 14ec  dd771a    ld      (ix+#1a),a
     //-------------------------------
-    MEM[0x4c1a]=PACMAN_POS->x+6;
+    MEM[0x4c1a]=PACMAN_POS.x+6;
 
     //-------------------------------
     // 14ef  3ad24d    ld      a,(#4dd2)
@@ -5452,17 +5570,17 @@ void func_1490()
     // 14f3  83        add     a,e
     // 14f4  dd771d    ld      (ix+#1d),a
     //-------------------------------
-    MEM[0x4c1d]=9-FRUIT_POS[0];
+    MEM[0x4c1d]=9-FRUIT_POS.y;
 
     //-------------------------------
     // 14f7  3ad34d    ld      a,(#4dd3)
     // 14fa  81        add     a,c
     // 14fb  dd771c    ld      (ix+#1c),a
     //-------------------------------
-    MEM[0x4c1c]=FRUIT_POS[1]+6;
+    MEM[0x4c1c]=FRUIT_POS.x+6;
 }
 
-void func_14fe()
+void func_14fe(void)
 {
     //-------------------------------
     // 14fe  3aa54d    ld      a,(#4da5)
@@ -5485,8 +5603,14 @@ void func_14fe()
             // 1513  e7        rst     #20
             // 1514  8c 16 b1 16 d6 16 f7 16
             //-------------------------------
-            void (*func)()[] = { selectPacmanXSprite_168c, selectPacmanYSprite_16b1, func_16d6, func_16f7 };
-            tableCall (func, PACMAN_ORIENTATION);
+            void (*func[])() =
+            {
+                selectPacmanLeftSprite_168c,
+                selectPacmanDownSprite_16b1,
+                selectPacmanRightSprite_16d6,
+                selectPacmanUpSprite_16f7
+            };
+            tableCall_0020 (func, PACMAN_ORIENTATION);
 
             /*  TODO assume b is still 0x4e72 */
             //-------------------------------
@@ -5718,7 +5842,7 @@ void func_15e6()
     // 15f1  fe0c      cp      #0c
     // 15f3  3804      jr      c,#15f9         ; (4)
     //-------------------------------
-    int a = PACMAN_POS->x &0xf;
+    int a = PACMAN_POS.x &0xf;
     int d;
     if (a>=0xc)
     {
@@ -5745,12 +5869,15 @@ void func_15e6()
     // 1603  3804      jr      c,#1609         ; (4)
     //-------------------------------
     else if (a>=4)
+    {
         //-------------------------------
         // 1605  1610      ld      d,#10
         // 1607  1802      jr      #160b           ; (2)
         //-------------------------------
         d = 0x10;
+    }
     else
+    {
         //-------------------------------
         // 1609  1614      ld      d,#14
         //-------------------------------
@@ -5802,7 +5929,7 @@ void func_162d()
     // 1636  d63d      sub     #3d
     // 1638  2004      jr      nz,#163e        ; (4)
     //-------------------------------
-    if (PACMAN_TILE2->x == 0x3d)
+    if (PACMAN_TILE2.x == 0x3d)
     {
         //-------------------------------
         // 163a  dd360b00  ld      (ix+#0b),#00
@@ -5839,7 +5966,7 @@ void func_162d()
     BLINKY_SPRITE=0x33;
 }
 
-void func_1562()
+void func_1652 (void)
 {
     //-------------------------------
     // 1652  3a084e    ld      a,(#4e08)
@@ -5855,7 +5982,7 @@ void func_1562()
     // 165b  d63d      sub     #3d
     // 165d  2004      jr      nz,#1663        ; (4)
     //-------------------------------
-    if (PACMAN_TILE2->x == 0x3d)
+    if (PACMAN_TILE2.x == 0x3d)
     {
         //-------------------------------
         // 165f  dd360b00  ld      (ix+#0b),#00
@@ -5896,7 +6023,7 @@ void func_1562()
     // 167e  83        add     a,e
     // 167f  dd770c    ld      (ix+#0c),a
     //-------------------------------
-    FRUIT_SPRITE=((BLINKY_POS->x &8)>>3)+0xa;
+    FRUIT_SPRITE=((BLINKY_POS.x &8)>>3)+0xa;
     //-------------------------------
     // 1682  3c        inc     a
     // 1683  3c        inc     a
@@ -5910,7 +6037,7 @@ void func_1562()
 
 /*  Select the sprite number for pacman as he moves along.  Use the least
  *  significant 3 bits of the X pos as the selector */
-void selectPacmanXSprite_168c()
+void selectPacmanLeftSprite_168c (void)
 {
     //-------------------------------
     // 168c  3a094d    ld      a,(#4d09)
@@ -5918,7 +6045,7 @@ void selectPacmanXSprite_168c()
     // 1691  fe06      cp      #06
     // 1693  3805      jr      c,#169a         ; (5)
     //-------------------------------
-    int a = PACMAN_POS->x & 7;
+    int a = PACMAN_POS.x & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -5966,7 +6093,7 @@ void selectPacmanXSprite_168c()
     return;
 }
 
-void selectPacmanYSprite_16b1()
+void selectPacmanDownSprite_16b1 (void)
 {
     //-------------------------------
     // 16b1  3a084d    ld      a,(#4d08)
@@ -5974,7 +6101,7 @@ void selectPacmanYSprite_16b1()
     // 16b6  fe06      cp      #06
     // 16b8  3805      jr      c,#16bf         ; (5)
     //-------------------------------
-    int a = PACMAN_POS->y & 7;
+    int a = PACMAN_POS.y & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -6019,7 +6146,7 @@ void selectPacmanYSprite_16b1()
 }
 
 /*  TODO confirm bit 7 is the mirror bit for sprites */
-void func_16d6()
+void selectPacmanRightSprite_16d6 (void)
 {
     //-------------------------------
     // 16d6  3a094d    ld      a,(#4d09)
@@ -6027,7 +6154,7 @@ void func_16d6()
     // 16db  fe06      cp      #06
     // 16dd  3808      jr      c,#16e7         ; (8)
     //-------------------------------
-    int a = PACMAN_POS->x & 7;
+    int a = PACMAN_POS.x & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -6067,7 +6194,7 @@ void func_16d6()
     }
 }
 
-void func_16f7()
+void selectPacmanUpSprite_16f7 (void)
 {
     //-------------------------------
     // 16f7  3a084d    ld      a,(#4d08)
@@ -6075,7 +6202,7 @@ void func_16f7()
     // 16fc  fe06      cp      #06
     // 16fe  3805      jr      c,#1705         ; (5)
     //-------------------------------
-    int a = PACMAN_POS->y & 7;
+    int a = PACMAN_POS.y & 7;
     if (a>=6)
     {
         //-------------------------------
@@ -6140,8 +6267,8 @@ void checkPacmanGhostCoincidence_171d()
     // 172f  ca6317    jp      z,#1763
     //-------------------------------
     if (CLYDE_STATE == 0 &&
-        CLYDE_POS_TILE2->y==PACMAN_POS_TILE2->y &&
-        CLYDE_POS_TILE2->x ==PACMAN_TILE2->x)
+        CLYDE_TILE2.y==PACMAN_TILE2.y &&
+        CLYDE_TILE2.x ==PACMAN_TILE2.x)
     {
         func_1763 (b);
         return;
@@ -6161,8 +6288,8 @@ void checkPacmanGhostCoincidence_171d()
     // 173f  ca6317    jp      z,#1763
     //-------------------------------
     if (INKY_STATE == 0 && 
-        INKY_POS_TILE2->y==PACMAN_POS_TILE2->y &&
-        INKY_POS_TILE2->x==PACMAN_TILE2->x)
+        INKY_TILE2.y==PACMAN_TILE2.y &&
+        INKY_TILE2.x==PACMAN_TILE2.x)
     {
         func_1763 (b);
         return;
@@ -6182,8 +6309,8 @@ void checkPacmanGhostCoincidence_171d()
     // 174f  ca6317    jp      z,#1763
     //-------------------------------
     if (PINKY_STATE == 0 &&
-        PINKY_POS_TILE2->y==PACMAN_POS_TILE2->y &&
-        PINKY_POS_TILE->x2==PACMAN_TILE2->x)
+        PINKY_TILE2.y==PACMAN_TILE2.y &&
+        PINKY_TILE2.x==PACMAN_TILE2.x)
     {
         func_1763 (b);
         return;
@@ -6203,8 +6330,8 @@ void checkPacmanGhostCoincidence_171d()
     // 175f  ca6317    jp      z,#1763
     //-------------------------------
     if (BLINKY_STATE == 0 &&
-        BLINKY_POS_TILE2->y==PACMAN_POS_TILE2->y&&
-        BLINKY_POS_TILE->x2==PACMAN_TILE2->x)
+        BLINKY_TILE2.y==PACMAN_TILE2.y&&
+        BLINKY_TILE2.x==PACMAN_TILE2.x)
     {
         func_1763 (b);
         return;
@@ -6289,6 +6416,9 @@ void func_1789 ()
     //-------------------------------
     // 1793  0e04      ld      c,#04
     // 1795  0604      ld      b,#04
+    //-------------------------------
+    int b = 4;
+    //-------------------------------
     // 1797  dd21084d  ld      ix,#4d08
     // 179b  3aaf4d    ld      a,(#4daf)
     // 179e  a7        and     a
@@ -6303,8 +6433,8 @@ void func_1789 ()
     // 17b1  da6317    jp      c,#1763
     //-------------------------------
     if (CLYDE_STATE != 0 &&
-        CLYDE_POS->y-PACMAN_POS->y < 4 &&
-        CLYDE_POS->x - PACMAN_POS->x < 4)
+        CLYDE_POS.y-PACMAN_POS.y < 4 &&
+        CLYDE_POS.x - PACMAN_POS.x < 4)
     {
         func_1763 (b);
         return;
@@ -6328,8 +6458,8 @@ void func_1789 ()
     // 17cb  da6317    jp      c,#1763
     //-------------------------------
     if (INKY_STATE != 0 && 
-        INKY_POS->y-PACMAN_POS->y < 4 &&
-        INKY_POS->x-PACMAN_POS->x < 4)
+        INKY_POS.y-PACMAN_POS.y < 4 &&
+        INKY_POS.x-PACMAN_POS.x < 4)
     {
         func_1763 (b);
         return;
@@ -6353,8 +6483,8 @@ void func_1789 ()
     // 17e5  da6317    jp      c,#1763
     //-------------------------------
     if (PINKY_STATE != 0 &&
-        PINKY_POS->y-PACMAN_POS->y < 4 &&
-        PINKY_POS->x -PACMAN_POS->x < 4)
+        PINKY_POS.y-PACMAN_POS.y < 4 &&
+        PINKY_POS.x -PACMAN_POS.x < 4)
     {
         func_1763 (b);
         return;
@@ -6378,8 +6508,8 @@ void func_1789 ()
     // 17ff  da6317    jp      c,#1763
     //-------------------------------
     if (BLINKY_STATE != 0 &&
-        BLINKY_POS->y-PACMAN_POS->y < 4 &&
-        BLINKY_POS->x -PACMAN_POS->x < 4)
+        BLINKY_POS.y-PACMAN_POS.y < 4 &&
+        BLINKY_POS.x -PACMAN_POS.x < 4)
     {
         func_1763 (b);
         return;
@@ -6423,7 +6553,7 @@ void func_1806 (void)
         // 181b  29        add     hl,hl
         // 181c  224c4d    ld      (#4d4c),hl
         //-------------------------------
-        PACMAN_MOVE_PAT_BIG_PILL2 *= 2;
+        PACMAN_MOVE_PAT_POWERUP2 *= 2;
     
         //-------------------------------
         // 181f  2a4a4d    ld      hl,(#4d4a)
@@ -6434,7 +6564,7 @@ void func_1806 (void)
         // 182b  34        inc     (hl)
         // 182c  c34318    jp      #1843
         //-------------------------------
-        PACMAN_MOVE_PAT_BIG_PILL1 *= 2;
+        PACMAN_MOVE_PAT_POWERUP1 *= 2;
         /* TODO carry flag for PILL1 to PILL2 */
     }
     else
@@ -6485,8 +6615,8 @@ void func_1806 (void)
     // 185f  3003      jr      nc,#1864        ; (3)
     // 1861  c3ab18    jp      #18ab
     //-------------------------------
-    if (PACMAN_TILE2->x < 0x21 &&
-        PACMAN_TILE2->x >= 0x3b)
+    if (PACMAN_TILE2.x < 0x21 &&
+        PACMAN_TILE2.x >= 0x3b)
     {
         //-------------------------------
         // 1864  3e01      ld      a,#01
@@ -6521,20 +6651,21 @@ void func_1806 (void)
         // 187a  a7        and     a
         // 187b  2806      jr      z,#1883         ; (6)
         //-------------------------------
+        int a;
         if (inverted)
         {
             //-------------------------------
             // 187d  3a4050    ld      a,(#5040)
             // 1880  c38618    jp      #1886
             //-------------------------------
-            a=memmap.regs.read.in1[0];
+            a = IO_INPUT1;
         }
         else
         {
             //-------------------------------
             // 1883  3a0050    ld      a,(#5000)
             //-------------------------------
-            a=memmap.regs.read.in0[0];
+            a = IO_INPUT0;
         }
         //-------------------------------
         // 1886  cb4f      bit     1,a
@@ -6548,9 +6679,8 @@ void func_1806 (void)
             // 1890  32304d    ld      (#4d30),a
             // 1893  221c4d    ld      (#4d1c),hl
             //-------------------------------
-            PACMAN_ORIENTATION=2;
-            PACMAN_POS_TILE_CHANGE->y = data_32ff[4];
-            PACMAN_TILE_CHANGE->x = data_32ff[5];
+            PACMAN_ORIENTATION = 2;
+            PACMAN_TILE_CHANGE = moveVectorLeft_3303;
 
             //-------------------------------
             // 1896  c35019    jp      #1950
@@ -6566,10 +6696,6 @@ void func_1806 (void)
         {
             //-------------------------------
             // 189e  2aff32    ld      hl,(#32ff)
-            //-------------------------------
-            h=data_32ff[0];
-            l=data_32ff[1];
-            //-------------------------------
             // 18a1  af        xor     a
             // 18a2  32304d    ld      (#4d30),a
             //-------------------------------
@@ -6577,8 +6703,7 @@ void func_1806 (void)
             //-------------------------------
             // 18a5  221c4d    ld      (#4d1c),hl
             //-------------------------------
-            PACMAN_POS_TILE_CHANGE->y = h;
-            PACMAN_TILE_CHANGE->x = l;
+            PACMAN_TILE_CHANGE = moveVectorRight_32ff;
             //-------------------------------
             // 18a8  c35019    jp      #1950
             //-------------------------------
@@ -6612,20 +6737,21 @@ void func_1806 (void)
     // 18bc  a7        and     a
     // 18bd  2806      jr      z,#18c5         ; (6)
     //-------------------------------
+    int a;
     if (inverted)
     {
         //-------------------------------
         // 18bf  3a4050    ld      a,(#5040)
         // 18c2  c3c818    jp      #18c8
         //-------------------------------
-        a=memmap.regs.read.in1[0];
+        a = IO_INPUT1;
     }
     else
     {
         //-------------------------------
         // 18c5  3a0050    ld      a,(#5000)
         //-------------------------------
-        a=memmap.regs.read.in1[0];
+        a = IO_INPUT0;
     }
     //-------------------------------
     // 18c8  cb4f      bit     1,a
@@ -6633,7 +6759,7 @@ void func_1806 (void)
     //-------------------------------
     if (a & INPUT_LEFT)
     {
-        func_1ac9();
+        pacmanOrientLeft_1ac9();
         return;
     }
     //-------------------------------
@@ -6642,7 +6768,7 @@ void func_1806 (void)
     //-------------------------------
     if (a & INPUT_RIGHT)
     {
-        func_1ad9();
+        pacmanOrientRight_1ad9();
         return;
     }
     //-------------------------------
@@ -6651,7 +6777,7 @@ void func_1806 (void)
     //-------------------------------
     if (a & INPUT_UP)
     {
-        func_1ae8();
+        pacmanOrientUp_1ae8();
         return;
     }
     //-------------------------------
@@ -6660,7 +6786,7 @@ void func_1806 (void)
     //-------------------------------
     if (a & INPUT_DOWN)
     {
-        func_1af8();
+        pacmanOrientDown_1af8();
         return;
     }
     //-------------------------------
@@ -6668,8 +6794,7 @@ void func_1806 (void)
     // 18df  22264d    ld      (#4d26),hl
     // 18e2  0601      ld      b,#01
     //-------------------------------
-    PACMAN_POS_TILE_CHANGE2->y = PACMAN_POS_TILE_CHANGE->y;
-    b=1;
+    PACMAN_TILE_CHANGE2 = PACMAN_TILE_CHANGE;
     func_18e4(1);
 }
 
@@ -6680,105 +6805,126 @@ void func_18e4 (int b)
     // 18e8  fd21394d  ld      iy,#4d39
     // 18ec  cd0f20    call    #200f
     //-------------------------------
-    getScreenCharPosOffset_200f(0x4d26, 0x4d39);
+    int a = getScreenCharPosOffset_200f(PACMAN_TILE_CHANGE2, PACMAN_TILE2);
 
     //-------------------------------
     // 18ef  e6c0      and     #c0
     // 18f1  d6c0      sub     #c0
     // 18f3  204b      jr      nz,#1940        ; (75)
     //-------------------------------
-    if ((a & 0xc0) == 0xc0)
+    if ((a & 0xc0) != 0xc0)
+    {
+        func_1940(b);
+        return;
+    }
+
+    //-------------------------------
+    // 18f5  05        dec     b
+    // 18f6  c21619    jp      nz,#1916
+    //-------------------------------
+    if (--b == 0)
     {
         //-------------------------------
-        // 18f5  05        dec     b
-        // 18f6  c21619    jp      nz,#1916
-        //-------------------------------
-        if (--b == 0)
-        {
-            //-------------------------------
-            // 18f9  3a304d    ld      a,(#4d30)
-            // 18fc  0f        rrca    
-            // 18fd  da0b19    jp      c,#190b
-            //-------------------------------
-            if ((PACMAN_ORIENTATION & 0x01) == 0)
-            {
-                //-------------------------------
-                // 1900  3a094d    ld      a,(#4d09)
-                // 1903  e607      and     #07
-                // 1905  fe04      cp      #04
-                // 1907  c8        ret     z
-                //-------------------------------
-                if ((PACMAN_POS->x & 7) == 4)
-                    return;
-
-                // 1908  c34019    jp      #1940
-                goto jump_1940;
-            }
-            else
-            {
-                //-------------------------------
-                // 190b  3a084d    ld      a,(#4d08)
-                // 190e  e607      and     #07
-                // 1910  fe04      cp      #04
-                // 1912  c8        ret     z
-                //-------------------------------
-                if ((PACMAN_POS->y & 7) == 4)
-                    return;
-
-                // 1913  c34019    jp      #1940
-                goto jump_1940;
-            }
-        }
-        //-------------------------------
-        // 1916  dd211c4d  ld      ix,#4d1c
-        // 191a  cd0f20    call    #200f
-        //-------------------------------
-        getScreenCharPosOffset_200f(0x4d1c, );
-
-        //-------------------------------
-        // 191d  e6c0      and     #c0
-        // 191f  d6c0      sub     #c0
-        // 1921  202d      jr      nz,#1950        ; (45)
-        //-------------------------------
-        if ((a & 0xc0) != 0xc0)
-            goto jump_1950;
-
-        //-------------------------------
-        // 1923  3a304d    ld      a,(#4d30)
-        // 1926  0f        rrca    
-        // 1927  da3519    jp      c,#1935
+        // 18f9  3a304d    ld      a,(#4d30)
+        // 18fc  0f        rrca    
+        // 18fd  da0b19    jp      c,#190b
         //-------------------------------
         if ((PACMAN_ORIENTATION & 0x01) == 0)
         {
             //-------------------------------
-            // 192a  3a094d    ld      a,(#4d09)
-            // 192d  e607      and     #07
-            // 192f  fe04      cp      #04
-            // 1931  c8        ret     z
+            // 1900  3a094d    ld      a,(#4d09)
+            // 1903  e607      and     #07
+            // 1905  fe04      cp      #04
+            // 1907  c8        ret     z
             //-------------------------------
-            if ((PACMAN_POS->x & 7) == 4)
-                return;
-            //-------------------------------
-            // 1932  c35019    jp      #1950
-            //-------------------------------
-            goto jump_1950;
-        }
 
-        //-------------------------------
-        // 1935  3a084d    ld      a,(#4d08)
-        // 1938  e607      and     #07
-        // 193a  fe04      cp      #04
-        // 193c  c8        ret     z
-        //-------------------------------
-        if ((PACMAN_POS->y & 7) == 4)
+            /*  Orientation is left or right, check if past mid tile before
+             *  allowing direction change */
+            if ((PACMAN_POS.x & 7) == 4)
+                return;
+
+            //-------------------------------
+            // 1908  c34019    jp      #1940
+            //-------------------------------
+            func_1940 (b);
             return;
-        //-------------------------------
-        // 193d  c35019    jp      #1950
-        //-------------------------------
-        goto jump_1950;
+        }
+        else
+        {
+            //-------------------------------
+            // 190b  3a084d    ld      a,(#4d08)
+            // 190e  e607      and     #07
+            // 1910  fe04      cp      #04
+            // 1912  c8        ret     z
+            //-------------------------------
+
+            /*  Orientation is up or down, check if past mid tile before
+             *  allowing direction change */
+            if ((PACMAN_POS.y & 7) == 4)
+                return;
+
+            //-------------------------------
+            // 1913  c34019    jp      #1940
+            //-------------------------------
+            func_1940 (b);
+            return;
+        }
+    }
+    //-------------------------------
+    // 1916  dd211c4d  ld      ix,#4d1c
+    // 191a  cd0f20    call    #200f
+    //-------------------------------
+    a = getScreenCharPosOffset_200f(PACMAN_TILE_CHANGE, PACMAN_TILE2);
+
+    //-------------------------------
+    // 191d  e6c0      and     #c0
+    // 191f  d6c0      sub     #c0
+    // 1921  202d      jr      nz,#1950        ; (45)
+    //-------------------------------
+    if ((a & 0xc0) != 0xc0)
+    {
+        func_1950;
+        return;
     }
 
-jump_1940:
+    //-------------------------------
+    // 1923  3a304d    ld      a,(#4d30)
+    // 1926  0f        rrca    
+    // 1927  da3519    jp      c,#1935
+    //-------------------------------
+    if ((PACMAN_ORIENTATION & 0x01) == 0)
+    {
+        //-------------------------------
+        // 192a  3a094d    ld      a,(#4d09)
+        // 192d  e607      and     #07
+        // 192f  fe04      cp      #04
+        // 1931  c8        ret     z
+        //-------------------------------
+        if ((PACMAN_POS.x & 7) == 4)
+            return;
+        //-------------------------------
+        // 1932  c35019    jp      #1950
+        //-------------------------------
+        func_1950 ();
+        return;
+    }
+
+    //-------------------------------
+    // 1935  3a084d    ld      a,(#4d08)
+    // 1938  e607      and     #07
+    // 193a  fe04      cp      #04
+    // 193c  c8        ret     z
+    //-------------------------------
+    if ((PACMAN_POS.y & 7) == 4)
+        return;
+    //-------------------------------
+    // 193d  c35019    jp      #1950
+    //-------------------------------
+    func_1950 ();
+}
+
+void func_1940 (int b)
+{
     //-------------------------------
     // 1940  2a264d    ld      hl,(#4d26)
     // 1943  221c4d    ld      (#4d1c),hl
@@ -6787,13 +6933,16 @@ jump_1940:
     // 194a  3a3c4d    ld      a,(#4d3c)
     // 194d  32304d    ld      (#4d30),a
     //-------------------------------
-    PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y;
+    PACMAN_TILE_CHANGE.y = PACMAN_TILE_CHANGE2.y;
 
     if (--b != 0)
         PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
-jump_1950:
+    func_1950 ();
+}
 
+void func_1950 (void)
+{
     //-------------------------------
     // 1950  dd211c4d  ld      ix,#4d1c
     // 1954  fd21084d  ld      iy,#4d08
@@ -6827,7 +6976,6 @@ jump_1950:
                 pacmanXY.y--;
             else
                 pacmanXY.y++;
-            }
         }
     }
     else
@@ -6853,10 +7001,11 @@ jump_1950:
         }
     }
 
-    func_1985();
+    func_1985(pacmanXY);
 }
 
-void func_1985(XYPOS pos)
+/*  Pass in pacman XY pixel coords in hl */
+void func_1985 (XYPOS pos)
 {
     //-------------------------------
     // 1985  22084d    ld      (#4d08),hl
@@ -6865,7 +7014,7 @@ void func_1985(XYPOS pos)
     //-------------------------------
     PACMAN_POS = pos;
     pos = pixelToTile_2018(pos);
-    PACMAN_POS_TILE2->y = pos;
+    PACMAN_TILE2 = pos;
 
     //-------------------------------
     // 198e  dd21bf4d  ld      ix,#4dbf
@@ -6885,7 +7034,7 @@ void func_1985(XYPOS pos)
     // 199e  a7        and     a
     // 199f  282c      jr      z,#19cd         ; (44)
     //-------------------------------
-    if (FRUIT_POS->y != 0)
+    if (FRUIT_POS.y != 0)
     {
         //-------------------------------
         // 19a1  3ad44d    ld      a,(#4dd4)
@@ -6901,14 +7050,14 @@ void func_1985(XYPOS pos)
             // 19ae  ed52      sbc     hl,de
             // 19b0  201b      jr      nz,#19cd        ; (27)
             //-------------------------------
-            if (PACMAN_POS->x == 0x80 && PACMAN_POS->y == 0x94)
+            if (PACMAN_POS.x == 0x80 && PACMAN_POS.y == 0x94)
             {
                 //-------------------------------
                 // 19b2  0619      ld      b,#19
                 // 19b4  4f        ld      c,a
                 // 19b5  cd4200    call    #0042
                 //-------------------------------
-                addTask (0x19, FRUIT_POINTS);
+                addTask_0042 (0x19, FRUIT_POINTS);
 
                 //-------------------------------
                 // 19b8  0e15      ld      c,#15
@@ -6918,7 +7067,7 @@ void func_1985(XYPOS pos)
                 // 19be  cd4200    call    #0042
                 // 19c1  cd0410    call    #1004
                 //-------------------------------
-                addTask (TASK_DISPLAY_MSG, FRUIT_POINTS+0x15);
+                addTask_0042 (TASK_DISPLAY_MSG, FRUIT_POINTS+0x15);
                 func_1004();
                 //-------------------------------
                 // 19c4  f7        rst     #30
@@ -6948,7 +7097,7 @@ void func_1985(XYPOS pos)
     // 19d9  fe10      cp      #10
     // 19db  2803      jr      z,#19e0         ; (3)
     //-------------------------------
-    uint8_t a = MEM[hl]; // Retrieve from video
+    uint8_t a = VIDEO[addr];
     if(a!=0x10)
     {
         //-------------------------------
@@ -6975,7 +7124,7 @@ void func_1985(XYPOS pos)
     // 19eb  0640      ld      b,#40
     // 19ed  70        ld      (hl),b
     //-------------------------------
-    MEM[hl] = 0x40; // write space to screen
+    VIDEO[addr] = 0x40; // write space to screen
 
     //-------------------------------
     // 19ee  0619      ld      b,#19
@@ -6983,44 +7132,55 @@ void func_1985(XYPOS pos)
     // 19f1  cb39      srl     c
     // 19f3  cd4200    call    #0042
     //-------------------------------
-    addTask (0x19, a>>1);
+    addTask_0042 (0x19, a>>1);
 
     //-------------------------------
     // 19f6  3c        inc     a
     // 19f7  fe01      cp      #01
     // 19f9  cafd19    jp      z,#19fd
+    //-------------------------------
 
     if (a!=1)
     {
+        //-------------------------------
         // 19fc  87        add     a,a
+        //-------------------------------
         a*=2;
     }
 
+    //-------------------------------
     // 19fd  329d4d    ld      (#4d9d),a
     // 1a00  cd081b    call    #1b08
     // 1a03  cd6a1a    call    #1a6a
+    //-------------------------------
     PACMAN_MOVE_DELAY=a;
     func_1b08();
     func_1a6a();
 
+    //-------------------------------
     // 1a06  21bc4e    ld      hl,#4ebc
     // 1a09  3a0e4e    ld      a,(#4e0e)
     // 1a0c  0f        rrca    
     // 1a0d  3805      jr      c,#1a14         ; (5)
+    //-------------------------------
     if ((P1_PILLS_EATEN_LEVEL & 1) == 0)
     {
+        //-------------------------------
         // 1a0f  cbc6      set     0,(hl)
         // 1a11  cb8e      res     1,(hl)
         // 1a13  c9        ret     
+        //-------------------------------
         SND_CH3_EFF_NUM|=1;
         SND_CH3_EFF_NUM&=0xfd;
         return;
     }
     else
     {
+        //-------------------------------
         // 1a14  cb86      res     0,(hl)
         // 1a16  cbce      set     1,(hl)
         // 1a18  c9        ret     
+        //-------------------------------
         SND_CH3_EFF_NUM&=0xfe;
         SND_CH3_EFF_NUM|=2;
         return;
@@ -7029,37 +7189,50 @@ void func_1985(XYPOS pos)
 
 void func_1a19 ()
 {
+    //-------------------------------
     // 1a19  211c4d    ld      hl,#4d1c
     // 1a1c  7e        ld      a,(hl)
     // 1a1d  a7        and     a
     // 1a1e  ca2e1a    jp      z,#1a2e
-    if (PACMAN_TILE_CHANGE->y != 0)
+    //-------------------------------
+    if (PACMAN_TILE_CHANGE.y != 0)
     {
+        //-------------------------------
         // 1a21  3a084d    ld      a,(#4d08)
         // 1a24  e607      and     #07
         // 1a26  fe04      cp      #04
         // 1a28  ca381a    jp      z,#1a38
-        if ((PACMAN_POS->y & 7) != 4)
+        //-------------------------------
+        if ((PACMAN_POS.y & 7) != 4)
         {
+            //-------------------------------
             // 1a2b  c35c1a    jp      #1a5c
-            goto jump_1a5c;
+            //-------------------------------
+            func_1a5c ();
+            return;
         }
     }
     else
     {
+        //-------------------------------
         // 1a2e  3a094d    ld      a,(#4d09)
         // 1a31  e607      and     #07
         // 1a33  fe04      cp      #04
         // 1a35  c25c1a    jp      nz,#1a5c
-        if ((PACMAN_POS->x & 7) != 4)
-            goto jump_1a5c;
+        //-------------------------------
+        if ((PACMAN_POS.x & 7) != 4)
+        {
+            func_1a5c ();
+            return;
+        }
     }
+    //-------------------------------
     // 1a38  3e05      ld      a,#05
     // 1a3a  cdd01e    call    #1ed0
     // 1a3d  3803      jr      c,#1a42         ; (3)
+    //-------------------------------
     if (!func_1ed0(5))
     {
-
         //-------------------------------
         // 1a3f  ef        rst     #28
         // 1a40  1700
@@ -7073,41 +7246,54 @@ void func_1a19 ()
     // 1a4a  cd0020    call    #2000
     // 1a4d  22124d    ld      (#4d12),hl
     //-------------------------------
-    PACMAN_DEMO_TILE = addXYOffset_2000(PACMAN_TILE_CHANGE, PACMAN_DEMO_TILE);
+    PACMAN_TILE = addXYOffset_2000(PACMAN_TILE_CHANGE, PACMAN_TILE);
+    //-------------------------------
     // 1a50  2a264d    ld      hl,(#4d26)
     // 1a53  221c4d    ld      (#4d1c),hl
-    *PACMAN_TILE_CHANGE = *PACMAN_TILE_CHANGE2;
+    //-------------------------------
+    PACMAN_TILE_CHANGE = PACMAN_TILE_CHANGE2;
+    //-------------------------------
     // 1a56  3a3c4d    ld      a,(#4d3c)
     // 1a59  32304d    ld      (#4d30),a
+    //-------------------------------
     PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
-jump_1a5c:
+    func_1a5c ();
+}
+
+void func_1a5c (void)
+{
+    //-------------------------------
     // 1a5c  dd211c4d  ld      ix,#4d1c
     // 1a60  fd21084d  ld      iy,#4d08
     // 1a64  cd0020    call    #2000
-    addXYOffset_2000(PACMAN_TILE_CHANGE, PACMAN_POS);
     // 1a67  c38519    jp      #1985
-    func_1985();
+    //-------------------------------
+    XYPOS pos = addXYOffset_2000(PACMAN_TILE_CHANGE, PACMAN_POS);
+    func_1985 (pos);
 }
 
-void func_1a6a ()
+void func_1a6a (void)
 {
+    //-------------------------------
     // 1a6a  3a9d4d    ld      a,(#4d9d)
     // 1a6d  fe06      cp      #06
     // 1a6f  c0        ret     nz
+    //-------------------------------
     if (PACMAN_MOVE_DELAY!=0x6)
         return;
 
     func_1a70();
 }
 
-void func_1a70 ()
+void func_1a70 (void)
 {
     //-------------------------------
     // 1a70  2abd4d    ld      hl,(#4dbd)
     // 1a73  22cb4d    ld      (#4dcb),hl
     //-------------------------------
     EDIBLE_REMAIN_COUNT = GHOST_EDIBLE_TIME;
+
     //-------------------------------
     // 1a76  3e01      ld      a,#01
     // 1a78  32a64d    ld      (#4da6),a
@@ -7130,7 +7316,8 @@ void func_1a70 ()
     PINKY_ORIENT_CHG_FLAG=
     INKY_ORIENT_CHG_FLAG=
     CLYDE_ORIENT_CHG_FLAG=
-    PACMAN_ORIENT_CHG_FLAG=1
+    PACMAN_ORIENT_CHG_FLAG=1;
+
     //-------------------------------
     // 1a96  af        xor     a
     // 1a97  32c84d    ld      (#4dc8),a
@@ -7158,6 +7345,7 @@ void func_1a70 ()
     PINKY_COLOUR=
     INKY_COLOUR=
     CLYDE_COLOUR=0x11;
+
     //-------------------------------
     // 1ac1  21ac4e    ld      hl,#4eac
     // 1ac4  cbee      set     5,(hl)
@@ -7168,64 +7356,80 @@ void func_1a70 ()
     SND_CH2_EFF_NUM&=~0x80;
 }
 
+void pacmanOrientLeft_1ac9 (void)
+{
     //-------------------------------
     // 1ac9  2a0333    ld      hl,(#3303)
     // 1acc  3e02      ld      a,#02
     // 1ace  323c4d    ld      (#4d3c),a
     // 1ad1  22264d    ld      (#4d26),hl
     //-------------------------------
-    PACMAN_DESIRED_ORIENTATION=2;
-    PACMAN_POS_TILE_CHANGE2->y=0x00;
-    PACMAN_TILE_CHANGE2->x =0x01;
+    PACMAN_DESIRED_ORIENTATION=ORIENT_LEFT;
+    PACMAN_TILE_CHANGE2 = moveVectorLeft_3303;
 
+    //-------------------------------
     // 1ad4  0600      ld      b,#00
     // 1ad6  c3e418    jp      #18e4
+    //-------------------------------
     func_18e4 (0);
+}
 
+void pacmanOrientRight_1ad9 (void)
+{
     //-------------------------------
     // 1ad9  2aff32    ld      hl,(#32ff)
     // 1adc  af        xor     a
     // 1add  323c4d    ld      (#4d3c),a
     // 1ae0  22264d    ld      (#4d26),hl
     //-------------------------------
-    PACMAN_DESIRED_ORIENTATION=0;
-    PACMAN_POS_TILE_CHANGE2->y=0x00;
-    PACMAN_TILE_CHANGE2->x =0xff;
+    PACMAN_DESIRED_ORIENTATION=ORIENT_RIGHT;
+    PACMAN_TILE_CHANGE2 = moveVectorRight_32ff;
 
+    //-------------------------------
     // 1ae3  0600      ld      b,#00
     // 1ae5  c3e418    jp      #18e4
+    //-------------------------------
     func_18e4 (0);
+}
 
+void pacmanOrientUp_1ae8 (void)
+{
     //-------------------------------
     // 1ae8  2a0533    ld      hl,(#3305)
     // 1aeb  3e03      ld      a,#03
     // 1aed  323c4d    ld      (#4d3c),a
     // 1af0  22264d    ld      (#4d26),hl
     //-------------------------------
-    PACMAN_DESIRED_ORIENTATION=3;
-    PACMAN_POS_TILE_CHANGE2->y=0xff;
-    PACMAN_TILE_CHANGE2->x =0x00;
+    PACMAN_DESIRED_ORIENTATION = ORIENT_UP;
+    PACMAN_TILE_CHANGE2 = moveVectorUp_3305;
 
+    //-------------------------------
     // 1af3  0600      ld      b,#00
     // 1af5  c3e418    jp      #18e4
+    //-------------------------------
     func_18e4 (0);
+}
 
+void pacmanOrientDown_1af8 (void)
+{
     //-------------------------------
     // 1af8  2a0133    ld      hl,(#3301)
     // 1afb  3e01      ld      a,#01
     // 1afd  323c4d    ld      (#4d3c),a
     // 1b00  22264d    ld      (#4d26),hl
     //-------------------------------
-    PACMAN_DESIRED_ORIENTATION=1;
-    PACMAN_POS_TILE_CHANGE2->y=0x01;
-    PACMAN_TILE_CHANGE2->x =0x00;
+    PACMAN_DESIRED_ORIENTATION = ORIENT_DOWN;
+    PACMAN_TILE_CHANGE2 = moveVectorDown_3301;
 
     //-------------------------------
     // 1b03  0600      ld      b,#00
     // 1b05  c3e418    jp      #18e4
     //-------------------------------
     func_18e4 (0);
+}
 
+void func_1b08 (void)
+{
     //-------------------------------
     // 1b08  3a124e    ld      a,(#4e12)
     // 1b0b  a7        and     a
@@ -7299,140 +7503,196 @@ void func_1b36()
     if (BLINKY_SUBSTATE == 0)
         return;
 
+    //-------------------------------
     // 1b3b  3aac4d    ld      a,(#4dac)
     // 1b3e  a7        and     a
     // 1b3f  c0        ret     nz
+    //-------------------------------
     if (BLINKY_STATE == 0)
         return;
 
+    //-------------------------------
     // 1b40  cdd720    call    #20d7
+    //-------------------------------
     func_20d7();
 
+    //-------------------------------
     // 1b43  2a314d    ld      hl,(#4d31)
     // 1b46  01994d    ld      bc,#4d99
     // 1b49  cd5a20    call    #205a
-    func_205a(BLINKY_TILE2, BLINKY_AUX_POS);
+    //-------------------------------
+    func_205a(BLINKY_TILE2, &BLINKY_AUX_POS);
+    //-------------------------------
     // 1b4c  3a994d    ld      a,(#4d99)
     // 1b4f  a7        and     a
     // 1b50  ca6a1b    jp      z,#1b6a
+    //-------------------------------
     if (BLINKY_AUX_POS != 0)
     {
+        //-------------------------------
         // 1b53  2a604d    ld      hl,(#4d60)
         // 1b56  29        add     hl,hl
         // 1b57  22604d    ld      (#4d60),hl
+        //-------------------------------
         BLINKY_MOVE_PAT_TUNNEL2*=2;
+        //-------------------------------
         // 1b5a  2a5e4d    ld      hl,(#4d5e)
         // 1b5d  ed6a      adc     hl,hl
         // 1b5f  225e4d    ld      (#4d5e),hl
         // 1b62  d0        ret     nc
+        //-------------------------------
         BLINKY_MOVE_PAT_TUNNEL1*=2;
+        //-------------------------------
         // 1b63  21604d    ld      hl,#4d60
         // 1b66  34        inc     (hl)
         // 1b67  c3d81b    jp      #1bd8
+        //-------------------------------
         BLINKY_MOVE_PAT_TUNNEL2++;
         func_1bd8();
     }
 
+    //-------------------------------
     // 1b6a  3aa74d    ld      a,(#4da7)
     // 1b6d  a7        and     a
     // 1b6e  ca881b    jp      z,#1b88
-    if (BLINK_EDIBLE != 0)
+    //-------------------------------
+    if (BLINKY_EDIBLE != 0)
     {
+        //-------------------------------
         // 1b71  2a5c4d    ld      hl,(#4d5c)
         // 1b74  29        add     hl,hl
         // 1b75  225c4d    ld      (#4d5c),hl
+        //-------------------------------
         BLINKY_MOVE_PAT_EDIBLE2*=2;
+        //-------------------------------
         // 1b78  2a5a4d    ld      hl,(#4d5a)
         // 1b7b  ed6a      adc     hl,hl
         // 1b7d  225a4d    ld      (#4d5a),hl
         // 1b80  d0        ret     nc
+        //-------------------------------
         BLINKY_MOVE_PAT_EDIBLE1*=2;
+        //-------------------------------
         // 1b81  215c4d    ld      hl,#4d5c
         // 1b84  34        inc     (hl)
         // 1b85  c3d81b    jp      #1bd8
+        //-------------------------------
         BLINKY_MOVE_PAT_EDIBLE2++;
     }
 
+    //-------------------------------
     // 1b88  3ab74d    ld      a,(#4db7)
     // 1b8b  a7        and     a
     // 1b8c  caa61b    jp      z,#1ba6
+    //-------------------------------
     if (DIFF_FLAG_1 != 0)
     {
+        //-------------------------------
         // 1b8f  2a504d    ld      hl,(#4d50)
         // 1b92  29        add     hl,hl
         // 1b93  22504d    ld      (#4d50),hl
+        //-------------------------------
         PACMAN_MOVE_PAT_DIFF2_2*=2;
+        //-------------------------------
         // 1b96  2a4e4d    ld      hl,(#4d4e)
         // 1b99  ed6a      adc     hl,hl
         // 1b9b  224e4d    ld      (#4d4e),hl
         // 1b9e  d0        ret     nc
+        //-------------------------------
         PACMAN_MOVE_PAT_DIFF2_1*=2;
+        //-------------------------------
         // 1b9f  21504d    ld      hl,#4d50
         // 1ba2  34        inc     (hl)
         // 1ba3  c3d81b    jp      #1bd8
+        //-------------------------------
     }
     else
     {
+        //-------------------------------
         // 1ba6  3ab64d    ld      a,(#4db6)
         // 1ba9  a7        and     a
         // 1baa  cac41b    jp      z,#1bc4
+        //-------------------------------
         if (DIFF_FLAG_1 != 0)
         {
+            //-------------------------------
             // 1bad  2a544d    ld      hl,(#4d54)
             // 1bb0  29        add     hl,hl
             // 1bb1  22544d    ld      (#4d54),hl
+            //-------------------------------
             PACMAN_MOVE_PAT_DIFF1_2*=2;
+            //-------------------------------
             // 1bb4  2a524d    ld      hl,(#4d52)
             // 1bb7  ed6a      adc     hl,hl
             // 1bb9  22524d    ld      (#4d52),hl
             // 1bbc  d0        ret     nc
+            //-------------------------------
             PACMAN_MOVE_PAT_DIFF1_1*=2;
+            //-------------------------------
             // 1bbd  21544d    ld      hl,#4d54
             // 1bc0  34        inc     (hl)
             // 1bc1  c3d81b    jp      #1bd8
+            //-------------------------------
         }
         else
         {
+            //-------------------------------
             // 1bc4  2a584d    ld      hl,(#4d58)
             // 1bc7  29        add     hl,hl
             // 1bc8  22584d    ld      (#4d58),hl
+            //-------------------------------
             BLINKY_MOVE_PAT_NORMAL2 *= 2;
+            //-------------------------------
             // 1bcb  2a564d    ld      hl,(#4d56)
             // 1bce  ed6a      adc     hl,hl
             // 1bd0  22564d    ld      (#4d56),hl
             // 1bd3  d0        ret     nc
+            //-------------------------------
             BLINKY_MOVE_PAT_NORMAL1 *= 2;
+            //-------------------------------
             // 1bd4  21584d    ld      hl,#4d58
             // 1bd7  34        inc     (hl)
+            //-------------------------------
         }
     }
+    func_1bd8();
+}
 
+void func_1bd8 (void)
+{
+    //-------------------------------
     // 1bd8  21144d    ld      hl,#4d14
     // 1bdb  7e        ld      a,(hl)
     // 1bdc  a7        and     a
     // 1bdd  caed1b    jp      z,#1bed
-    if (BLINKY_TILE_CHANGE->y != 0)
+    //-------------------------------
+    if (BLINKY_TILE_CHANGE.y != 0)
     {
+        //-------------------------------
         // 1be0  3a004d    ld      a,(#4d00)
         // 1be3  e607      and     #07
         // 1be5  fe04      cp      #04
         // 1be7  caf71b    jp      z,#1bf7
         // 1bea  c3361c    jp      #1c36
-        if ((BLINKY_POS->y&7)==4)
+        //-------------------------------
+        if ((BLINKY_POS.y&7)==4)
             goto jump_1c36;
     }
     else
     {
+        //-------------------------------
         // 1bed  3a014d    ld      a,(#4d01)
         // 1bf0  e607      and     #07
         // 1bf2  fe04      cp      #04
         // 1bf4  c2361c    jp      nz,#1c36
-        if ((BLINKY_POS->x&7)==4)
+        //-------------------------------
+        if ((BLINKY_POS.x&7)==4)
             goto jump_1c36;
     }
+    //-------------------------------
     // 1bf7  3e01      ld      a,#01
     // 1bf9  cdd01e    call    #1ed0
     // 1bfc  381b      jr      c,#1c19         ; (27)
+    //-------------------------------
     if (!func_1ed0(1))
     {
         //-------------------------------
@@ -7455,13 +7715,13 @@ void func_1b36()
             // 1c0b  2a0a4d    ld      hl,(#4d0a)
             // 1c0e  cd5220    call    #2052
             //-------------------------------
-            getColourOffset_2052(BLINKY_TILE);
+            uint16_t addr = getColourOffset_2052(BLINKY_TILE);
             //-------------------------------
             // 1c11  7e        ld      a,(hl)
             // 1c12  fe1a      cp      #1a
             // 1c14  2803      jr      z,#1c19         ; (3)
             //-------------------------------
-            if (BLINKY_TILE->y != 0x1a)
+            if (COLOUR[addr] != 0x1a)
             {
                 //-------------------------------
                 // 1c16  ef        rst     #28
@@ -7479,7 +7739,7 @@ void func_1b36()
     // 1c24  cd0020    call    #2000
     // 1c27  220a4d    ld      (#4d0a),hl
     //-------------------------------
-    func_1efe();
+    reverseBlinky_1efe();
     BLINKY_TILE = addXYOffset_2000(BLINKY_TILE_CHANGE2, BLINKY_TILE);
 
     //-------------------------------
@@ -7489,8 +7749,9 @@ void func_1b36()
     // 1c33  32284d    ld      (#4d28),a
     //-------------------------------
     BLINKY_TILE_CHANGE = BLINKY_TILE_CHANGE2;
-    BLINKY_REV_ORIENTATION = BLINK_ORIENTATION;
+    BLINKY_PREV_ORIENTATION = BLINKY_ORIENTATION;
 
+jump_1c36:
     //-------------------------------
     // 1c36  dd21144d  ld      ix,#4d14
     // 1c3a  fd21004d  ld      iy,#4d00
@@ -7508,104 +7769,148 @@ void func_1b36()
 
 void func_1c4b ()
 {
+    //-------------------------------
     // 1c4b  3aa14d    ld      a,(#4da1)
     // 1c4e  fe01      cp      #01
     // 1c50  c0        ret     nz
+    //-------------------------------
     if (PINKY_SUBSTATE != 1)
         return;
+    //-------------------------------
     // 1c51  3aad4d    ld      a,(#4dad)
     // 1c54  a7        and     a
     // 1c55  c0        ret     nz
+    //-------------------------------
     if (PINKY_STATE != 0)
         return;
 
+    //-------------------------------
     // 1c56  2a334d    ld      hl,(#4d33)
     // 1c59  019a4d    ld      bc,#4d9a
     // 1c5c  cd5a20    call    #205a
-    func_205a(PINKY_TILE2, PINKY_AUX_POS);
+    //-------------------------------
+    func_205a(PINKY_TILE2, &PINKY_AUX_POS);
 
+    //-------------------------------
     // 1c5f  3a9a4d    ld      a,(#4d9a)
     // 1c62  a7        and     a
     // 1c63  ca7d1c    jp      z,#1c7d
+    //-------------------------------
     if (PINKY_AUX_POS != 0)
     {
+        //-------------------------------
         // 1c66  2a6c4d    ld      hl,(#4d6c)
         // 1c69  29        add     hl,hl
         // 1c6a  226c4d    ld      (#4d6c),hl
+        //-------------------------------
         PINKY_MOVE_PAT_TUNNEL2*=2;
+        //-------------------------------
         // 1c6d  2a6a4d    ld      hl,(#4d6a)
         // 1c70  ed6a      adc     hl,hl
         // 1c72  226a4d    ld      (#4d6a),hl
         // 1c75  d0        ret     nc
+        //-------------------------------
         PINKY_MOVE_PAT_TUNNEL1*=2;
+        //-------------------------------
         // 
         // 1c76  216c4d    ld      hl,#4d6c
         // 1c79  34        inc     (hl)
         // 1c7a  c3af1c    jp      #1caf
+        //-------------------------------
     }
     else
     {
+        //-------------------------------
         // 1c7d  3aa84d    ld      a,(#4da8)
         // 1c80  a7        and     a
         // 1c81  ca9b1c    jp      z,#1c9b
+        //-------------------------------
         if (PINKY_EDIBLE != 0)
         {
+            //-------------------------------
             // 1c84  2a684d    ld      hl,(#4d68)
             // 1c87  29        add     hl,hl
             // 1c88  22684d    ld      (#4d68),hl
+            //-------------------------------
+
             PINKY_MOVE_PAT_EDIBLE2*=2;
+            //-------------------------------
             // 1c8b  2a664d    ld      hl,(#4d66)
             // 1c8e  ed6a      adc     hl,hl
             // 1c90  22664d    ld      (#4d66),hl
             // 1c93  d0        ret     nc
+            //-------------------------------
             PINKY_MOVE_PAT_EDIBLE1*=2;
-            // 
+
+            //-------------------------------
             // 1c94  21684d    ld      hl,#4d68
             // 1c97  34        inc     (hl)
             // 1c98  c3af1c    jp      #1caf
+            //-------------------------------
         }
         else
         {
+            //-------------------------------
             // 1c9b  2a644d    ld      hl,(#4d64)
             // 1c9e  29        add     hl,hl
             // 1c9f  22644d    ld      (#4d64),hl
+            //-------------------------------
+
             PINKY_MOVE_PAT_NORMAL2*=2;
+            //-------------------------------
             // 1ca2  2a624d    ld      hl,(#4d62)
             // 1ca5  ed6a      adc     hl,hl
             // 1ca7  22624d    ld      (#4d62),hl
             // 1caa  d0        ret     nc
+            //-------------------------------
+
             PINKY_MOVE_PAT_NORMAL1*=2;
-            // 
+            //-------------------------------
             // 1cab  21644d    ld      hl,#4d64
             // 1cae  34        inc     (hl)
+            //-------------------------------
         }
     }
+    func_1caf();
+}
 
+void func_1caf (void)
+{
+    //-------------------------------
     // 1caf  21164d    ld      hl,#4d16
     // 1cb2  7e        ld      a,(hl)
     // 1cb3  a7        and     a
     // 1cb4  cac41c    jp      z,#1cc4
-    if (PINKY_TILE_CHANGE != 0)
+    //-------------------------------
+    if (PINKY_TILE_CHANGE.y != 0)
     {
+        //-------------------------------
         // 1cb7  3a024d    ld      a,(#4d02)
         // 1cba  e607      and     #07
         // 1cbc  fe04      cp      #04
         // 1cbe  cace1c    jp      z,#1cce
-        if ((BLINKY_POS->y&7)==4)
+        //-------------------------------
+        if ((BLINKY_POS.y&7)==4)
         {
+            //-------------------------------
             // 1cc1  c30d1d    jp      #1d0d
+            //-------------------------------
             goto jump_1d0d;
         }
     }
     else
     {
+        //-------------------------------
         // 1cc4  3a034d    ld      a,(#4d03)
         // 1cc7  e607      and     #07
         // 1cc9  fe04      cp      #04
         // 1ccb  c20d1d    jp      nz,#1d0d
-        if ((BLINKY_POS->x&7)==4)
+        //-------------------------------
+        if ((BLINKY_POS.x&7)==4)
         {
+            //-------------------------------
             // 1cc1  c30d1d    jp      #1d0d
+            //-------------------------------
             goto jump_1d0d;
         }
     }
@@ -7637,14 +7942,14 @@ void func_1c4b ()
             // 1ce2  2a0c4d    ld      hl,(#4d0c)
             // 1ce5  cd5220    call    #2052
             //-------------------------------
-            getColourOffset_2052(PINKY_TILE);
+            uint16_t addr = getColourOffset_2052(PINKY_TILE);
 
             //-------------------------------
             // 1ce8  7e        ld      a,(hl)
             // 1ce9  fe1a      cp      #1a
             // 1ceb  2803      jr      z,#1cf0         ; (3)
             //-------------------------------
-            if (PINKY_TILE->x != 0x1a)
+            if (COLOUR[addr] != 0x1a)
             {
                 //-------------------------------
                 // 1ced  ef        rst     #28
@@ -7680,6 +7985,7 @@ void func_1c4b ()
     //-------------------------------
     PINKY_PREV_ORIENTATION = PINKY_ORIENTATION;
 
+jump_1d0d:
     //-------------------------------
     // 1d0d  dd21164d  ld      ix,#4d16
     // 1d11  fd21024d  ld      iy,#4d02
@@ -7693,8 +7999,7 @@ void func_1c4b ()
     // 1d1e  22334d    ld      (#4d33),hl
     // 1d21  c9        ret     
     //-------------------------------
-    pixelToTile_2018();
-    PINKY_TILE2 = hl;
+    PINKY_TILE2 = pixelToTile_2018(PINKY_POS);
 }
 
 void func_1d22()
@@ -7718,7 +8023,7 @@ void func_1d22()
     // 1d30  019b4d    ld      bc,#4d9b
     // 1d33  cd5a20    call    #205a
     //-------------------------------
-    func_205a(INKY_TILE2, INKY_AUX_POS);
+    func_205a(INKY_TILE2, &INKY_AUX_POS);
     //-------------------------------
     // 1d36  3a9b4d    ld      a,(#4d9b)
     // 1d39  a7        and     a
@@ -7726,64 +8031,88 @@ void func_1d22()
     //-------------------------------
     if (INKY_AUX_POS != 0)
     {
+        //-------------------------------
         // 1d3d  2a784d    ld      hl,(#4d78)
         // 1d40  29        add     hl,hl
         // 1d41  22784d    ld      (#4d78),hl
+        //-------------------------------
         INKY_MOVE_PAT_TUNNEL2*=2;
+        //-------------------------------
         // 1d44  2a764d    ld      hl,(#4d76)
         // 1d47  ed6a      adc     hl,hl
         // 1d49  22764d    ld      (#4d76),hl
         // 1d4c  d0        ret     nc
+        //-------------------------------
         INKY_MOVE_PAT_TUNNEL1*=2;
+        //-------------------------------
         // 
         // 1d4d  21784d    ld      hl,#4d78
         // 1d50  34        inc     (hl)
         // 1d51  c3861d    jp      #1d86
+        //-------------------------------
     }
     else
     {
+        //-------------------------------
         // 1d54  3aa94d    ld      a,(#4da9)
         // 1d57  a7        and     a
         // 1d58  ca721d    jp      z,#1d72
+        //-------------------------------
         if (INKY_EDIBLE != 0)
         {
+            //-------------------------------
             // 1d5b  2a744d    ld      hl,(#4d74)
             // 1d5e  29        add     hl,hl
             // 1d5f  22744d    ld      (#4d74),hl
+            //-------------------------------
             INKY_MOVE_PAT_EDIBLE2*=2;
+            //-------------------------------
             // 1d62  2a724d    ld      hl,(#4d72)
             // 1d65  ed6a      adc     hl,hl
             // 1d67  22724d    ld      (#4d72),hl
             // 1d6a  d0        ret     nc
+            //-------------------------------
             INKY_MOVE_PAT_EDIBLE1*=2;
+            //-------------------------------
             // 
             // 1d6b  21744d    ld      hl,#4d74
             // 1d6e  34        inc     (hl)
             // 1d6f  c3861d    jp      #1d86
+            //-------------------------------
         }
         else
         {
+            //-------------------------------
             // 1d72  2a704d    ld      hl,(#4d70)
             // 1d75  29        add     hl,hl
             // 1d76  22704d    ld      (#4d70),hl
+            //-------------------------------
             INKY_MOVE_PAT_NORMAL2*=2;
+            //-------------------------------
             // 1d79  2a6e4d    ld      hl,(#4d6e)
             // 1d7c  ed6a      adc     hl,hl
             // 1d7e  226e4d    ld      (#4d6e),hl
             // 1d81  d0        ret     nc
+            //-------------------------------
             INKY_MOVE_PAT_NORMAL1*=2;
+            //-------------------------------
             // 1d82  21704d    ld      hl,#4d70
             // 1d85  34        inc     (hl)
+            //-------------------------------
         }
     }
+    func_1d86();
+}
 
+void func_1d86 (void)
+{
     //-------------------------------
     // 1d86  21184d    ld      hl,#4d18
     // 1d89  7e        ld      a,(hl)
     // 1d8a  a7        and     a
     // 1d8b  ca9b1d    jp      z,#1d9b
     //-------------------------------
-    if (INKY_TILE_CHANGE->y != 0)
+    if (INKY_TILE_CHANGE.y != 0)
     {
         //-------------------------------
         // 1d8e  3a044d    ld      a,(#4d04)
@@ -7792,7 +8121,7 @@ void func_1d22()
         // 1d95  caa51d    jp      z,#1da5
         // 1d98  c3e41d    jp      #1de4
         //-------------------------------
-        if ((INKY_POS->y&7)!=4)
+        if ((INKY_POS.y&7)!=4)
             goto jump_1de4;
     }
     else
@@ -7803,7 +8132,7 @@ void func_1d22()
         // 1da0  fe04      cp      #04
         // 1da2  c2e41d    jp      nz,#1de4
         //-------------------------------
-        if ((INKY_POS->x&7)!=4)
+        if ((INKY_POS.x&7)!=4)
             goto jump_1de4;
     }
 
@@ -7834,13 +8163,13 @@ void func_1d22()
             // 1db9  2a0e4d    ld      hl,(#4d0e)
             // 1dbc  cd5220    call    #2052
             //-------------------------------
-            getColourOffset_2052(INKY_TILE);
+            uint16_t addr = getColourOffset_2052(INKY_TILE);
             //-------------------------------
             // 1dbf  7e        ld      a,(hl)
             // 1dc0  fe1a      cp      #1a
             // 1dc2  2803      jr      z,#1dc7         ; (3)
             //-------------------------------
-            if (BLINKY_TILE->y != 0x1a)
+            if (COLOUR[addr] != 0x1a)
             {
                 //-------------------------------
                 // 1dc4  ef        rst     #28
@@ -7868,7 +8197,9 @@ void func_1d22()
     // 1de1  322a4d    ld      (#4d2a),a
     //-------------------------------
     INKY_TILE_CHANGE = INKY_TILE_CHANGE2;
-    INKY_REV_ORIENTATION = INK_ORIENTATION;
+    INKY_PREV_ORIENTATION = INKY_ORIENTATION;
+
+jump_1de4:
     //-------------------------------
     // 1de4  dd21184d  ld      ix,#4d18
     // 1de8  fd21044d  ld      iy,#4d04
@@ -7905,7 +8236,7 @@ void func_1df9()
     // 1e07  019c4d    ld      bc,#4d9c
     // 1e0a  cd5a20    call    #205a
     //-------------------------------
-    func_205a(CLYDE_TILE2, CLYDE_AUX_POS);
+    func_205a(CLYDE_TILE2, &CLYDE_AUX_POS);
     //-------------------------------
     // 1e0d  3a9c4d    ld      a,(#4d9c)
     // 1e10  a7        and     a
@@ -7981,14 +8312,18 @@ void func_1df9()
             //-------------------------------
         }
     }
+    func_1e5d();
+}
 
+void func_1e5d (void)
+{
     //-------------------------------
     // 1e5d  211a4d    ld      hl,#4d1a
     // 1e60  7e        ld      a,(hl)
     // 1e61  a7        and     a
     // 1e62  ca721e    jp      z,#1e72
     //-------------------------------
-    if (CLYDE_TILE_CHANGE->y != 0)
+    if (CLYDE_TILE_CHANGE.y != 0)
     {
         //-------------------------------
         // 1e65  3a064d    ld      a,(#4d06)
@@ -7997,8 +8332,8 @@ void func_1df9()
         // 1e6c  ca7c1e    jp      z,#1e7c
         // 1e6f  c3bb1e    jp      #1ebb
         //-------------------------------
-        if ((CLYDE_POS->y&7)!=4)
-            goto jump_1de4;
+        if ((CLYDE_POS.y&7)!=4)
+            goto jump_1ebb;
     }
     else
     {
@@ -8008,8 +8343,8 @@ void func_1df9()
         // 1e77  fe04      cp      #04
         // 1e79  c2bb1e    jp      nz,#1ebb
         //-------------------------------
-        if ((CLYDE_POS->x&7)!=4)
-            goto jump_1de4;
+        if ((CLYDE_POS.x&7)!=4)
+            goto jump_1ebb;
     }
 
     //-------------------------------
@@ -8037,13 +8372,13 @@ void func_1df9()
             // 1e90  2a104d    ld      hl,(#4d10)
             // 1e93  cd5220    call    #2052
             //-------------------------------
-            getColourOffset_2052(CLYDE_TILE);
+            uint16_t addr = getColourOffset_2052(CLYDE_TILE);
             //-------------------------------
             // 1e96  7e        ld      a,(hl)
             // 1e97  fe1a      cp      #1a
             // 1e99  2803      jr      z,#1e9e         ; (3)
             //-------------------------------
-            if (BLCLYDE_TILE->y != 0x1a)
+            if (COLOUR[addr] != 0x1a)
             {
                 //-------------------------------
                 // 1e9b  ef        rst     #28
@@ -8071,7 +8406,9 @@ void func_1df9()
     // 1eb8  322b4d    ld      (#4d2b),a
     //-------------------------------
     CLYDE_TILE_CHANGE = CLYDE_TILE_CHANGE2;
-    CLYDE_REV_ORIENTATION = INK_ORIENTATION;
+    CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION;
+
+jump_1ebb:
     //-------------------------------
     // 1ebb  dd211a4d  ld      ix,#4d1a
     // 1ebf  fd21064d  ld      iy,#4d06
@@ -8088,7 +8425,7 @@ void func_1df9()
 }
 
 /*  Ghost number 1-4 or 5 for pacman.  Checking if in tunnel ? */
-void func_1ed0(int ghost)
+bool func_1ed0(int ghost)
 {
     //-------------------------------
     // 1ed0  87        add     a,a
@@ -8098,7 +8435,7 @@ void func_1ed0(int ghost)
     // 1ed7  09        add     hl,bc
     // 1ed8  7e        ld      a,(hl)
     //-------------------------------
-    XYPOS *pos = BLINKY_TILE + ghost - 1;
+    XYPOS *pos = &BLINKY_TILE + ghost - 1;
 
     //-------------------------------
     // 1ed9  fe1d      cp      #1d
@@ -8157,7 +8494,7 @@ void func_1ed0(int ghost)
     return true;
 }
 
-void func_1efe ()
+void reverseBlinky_1efe ()
 {
     //-------------------------------
     // 1efe  3ab14d    ld      a,(#4db1)
@@ -8184,7 +8521,7 @@ void func_1efe ()
     // 1f13  df        rst     #18
     // 1f14  221e4d    ld      (#4d1e),hl
     //-------------------------------
-    BLINKY_TILE_CHANGE2=tableLookup (moveData_32ff, BLINKY_ORIENTATON); // TODO
+    BLINKY_TILE_CHANGE2 = moveVectorData_32ff[BLINKY_ORIENTATION];
     //-------------------------------
     // 1f17  3a024e    ld      a,(#4e02)
     // 1f1a  fe22      cp      #22
@@ -8196,7 +8533,7 @@ void func_1efe ()
     //-------------------------------
     // 1f1d  22144d    ld      (#4d14),hl
     //-------------------------------
-    BLINKY_TILE_CHANGE=hl; // TODO where did hl come from?
+    BLINKY_TILE_CHANGE = BLINKY_TILE_CHANGE2;
     //-------------------------------
     // 1f20  78        ld      a,b
     // 1f21  32284d    ld      (#4d28),a
@@ -8219,6 +8556,11 @@ void func_1f25()
     // 1f2b  32b24d    ld      (#4db2),a
     //-------------------------------
     PINKY_ORIENT_CHG_FLAG = 0;
+    func_1f2e();
+}
+
+void func_1f2e (void)
+{
     //-------------------------------
     // 1f2e  21ff32    ld      hl,#32ff
     // 1f31  3a294d    ld      a,(#4d29)
@@ -8231,7 +8573,8 @@ void func_1f25()
     // 1f3a  df        rst     #18
     // 1f3b  22204d    ld      (#4d20),hl
     //-------------------------------
-    PINKY_TILE_CHANGE2=tableLookup (moveData_32ff, PINKY_ORIENTATON); // TODO
+    PINKY_TILE_CHANGE2 = moveVectorData_32ff[PINKY_ORIENTATION];
+
     //-------------------------------
     // 1f3e  3a024e    ld      a,(#4e02)
     // 1f41  fe22      cp      #22
@@ -8243,7 +8586,8 @@ void func_1f25()
     //-------------------------------
     // 1f44  22164d    ld      (#4d16),hl
     //-------------------------------
-    PINKY_TILE_CHANGE=hl; // TODO where did hl come from?
+    PINKY_TILE_CHANGE = PINKY_TILE_CHANGE2;
+
     //-------------------------------
     // 1f47  78        ld      a,b
     // 1f48  32294d    ld      (#4d29),a
@@ -8266,6 +8610,11 @@ void func_1f4c()
     // 1f52  32b34d    ld      (#4db3),a
     //-------------------------------
     INKY_ORIENT_CHG_FLAG = 0;
+    func_1f55();
+}
+
+void func_1f55 (void)
+{
     //-------------------------------
     // 1f55  21ff32    ld      hl,#32ff
     // 1f58  3a2a4d    ld      a,(#4d2a)
@@ -8278,7 +8627,8 @@ void func_1f4c()
     // 1f61  df        rst     #18
     // 1f62  22224d    ld      (#4d22),hl
     //-------------------------------
-    INKY_TILE_CHANGE2=tableLookup (moveData_32ff, INKY_ORIENTATON); // TODO
+    INKY_TILE_CHANGE2 = moveVectorData_32ff[INKY_ORIENTATION];
+
     //-------------------------------
     // 1f65  3a024e    ld      a,(#4e02)
     // 1f68  fe22      cp      #22
@@ -8310,6 +8660,11 @@ void func_1f73()
     // 1f79  32b44d    ld      (#4db4),a
     //-------------------------------
     CLYDE_ORIENT_CHG_FLAG = 0;
+    func_1f7c();
+}
+
+void func_1f7c (void)
+{
     //-------------------------------
     // 1f7c  21ff32    ld      hl,#32ff
     // 1f7f  3a2b4d    ld      a,(#4d2b)
@@ -8322,7 +8677,7 @@ void func_1f73()
     // 1f88  df        rst     #18
     // 1f89  22244d    ld      (#4d24),hl
     //-------------------------------
-    CLYDE_TILE_CHANGE2=tableLookup (moveData_32ff, CLYDE_ORIENTATON); // TODO
+    CLYDE_TILE_CHANGE2 = moveVectorData_32ff[CLYDE_ORIENTATION];
     //-------------------------------
     // 1f8c  3a024e    ld      a,(#4e02)
     // 1f8f  fe22      cp      #22
@@ -8371,7 +8726,7 @@ XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy)
     //-------------------------------
     ix.x+=iy.x;
     ix.y+=iy.y;
-    return pos;
+    return ix;
 }
 
 uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos)
@@ -8400,7 +8755,7 @@ XYPOS pixelToTile_2018 (XYPOS pos)
     // 201f  c620      add     a,#20
     // 2021  6f        ld      l,a
     //-------------------------------
-    pos.y=pos.y>>3+0x20;
+    pos.y=(pos.y>>3)+0x20;
     //-------------------------------
     // 2022  7c        ld      a,h
     // 2023  cb3f      srl     a
@@ -8410,7 +8765,7 @@ XYPOS pixelToTile_2018 (XYPOS pos)
     // 202b  67        ld      h,a
     // 202c  c9        ret     
     //-------------------------------
-    pos.x=pos.x>>3+0x1e;
+    pos.x=(pos.x>>3)+0x1e;
     return pos;
 }
 
@@ -8440,8 +8795,8 @@ uint16_t getScreenOffset_202d (XYPOS hl)
     // 2045  cb10      rl      b
     // 2047  4c        ld      c,h
     //-------------------------------
-    b=(hl.x&0x18)>>3;
-    c = hl.x<<5;
+    int b=(hl.x&0x18)>>3;
+    int c = hl.x<<5;
     //-------------------------------
     // 2048  2600      ld      h,#00
     // 204a  09        add     hl,bc
@@ -8453,7 +8808,7 @@ uint16_t getScreenOffset_202d (XYPOS hl)
     // 204e  09        add     hl,bc
     //-------------------------------
     /*  0x4040 is video+0x40 so just add 0x40 to get an offset into VIDEO */
-    int result = ((pos.x << 8) | pos.y) + 0x4040;
+    int result = ((hl.x << 8) | hl.y) + 0x4040;
     //-------------------------------
     // 204f  c1        pop     bc
     // 2050  f1        pop     af
@@ -8462,7 +8817,9 @@ uint16_t getScreenOffset_202d (XYPOS hl)
     return result;
 }
 
-uint16_t getColourOffset_2052(XYPOS pos)
+/* Gets a screen offset and converts into an offset in the colour table by
+ * adding 0x400.  Since we use a separate array, we don't do the add */
+uint16_t getColourOffset_2052 (XYPOS pos)
 {
     //-------------------------------
     // 2052  cd6500    call    #0065
@@ -8470,11 +8827,10 @@ uint16_t getColourOffset_2052(XYPOS pos)
     // 2058  19        add     hl,de
     // 2059  c9        ret     
     //-------------------------------
-    uint16_t addr = getScreenOffset_0065(pos);
-    return addr + 0x400;
+    return getScreenOffset_0065(pos);
 }
 
-void func_205a(XYPOS pos, uint8_t *aux)
+void func_205a (XYPOS pos, uint8_t *aux)
 {
     //-------------------------------
     // 205a  cd5220    call    #2052
@@ -8486,7 +8842,7 @@ void func_205a(XYPOS pos, uint8_t *aux)
     // 205e  fe1b      cp      #1b
     // 2060  2004      jr      nz,#2066        ; (4)
     //-------------------------------
-    if (MEM[addr] == 0x1b)
+    if (COLOUR[addr] == 0x1b)
     {
         //-------------------------------
         // 2062  3e01      ld      a,#01
@@ -8504,7 +8860,11 @@ void func_205a(XYPOS pos, uint8_t *aux)
         //-------------------------------
         *aux=0;
     }
+    func_2069();
+}
 
+void func_2069 (void)
+{
     //-------------------------------
     // 2069  3aa14d    ld      a,(#4da1)
     // 206c  a7        and     a
@@ -8647,7 +9007,7 @@ void func_20af()
     CLYDE_SUBSTATE = 2;
 }
 
-void func_4da3()
+void func_20d7 (void)
 {
     //-------------------------------
     // 20d7  3aa34d    ld      a,(#4da3)
@@ -8717,15 +9077,15 @@ void func_2108()
 
     // 2100                                       1a 21 40 21
     // 2110  4b 21 0c 00 70 21 7b 21  86 21 
-    void (*func)(int param)[] = 
-    { func_211a, func_2140, func_214b, nothing, func_2170, func_217b, func_2186 };
-    tableCall (func, SCENE1_STATE, param);
+    void (*func[])() = 
+    { func_211a, func_2140, func_214b, nothing_000c, func_2170, func_217b, func_2186 };
+    tableCall_0020 (func, SCENE1_STATE);
 }
 
 void func_211a()
 {
     // 211a  3a3a4d    ld      a,(#4d3a)
-    a=PACMAN_TILE2->x;
+    int a=PACMAN_TILE2.x;
     // 211d  d621      sub     #21
     // 211f  200f      jr      nz,#2130        ; (15)
     if(a==0x21)
@@ -8746,6 +9106,11 @@ void func_211a()
     }
 
     func_2130();
+}
+
+void func_212b (void)
+{
+    SCENE1_STATE++;
 }
 
 void func_2130()
@@ -8774,7 +9139,7 @@ void func_2140()
     // 2143  d61e      sub     #1e
     // 2145  c23021    jp      nz,#2130
     // 2148  c32b21    jp      #212b
-    if (PACMAN_TILE2->x != 0x1e)
+    if (PACMAN_TILE2.x != 0x1e)
         func_2130();
     else
         SCENE1_STATE++;
@@ -8782,36 +9147,46 @@ void func_2140()
 
 void func_214b()
 {
+    //-------------------------------
     // 214b  3a324d    ld      a,(#4d32)
     // 214e  d61e      sub     #1e
     // 2150  c23621    jp      nz,#2136
-    if (BLINKY_TILE2->x != 0x1e)
+    //-------------------------------
+    if (BLINKY_TILE2.x != 0x1e)
     {
         func_2136();
         return;
     }
 
+    //-------------------------------
     // 2153  cd701a    call    #1a70
     // 2156  af        xor     a
     // 2157  32ac4e    ld      (#4eac),a
     // 215a  32bc4e    ld      (#4ebc),a
+    //-------------------------------
     func_1a70();
     SND_CH2_EFF_NUM =
     SND_CH3_EFF_NUM = 0;
 
+    //-------------------------------
     // 215d  cda505    call    #05a5
     // 2160  221c4d    ld      (#4d1c),hl
     // 2163  3a3c4d    ld      a,(#4d3c)
     // 2166  32304d    ld      (#4d30),a
-    func_05a5();
-    PACMAN_TILE_CHANGE=hl; // TODO, prob 32ff
+    //-------------------------------
+    XYPOS vector = func_05a5();
+    PACMAN_TILE_CHANGE = vector;
     PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
+    //-------------------------------
     // 2169  f7        rst     #30
     // 216a  450700
+    //-------------------------------
     schedISRTask (0x45, 0x07, 0x00);
 
+    //-------------------------------
     // 216d  c32b21    jp      #212b
+    //-------------------------------
     SCENE1_STATE++;
 }
 
@@ -8820,7 +9195,7 @@ void func_2170()
     // 2170  3a324d    ld      a,(#4d32)
     // 2173  d62f      sub     #2f
     // 2175  c23621    jp      nz,#2136
-    if (BLINKY_TILE2->x != 0x2f)
+    if (BLINKY_TILE2.x != 0x2f)
     {
         func_2136();
         return;
@@ -8834,7 +9209,7 @@ void func_217b()
     // 217b  3a324d    ld      a,(#4d32)
     // 217e  d63d      sub     #3d
     // 2180  c23021    jp      nz,#2130
-    if (BLINKY_TILE2->x != 0x3d)
+    if (BLINKY_TILE2.x != 0x3d)
     {
         func_2130();
         return;
@@ -8853,7 +9228,7 @@ void func_2186()
     // 218c  3a3a4d    ld      a,(#4d3a)
     // 218f  d63d      sub     #3d
     // 2191  c0        ret     nz
-    if (PACMAN_TILE2->x != 0x3d)
+    if (PACMAN_TILE2.x != 0x3d)
         return;
 
     // 2192  32064e    ld      (#4e06),a
@@ -8878,14 +9253,14 @@ void func_219e()
     // 21b0  1e 22 44 22 5d 22 0c 00  6a 22 0c 00 86 22 0c 00
     // 21c0  8d 22 3e 01 32 d2 45 32  d3 45 32 f2 45 32 f3 45
     //-------------------------------
-    void (*func)(int param)[] = 
+    void (*func[])(uint16_t param) = 
     {
-        func_21c2, nothing, func_21e1, func_21f5, func_220c, func_221e, func_2244,
-        func_225d, nothing, func_226a, nothing, func_2286, nothing, func_228d };
-    tableCall (func, SCENE2_STATE, 0x41d2);
+        func_21c2, nothingParam_000c, func_21e1, func_21f5, func_220c, func_221e, func_2244,
+        func_225d, nothingParam_000c, func_226a, nothingParam_000c, func_2286, nothingParam_000c, func_228d };
+    func[SCENE2_STATE] (0x41d2);
 }
 
-void func_21c2(uint16_t iy)
+void func_21c2 (uint16_t iy)
 {
     //-------------------------------
     // 21c2  3e01      ld      a,#01
@@ -8926,7 +9301,7 @@ void func_21e1(uint16_t iy)
     // 21e4  d62c      sub     #2c
     // 21e6  c23021    jp      nz,#2130
     //-------------------------------
-    int a = PACMAN_TILE2->x - 0x2c;
+    int a = PACMAN_TILE2.x - 0x2c;
     if (a != 0)
     {
         func_2130();
@@ -8939,11 +9314,11 @@ void func_21e1(uint16_t iy)
     // 21ed  32b74d    ld      (#4db7),a
     //-------------------------------
     BLINKY_SUBSTATE=
-    DIFF_FLAG2=a+1;
+    DIFF_FLAG_2=a+1;
     func_21f0();
 }
 
-void func_21f0(uint16_t iy)
+void func_21f0 (void)
 {
     //-------------------------------
     // 21f0  21074e    ld      hl,#4e07
@@ -8960,13 +9335,13 @@ void func_21f5(uint16_t iy)
     // 21f8  fe77      cp      #77
     // 21fa  2805      jr      z,#2201         ; (5)
     //-------------------------------
-    if (BLINKY_POS->x != 0x77)
+    if (BLINKY_POS.x != 0x77)
     {
         //-------------------------------
         // 21fc  fe78      cp      #78
         // 21fe  c23021    jp      nz,#2130
         //-------------------------------
-        if (BLINKY_POS->x != 0x78)
+        if (BLINKY_POS.x != 0x78)
         {
             func_2130();
             return;
@@ -8993,44 +9368,50 @@ void func_220c(uint16_t iy)
     // 220f  d678      sub     #78
     // 2211  c23722    jp      nz,#2237
     //-------------------------------
-    if (BLINKY_POS->x == 0x77)
+    if (BLINKY_POS.x != 0x78)
     {
-        //-------------------------------
-        // 2214  fd360062  ld      (iy+#00),#62
-        // 2218  fd360163  ld      (iy+#01),#63
-        //-------------------------------
-        MEM[iy]=0x62;
-        MEM[iy+1]=0x63;
-        //-------------------------------
-        // 221c  18d2      jr      #21f0           ; (-46)
-        //-------------------------------
-        func_21f0();
+        func_2237();
         return;
+    }
 
+    //-------------------------------
+    // 2214  fd360062  ld      (iy+#00),#62
+    // 2218  fd360163  ld      (iy+#01),#63
+    //-------------------------------
+    MEM[iy]=0x62;
+    MEM[iy+1]=0x63;
+    //-------------------------------
+    // 221c  18d2      jr      #21f0           ; (-46)
+    //-------------------------------
+    func_21f0();
+}
+
+void func_221e (uint16_t iy)
+{
     //-------------------------------
     // 221e  3a014d    ld      a,(#4d01)
     // 2221  d67b      sub     #7b
     // 2223  2012      jr      nz,#2237        ; (18)
     //-------------------------------
-    if (BLINKY_POS->x == 0x7b)
+    if (BLINKY_POS.x != 0x7b)
     {
-        //-------------------------------
-        // 2225  fd360064  ld      (iy+#00),#64
-        // 2229  fd360165  ld      (iy+#01),#65
-        // 222d  fd362066  ld      (iy+#20),#66
-        // 2231  fd362167  ld      (iy+#21),#67
-        //-------------------------------
-        MEM[iy]=0x64;
-        MEM[iy+1]=0x65;
-        MEM[iy+0x20]=0x66;
-        MEM[iy+0x21]=0x67;
-        //-------------------------------
-        // 2235  18b9      jr      #21f0           ; (-71)
-        //-------------------------------
-        func_21f0();
+        func_2237();
         return;
     }
-    func_2237();
+    //-------------------------------
+    // 2225  fd360064  ld      (iy+#00),#64
+    // 2229  fd360165  ld      (iy+#01),#65
+    // 222d  fd362066  ld      (iy+#20),#66
+    // 2231  fd362167  ld      (iy+#21),#67
+    //-------------------------------
+    MEM[iy]=0x64;
+    MEM[iy+1]=0x65;
+    MEM[iy+0x20]=0x66;
+    MEM[iy+0x21]=0x67;
+    //-------------------------------
+    // 2235  18b9      jr      #21f0           ; (-71)
+    //-------------------------------
+    func_21f0();
 }
 
 void func_2237()
@@ -9055,7 +9436,7 @@ void func_2244(uint16_t iy)
     // 2247  d67e      sub     #7e
     // 2249  20ec      jr      nz,#2237        ; (-20)
     //-------------------------------
-    if (BLINKY_POS->x != 0x7e)
+    if (BLINKY_POS.x != 0x7e)
     {
         func_2237 ();
         return;
@@ -9082,7 +9463,7 @@ void func_225d(uint16_t iy)
     // 2260  d680      sub     #80
     // 2262  20d3      jr      nz,#2237        ; (-45)
     //-------------------------------
-    if (BLINKY_POS->x != 0x80)
+    if (BLINKY_POS.x != 0x80)
     {
         func_2237 ();
         return;
@@ -9103,7 +9484,7 @@ void func_226a(uint16_t iy)
     // 226d  34        inc     (hl)
     // 226e  34        inc     (hl)
     //-------------------------------
-    BLINKY_POS->x += 2;
+    BLINKY_POS.x += 2;
     //-------------------------------
     // 226f  fd36006c  ld      (iy+#00),#6c
     // 2273  fd36016d  ld      (iy+#01),#6d
@@ -9162,17 +9543,20 @@ void func_2297()
     // 229b                                    a7 22 be 22 0c
     // 22a0  00 dd 22 f5 22 fe 22 
     //-------------------------------
-    void (*func)()[] = 
-        { func_22a7, func_22be, nothing, func_22dd, func_22f5, func_22fe };
+    void (*func[])() = 
+        { func_22a7, func_22be, nothing_000c, func_22dd, func_22f5, func_22fe };
 
-    tableCall (func, SCENE3_STATE);
+    tableCall_0020 (func, SCENE3_STATE);
+}
 
+void func_22a7 (void)
+{
     //-------------------------------
     // 22a7  3a3a4d    ld      a,(#4d3a)
     // 22aa  d625      sub     #25
     // 22ac  c23021    jp      nz,#2130
     //-------------------------------
-    if (PACMAN_TILE2->x != 0x25)
+    if (PACMAN_TILE2.x != 0x25)
     {
         func_2130();
         return;
@@ -9186,7 +9570,11 @@ void func_2297()
     //-------------------------------
     BLINKY_SUBSTATE = DIFF_FLAG_2 = 0x26;
     func_0506();
+    func_22b9();
+}
 
+void func_22b9 (void)
+{
     //-------------------------------
     // 22b9  21084e    ld      hl,#4e08
     // 22bc  34        inc     (hl)
@@ -9204,7 +9592,7 @@ void func_22be()
     // 22c5  fefe      cp      #fe
     // 22c7  c23021    jp      nz,#2130
     //-------------------------------
-    if (BLINKY_POS->x != 0xff && BLINKY_POS->x != 0xfe)
+    if (BLINKY_POS.x != 0xff && BLINKY_POS.x != 0xfe)
     {
         func_2130 ();
         return;
@@ -9215,7 +9603,7 @@ void func_22be()
     // 22cb  3c        inc     a
     // 22cc  32014d    ld      (#4d01),a
     //-------------------------------
-    BLINKY_POS->x += 2;
+    BLINKY_POS.x += 2;
 
     //-------------------------------
     // 22cf  3e01      ld      a,#01
@@ -9223,7 +9611,7 @@ void func_22be()
     // 22d4  cdfe1e    call    #1efe
     //-------------------------------
     BLINKY_ORIENT_CHG_FLAG = 1;
-    func_1efe();
+    reverseBlinky_1efe();
 
     //-------------------------------
     // 22d7  f7        rst     #30
@@ -9234,7 +9622,7 @@ void func_22be()
     //-------------------------------
     // 22db  18dc      jr      #22b9           ; (-36)
     //-------------------------------
-    SCENE3_STATE++;
+    func_22b9();
 }
 
 void func_22dd()
@@ -9242,24 +9630,24 @@ void func_22dd()
     // 22dd  3a324d    ld      a,(#4d32)
     // 22e0  d62d      sub     #2d
     // 22e2  28d5      jr      z,#22b9         ; (-43)
-    if (BLINKY_TILE2->x == 0x2d)
+    if (BLINKY_TILE2.x == 0x2d)
     {
-        SCENE3_STATE++;
+        func_22b9();
         return;
     }
-    func_22e4 ()
+    func_22e4 ();
 }
 
 void func_22e4()
 {
     // 22e4  3a004d    ld      a,(#4d00)
     // 22e7  32d24d    ld      (#4dd2),a
-    FRUIT_POS->y = BLINKY_POS->y;
+    FRUIT_POS.y = BLINKY_POS.y;
 
     // 22ea  3a014d    ld      a,(#4d01)
     // 22ed  d608      sub     #08
     // 22ef  32d34d    ld      (#4dd3),a
-    FRUIT_POS->x = BLINKY_POS->x - 8;
+    FRUIT_POS.x = BLINKY_POS.x - 8;
 
     // 22f2  c33021    jp      #2130
     func_2130();
@@ -9270,9 +9658,9 @@ void func_22f5()
     // 22f5  3a324d    ld      a,(#4d32)
     // 22f8  d61e      sub     #1e
     // 22fa  28bd      jr      z,#22b9         ; (-67)
-    if (BLINKY_TILE2->x == 0x1e)
+    if (BLINKY_TILE2.x == 0x1e)
     {
-        SCENE3_STATE++;
+        func_22b9 ();
         return;
     }
 
@@ -9309,15 +9697,14 @@ void start_230b ()
     // 2312  2c        inc     l
     // 2313  10fc      djnz    #2311           ; (-4)
     //-------------------------------
-
-    intEnable =
-    soundEnable =
-    auxEnable =
-    flipScreen =
-    player1Start =
-    player2Start =
-    coinLockout =
-    coinCounter = 0;
+    INTENABLE =
+    SOUNDENABLE =
+    AUXENABLE =
+    FLIPSCREEN =
+    P1START =
+    P2START =
+    COINLOCKOUT =
+    COINCOUNTER = 0;
 
     //-------------------------------
     // 2315  210040    ld      hl,#4000
@@ -9331,13 +9718,13 @@ void start_230b ()
         // 231d  320750    ld      (#5007),a	; Clear coin
         //-------------------------------
         kickWatchdog();
-        regsWrite.coinCounter = 0;
+        COINCOUNTER = 0;
 
         // 2320  3e40      ld      a,#40
         // 2322  77        ld      (hl),a
         // 2323  2c        inc     l
         // 2324  20fc      jr      nz,#2322        ; (-4)
-        for (int l = 0; ; < 0x100; l++)
+        for (int l = 0; l < 0x100; l++)
             VIDEO[hl++] = 0x40;
         // 2326  24        inc     h
         // 2327  10f1      djnz    #231a           ; (-15)
@@ -9349,7 +9736,7 @@ void start_230b ()
         kickWatchdog();
     // 232e  af        xor     a		; a=0
     // 232f  320750    ld      (#5007),a	; Clear coin
-        regsWrite.coinCounter = 0;
+        COINCOUNTER = 0;
     // 2332  3e0f      ld      a,#0f
     // 2334  77        ld      (hl),a
     // 2335  2c        inc     l
@@ -9358,7 +9745,7 @@ void start_230b ()
     // 2339  10f0      djnz    #232b           ; (-16)
 
     for (int i = 0; i < 0x3ff; i++)
-        COLOUR(i) = 0x0f;
+        COLOUR[i] = 0x0f;
 
     // 233b  ed5e      im      2		; interrupt mode 2
     interruptMode (2);
@@ -9369,14 +9756,15 @@ void start_230b ()
 
     // 2341  af        xor     a		; a=0
     // 2342  320750    ld      (#5007),a	; Clear coin
-    coinCounter = 0;
+    COINCOUNTER = 0;
     // 2345  3c        inc     a		; a=1 
     // 2346  320050    ld      (#5000),a	; Enable interrupts
     INTENABLE = 1;
 
     // 2349  fb        ei			; Enable interrupts
+    interruptEnable();
     // 234a  76        halt			; Wait for interrupt
-    while (!interrupt())
+    while (!interruptActive())
         ;
     // 	
     // 	;; Start the game ?
@@ -9387,7 +9775,8 @@ void start_230b ()
     // 2351  af        xor     a		; a=0
     // 2352  210050    ld      hl,#5000	
     // 2355  010808    ld      bc,#0808
-    // 2358  cf        rst     #8		; Restart at 0x08 (disable all)
+    // 2358  cf        rst     #8
+
     /*  Clear all write registers */
     memset (&REGSWRITE, 0, 8);
 
@@ -9404,13 +9793,13 @@ void start_230b ()
     // 2362  214050    ld      hl,#5040
     // 2365  0640      ld      b,#40
     // 2367  cf        rst     #8
-    memset (&SOUND(0), 0, 0x40);
+    memset (&SOUND[0], 0, 0x40);
 
     // 2368  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
 
     // 236b  cd0d24    call    #240d		; Clear color ram
-    clearColour_240d();
+    clearColour_240d(0);
 
     // 236e  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
@@ -9440,7 +9829,7 @@ void start_230b ()
     // 2389  320050    ld      (#5000),a	; enable interrupts
     // 238c  fb        ei			; enable interrupts
     //-------------------------------
-    regsWrite.intEnable = 1;
+    INTENABLE = 1;
     interruptEnable();
 
     while(1)
@@ -9490,20 +9879,21 @@ void start_230b ()
         //       5a2a 6a2b ea2b 5e2c
         // 23e2  a12b 7526 b226
         //-------------------------------
-        void (*func)(int param)[] = 
+        void (*func[])(int param) = 
             { jumpClearScreen_23ed, func_24d7, drawMazeTBD_2419, drawPills_2448, initialisePositions_25d3, 
               blinkySubstateTBD_268b, clearColour_240d, resetGameState_2698, func_2730,
-              func_276c, func_27a9, func_27f1, tileChangeBlinky_283b,
+              tileChangePinky_276c, tileChangeInky_27a9, tileChangeClyde_27f1, tileChangeBlinky_283b,
               tileChangePinky_2865, tileChangeInky_288f, tileChangeClyde_28b9, func_000d,
               func_26a2, clearPills_24c9, func_2a35, setConfig_26d0,
               updatePillsFromScreen_2487, func_23e8, func_28e3, func_2ae0,
               addToScore_2a5a, func_2b6a, func_2bea, displayMsg_2c5e,
               displayCredits, resetPositions_2675, showBonusLifeScore_26b2 };
-        tableCall (func, task, param);
+        // tableCall_0020 (func, task, param);
+        func[task] (param);
     }
 }
 
-func_23e8()
+void func_23e8 (int param)
 {
     //-------------------------------
     // 23e8  21044e    ld      hl,#4e04
@@ -9522,8 +9912,8 @@ void jumpClearScreen_23ed(int param)
     // 23ef  f323
     // 23f1  0024
     //-------------------------------
-    void (*func)(int b)[] = { clearScreen_23f3, clearMaze_2400 };
-    tableCall (func, param, b);
+    void (*func[])() = { clearScreen_23f3, clearMaze_2400 };
+    tableCall_0020 (func, param);
 }
 
 void clearScreen_23f3 (void)
@@ -9557,7 +9947,7 @@ void clearMaze_2400 (void)
     memset (VIDEO+0x40, 0x40, 0x380);
 }
 
-void clearColour_240d (void)
+void clearColour_240d (int param)
 {
     //-------------------------------
     // 	;; Set Color ram to 0x00
@@ -9572,15 +9962,15 @@ void clearColour_240d (void)
     memset (COLOUR, 0, 0x400);
 }
 
-bool drawMazeTBD_2419 (void)
+void drawMazeTBD_2419 (int param)
 {
     //-------------------------------
     // 2419  210040    ld      hl,#4000
     // 241c  013534    ld      bc,#3435
     //-------------------------------
 
-    int*hl=VIDEO;
-    int*bc=0x3435;
+    uint8_t *hl = VIDEO;
+    uint8_t *bc = data_3445;
 
     while (1)
     {
@@ -9589,7 +9979,7 @@ bool drawMazeTBD_2419 (void)
         // 2420  a7        and     a
         // 2421  c8        ret     z
         //-------------------------------
-        int a = *bc;
+        uint8_t a = *bc;
         if (a == 0)
             return;
 
@@ -9602,10 +9992,8 @@ bool drawMazeTBD_2419 (void)
             // 2429  2b        dec     hl
             // 242a  03        inc     bc
             // 242b  0a        ld      a,(bc)
-            hl+=a;
-            hl--;
-            bc++
-            a=MEM[bc];
+            hl += a - 1;
+            a = *++bc;
         }
         // 242c  23        inc     hl
         // 242d  77        ld      (hl),a
@@ -9613,7 +10001,6 @@ bool drawMazeTBD_2419 (void)
         *hl=a;
         // 242e  f5        push    af
         // 242f  e5        push    hl
-        de=hl;
         // 2430  11e083    ld      de,#83e0
         // 2433  7d        ld      a,l
         // 2434  e61f      and     #1f
@@ -9621,11 +10008,12 @@ bool drawMazeTBD_2419 (void)
         // 2437  2600      ld      h,#00
         // 2439  6f        ld      l,a
         // 243a  19        add     hl,de
-        hl=(hl&0xff)*2 + 0x83e0;
+        // hl=(hl&0x1f)*2 + 0x83e0;
+        // TODO 83e0 subtract is like inverting screen addr or something
         // 243b  d1        pop     de
         // 243c  a7        and     a
         // 243d  ed52      sbc     hl,de
-        hl-=de;
+        // hl-=de;
         // 243f  f1        pop     af
         // 2440  ee01      xor     #01
         // 2442  77        ld      (hl),a
@@ -9637,7 +10025,7 @@ bool drawMazeTBD_2419 (void)
     }
 }
 
-void drawPills_2448(void)
+void drawPills_2448 (int param)
 {
     //-------------------------------
     // 2448  210040    ld      hl,#4000
@@ -9645,7 +10033,7 @@ void drawPills_2448(void)
     // 244f  fd21b535  ld      iy,#35b5
     //-------------------------------
     uint8_t *hl = VIDEO;
-    uint8_t *pill = PILL_ARRAY;
+    uint8_t *ix = P1_PILL_ARRAY;
     uint8_t *iy=data_35b5;
     //-------------------------------
     // 2453  1600      ld      d,#00
@@ -9671,7 +10059,7 @@ void drawPills_2448(void)
             // 2461  3002      jr      nc,#2465        ; (2)
             // 2463  3610      ld      (hl),#10
             //-------------------------------
-            if (*pill & (0x80>>c))
+            if (*ix & (0x80>>c))
                 *hl = 0x10;
 
             //-------------------------------
@@ -9700,15 +10088,15 @@ void drawPills_2448(void)
     // 2484  eda0      ldi     
     // 2486  c9        ret    
     //-------------------------------
-    VIDEO[0x64] = BIG_PILL_ARRAY[0];
-    VIDEO[0x78] = BIG_PILL_ARRAY[1];
-    VIDEO[0x384] = BIG_PILL_ARRAY[2];
-    VIDEO[0x398] = BIG_PILL_ARRAY[3];
+    VIDEO[0x64] = P1_POWERUP_ARRAY[0];
+    VIDEO[0x78] = P1_POWERUP_ARRAY[1];
+    VIDEO[0x384] = P1_POWERUP_ARRAY[2];
+    VIDEO[0x398] = P1_POWERUP_ARRAY[3];
 }
 
 /*  Build bytes in pill array 0x4e16-0x4e34 1 bit at a time by reading screen offsets from a ROM
  *  table and checking if the byte on the screen at that offset == 0x10 */
-void updatePillsFromScreen_2487(void)
+void updatePillsFromScreen_2487 (int param)
 {
     //-------------------------------
     // 2487  210040    ld      hl,#4000
@@ -9717,9 +10105,9 @@ void updatePillsFromScreen_2487(void)
     // 2492  1600      ld      d,#00
     // 2494  061e      ld      b,#1e
     //-------------------------------
-    uint8_t *video = VIDEO;
-    int ix=0x4e16;
-    int iy=data_35b5;
+    int hl = 0;
+    uint8_t *ix=P1_PILL_ARRAY;
+    uint8_t *iy=data_35b5;
 
     for (int b = 0; b < 0x1e; b++)
     {
@@ -9739,18 +10127,18 @@ void updatePillsFromScreen_2487(void)
             // 24a2  3f        ccf     
             // 24a3  ddcb0016  rl      (ix+#00)
             //-------------------------------
-            hl+=MEM[iy];
-            MEM[ix]<<=1;
+            hl+=*iy;
+            *ix<<=1;
 
-            if (MEM[hl] == 0x10)
-                MEM[ix] |= 1;
+            if (VIDEO[hl] == 0x10)
+                *ix |= 1;
 
             //-------------------------------
             // 24a7  fd23      inc     iy
             // 24a9  0d        dec     c
             // 24aa  20ec      jr      nz,#2498        ; (-20)
             //-------------------------------
-            iy++
+            iy++;
         }
 
         //-------------------------------
@@ -9773,10 +10161,10 @@ void updatePillsFromScreen_2487(void)
     // 24c6  eda0      ldi     
     // 24c8  c9        ret     
     //-------------------------------
-    BIG_PILL_ARRAY[0] = VIDEO[0x64];
-    BIG_PILL_ARRAY[1] = VIDEO[0x78];
-    BIG_PILL_ARRAY[2] = VIDEO[0x384];
-    BIG_PILL_ARRAY[3] = VIDEO[0x398];
+    P1_POWERUP_ARRAY[0] = VIDEO[0x64];
+    P1_POWERUP_ARRAY[1] = VIDEO[0x78];
+    P1_POWERUP_ARRAY[2] = VIDEO[0x384];
+    P1_POWERUP_ARRAY[3] = VIDEO[0x398];
 }
 
 void clearPills_24c9()
@@ -9791,11 +10179,11 @@ void clearPills_24c9()
     // 24d5  cf        rst     #8
     // 24d6  c9        ret     
     //-------------------------------
-    memset (PILL_ARRAY, 0xff, 0x10);
-    memset (BIG_PILL_ARRAY, 0x14, 0x4);
+    memset (P1_PILL_ARRAY, 0xff, 0x10);
+    memset (P1_POWERUP_ARRAY, 0x14, 0x4);
 }
  
-func_24d7(int param)
+void func_24d7(int param)
 {
     //-------------------------------
     // 24d7  58        ld      e,b
@@ -9805,6 +10193,7 @@ func_24d7(int param)
     // 24dd  2802      jr      z,#24e1         ; (2)
     // 24df  3e10      ld      a,#10
     //-------------------------------
+    int a;
     if (param == 2)
         a = 0x10;
     else
@@ -9848,8 +10237,8 @@ func_24d7(int param)
     // 24fe  dd21a045  ld      ix,#45a0
     //-------------------------------
 
-    ix=COLOUR+0x1a0;
-    for (b = 0; b < 6; b++)
+    uint8_t *ix=&COLOUR[0x1a0];
+    for (int b = 0; b < 6; b++)
     {
         //-------------------------------
         // 2502  dd770c    ld      (ix+#0c),a
@@ -9868,7 +10257,7 @@ func_24d7(int param)
     // 2510  dd214044  ld      ix,#4440
     //-------------------------------
     ix=COLOUR+0x40;
-    for (b = 0; b < 5; b++)
+    for (int b = 0; b < 5; b++)
     {
         //-------------------------------
         // 2514  dd770e    ld      (ix+#0e),a
@@ -9886,7 +10275,7 @@ func_24d7(int param)
     // 2523  dd212047  ld      ix,#4720
     //-------------------------------
     ix=COLOUR+0x320;
-    for (b = 0; b < 5; b++)
+    for (int b = 0; b < 5; b++)
     {
         //-------------------------------
         // 2527  dd770e    ld      (ix+#0e),a
@@ -9910,7 +10299,7 @@ func_24d7(int param)
     COLOUR[0x20d]=0x18;
 }
 
-initialisePositions_25d3()
+void initialisePositions_25d3 (int b)
 {
     //-------------------------------
     // 253d  dd21004c  ld      ix,#4c00
@@ -9952,128 +10341,128 @@ initialisePositions_25d3()
         // 2576  216480    ld      hl,#8064
         // 2579  22004d    ld      (#4d00),hl
         //-------------------------------
-        BLINKY_POS->y = 0x64;
-        BLINKY_POS->x = 0x80;
+        BLINKY_POS.y = 0x64;
+        BLINKY_POS.x = 0x80;
         //-------------------------------
         // 257c  217c80    ld      hl,#807c
         // 257f  22024d    ld      (#4d02),hl
         //-------------------------------
-        PINKY_POS->y = 0x7c;
-        PINKY_POS->x = 0x80;
+        PINKY_POS.y = 0x7c;
+        PINKY_POS.x = 0x80;
         //-------------------------------
         // 2582  217c90    ld      hl,#907c
         // 2585  22044d    ld      (#4d04),hl
         //-------------------------------
-        INKY_POS->y = 0x7c;
-        INKY_POS->x = 0x90;
+        INKY_POS.y = 0x7c;
+        INKY_POS.x = 0x90;
         //-------------------------------
         // 2588  217c70    ld      hl,#707c
         // 258b  22064d    ld      (#4d06),hl
         //-------------------------------
-        CLYDE_POS->y = 0x7c;
-        CLYDE_POS->x = 0x70;
+        CLYDE_POS.y = 0x7c;
+        CLYDE_POS.x = 0x70;
         //-------------------------------
         // 258e  21c480    ld      hl,#80c4
         // 2591  22084d    ld      (#4d08),hl
         //-------------------------------
-        PACMAN_POS->y = 0xc4;
-        PACMAN_POS->x = 0x80;
+        PACMAN_POS.y = 0xc4;
+        PACMAN_POS.x = 0x80;
         //-------------------------------
         // 2594  212c2e    ld      hl,#2e2c
         // 2597  220a4d    ld      (#4d0a),hl
         // 259a  22314d    ld      (#4d31),hl
         //-------------------------------
-        BLINKY_POS_TILE->y = BLINKY_POS_TILE2->y = 0x2c;
-        BLINKY_POS_TILE->x = BLINKY_POS_TILE2->x = 0x2e;
+        BLINKY_TILE.y = BLINKY_TILE2.y = 0x2c;
+        BLINKY_TILE.x = BLINKY_TILE2.x = 0x2e;
         //-------------------------------
         // 259d  212f2e    ld      hl,#2e2f
         // 25a0  220c4d    ld      (#4d0c),hl
         // 25a3  22334d    ld      (#4d33),hl
         //-------------------------------
-        PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x2f;
-        PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x2e;
+        PINKY_TILE.y = PINKY_TILE2.y = 0x2f;
+        PINKY_TILE.x = PINKY_TILE2.x = 0x2e;
         //-------------------------------
         // 25a6  212f30    ld      hl,#302f
         // 25a9  220e4d    ld      (#4d0e),hl
         // 25ac  22354d    ld      (#4d35),hl
         //-------------------------------
-        INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x2f;
-        INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x30;
+        INKY_TILE.y = INKY_TILE2.y = 0x2f;
+        INKY_TILE.x = INKY_TILE2.x = 0x30;
         //-------------------------------
         // 25af  212f2c    ld      hl,#2c2f
         // 25b2  22104d    ld      (#4d10),hl
         // 25b5  22374d    ld      (#4d37),hl
         //-------------------------------
-        CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x2f;
-        CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x2c;
+        CLYDE_TILE.y = CLYDE_TILE2.y = 0x2f;
+        CLYDE_TILE.x = CLYDE_TILE2.x = 0x2c;
         //-------------------------------
         // 25b8  21382e    ld      hl,#2e38
         // 25bb  22124d    ld      (#4d12),hl
         // 25be  22394d    ld      (#4d39),hl
         //-------------------------------
-        PACMAN_POS_TILE->y = PACMAN_POS_TILE2->y = 0x38;
-        PACMAN_TILE->x = PACMAN_TILE2->x = 0x2e;
+        PACMAN_TILE.y = PACMAN_TILE2.y = 0x38;
+        PACMAN_TILE.x = PACMAN_TILE2.x = 0x2e;
         //-------------------------------
         // 25c1  210001    ld      hl,#0100
         // 25c4  22144d    ld      (#4d14),hl
         // 25c7  221e4d    ld      (#4d1e),hl
         //-------------------------------
-        BLINKY_POS_TILE_CHANGE->y = BLINKY_POS_TILE_CHANGE2->y = 0x00;
-        BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
+        BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
+        BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
         //-------------------------------
         // 25ca  210100    ld      hl,#0001
         // 25cd  22164d    ld      (#4d16),hl
         // 25d0  22204d    ld      (#4d20),hl
         //-------------------------------
-        PINKY_POS_TILE_CHANGE->y = PINKY_POS_TILE_CHANGE2->y = 0x01;
-        PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x00;
+        PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x01;
+        PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x00;
         //-------------------------------
         // 25d3  21ff00    ld      hl,#00ff
         // 25d6  22184d    ld      (#4d18),hl
         // 25d9  22224d    ld      (#4d22),hl
         //-------------------------------
-        INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0xff;
-        INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x00;
+        INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0xff;
+        INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x00;
         //-------------------------------
         // 25dc  21ff00    ld      hl,#00ff
         // 25df  221a4d    ld      (#4d1a),hl
         // 25e2  22244d    ld      (#4d24),hl
         //-------------------------------
-        CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0xff;
-        CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x00;
+        CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0xff;
+        CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x00;
         //-------------------------------
         // 25e5  210001    ld      hl,#0100
         // 25e8  221c4d    ld      (#4d1c),hl
         // 25eb  22264d    ld      (#4d26),hl
         //-------------------------------
-        PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y = 0x00;
-        PACMAN_TILE_CHANGE->x = PACMAN_TILE_CHANGE2->x = 0x01;
+        PACMAN_TILE_CHANGE.y = PACMAN_TILE_CHANGE2.y = 0x00;
+        PACMAN_TILE_CHANGE.x = PACMAN_TILE_CHANGE2.x = 0x01;
         //-------------------------------
         // 25ee  210201    ld      hl,#0102
         // 25f1  22284d    ld      (#4d28),hl
         // 25f4  222c4d    ld      (#4d2c),hl
         //-------------------------------
-        BLINKY_ORIENTATON = BLINKY_PREV_ORIENTATION = 0x02;
-        PINKY_ORIENTATON = PINKY_PREV_ORIENTATION = 0x01;
+        BLINKY_ORIENTATION = BLINKY_PREV_ORIENTATION = 0x02;
+        PINKY_ORIENTATION = PINKY_PREV_ORIENTATION = 0x01;
         //-------------------------------
         // 25f7  210303    ld      hl,#0303
         // 25fa  222a4d    ld      (#4d2a),hl
         // 25fd  222e4d    ld      (#4d2e),hl
         //-------------------------------
-        INKY_ORIENTATON = INKY_PREV_ORIENTATION = 0x03;
-        CLYDE_ORIENTATON = CLYDE_PREV_ORIENTATION = 0x03;
+        INKY_ORIENTATION = INKY_PREV_ORIENTATION = 0x03;
+        CLYDE_ORIENTATION = CLYDE_PREV_ORIENTATION = 0x03;
         //-------------------------------
         // 2600  3e02      ld      a,#02
         // 2602  32304d    ld      (#4d30),a
         // 2605  323c4d    ld      (#4d3c),a
         //-------------------------------
-        PACMAN_ORIENTATON = PACMAN_DESIRED_ORIENTATION = 0x02;
+        PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION = 0x02;
         //-------------------------------
         // 2608  210000    ld      hl,#0000
         // 260b  22d24d    ld      (#4dd2),hl
         // 260e  c9        ret     
         //-------------------------------
-        FRUIT_POS = 0x0000;
+        FRUIT_POS.y = FRUIT_POS.x = 0;
     }
     else
     {
@@ -10084,14 +10473,14 @@ initialisePositions_25d3()
         // 2618  22044d    ld      (#4d04),hl
         // 261b  22064d    ld      (#4d06),hl
         //-------------------------------
-        BLINKY_POS->y = 0x94;
-        BLINKY_POS->x = 0x00;
-        PINKY_POS->y = 0x94;
-        PINKY_POS->x = 0x00;
-        INKY_POS->y = 0x94;
-        INKY_POS->x = 0x00;
-        CLYDE_POS->y = 0x94;
-        CLYDE_POS->x = 0x00;
+        BLINKY_POS.y = 0x94;
+        BLINKY_POS.x = 0x00;
+        PINKY_POS.y = 0x94;
+        PINKY_POS.x = 0x00;
+        INKY_POS.y = 0x94;
+        INKY_POS.x = 0x00;
+        CLYDE_POS.y = 0x94;
+        CLYDE_POS.x = 0x00;
         //-------------------------------
         // 261e  21321e    ld      hl,#1e32
         // 2621  220a4d    ld      (#4d0a),hl
@@ -10103,14 +10492,14 @@ initialisePositions_25d3()
         // 2633  22354d    ld      (#4d35),hl
         // 2636  22374d    ld      (#4d37),hl
         //-------------------------------
-        BLINKY_POS_TILE->y = BLINKY_POS_TILE2->y = 0x32;
-        BLINKY_POS_TILE->x = BLINKY_POS_TILE2->x = 0x1e;
-        PINKY_POS_TILE->y = PINKY_POS_TILE2->y = 0x32;
-        PINKY_POS_TILE->x = PINKY_POS_TILE2->x = 0x1e;
-        INKY_POS_TILE->y = INKY_POS_TILE2->y = 0x32;
-        INKY_POS_TILE->x = INKY_POS_TILE2->x = 0x1e;
-        CLYDE_POS_TILE->y = CLYDE_POS_TILE2->y = 0x32;
-        CLYDE_POS_TILE->x = CLYDE_POS_TILE2->x = 0x1e;
+        BLINKY_TILE.y = BLINKY_TILE2.y = 0x32;
+        BLINKY_TILE.x = BLINKY_TILE2.x = 0x1e;
+        PINKY_TILE.y = PINKY_TILE2.y = 0x32;
+        PINKY_TILE.x = PINKY_TILE2.x = 0x1e;
+        INKY_TILE.y = INKY_TILE2.y = 0x32;
+        INKY_TILE.x = INKY_TILE2.x = 0x1e;
+        CLYDE_TILE.y = CLYDE_TILE2.y = 0x32;
+        CLYDE_TILE.x = CLYDE_TILE2.x = 0x1e;
         //-------------------------------
         // 2639  210001    ld      hl,#0100
         // 263c  22144d    ld      (#4d14),hl
@@ -10124,16 +10513,16 @@ initialisePositions_25d3()
         // 2654  221c4d    ld      (#4d1c),hl
         // 2657  22264d    ld      (#4d26),hl
         //-------------------------------
-        BLINKY_POS_TILE_CHANGE->y = BLINKY_POS_TILE_CHANGE2->y = 0x00;
-        BLINKY_POS_TILE_CHANGE->x = BLINKY_POS_TILE_CHANGE2->x = 0x01;
-        PINKY_POS_TILE_CHANGE->y = PINKY_POS_TILE_CHANGE2->y = 0x00;
-        PINKY_POS_TILE_CHANGE->x = PINKY_POS_TILE_CHANGE2->x = 0x01;
-        INKY_POS_TILE_CHANGE->y = INKY_POS_TILE_CHANGE2->y = 0x00;
-        INKY_POS_TILE_CHANGE->x = INKY_POS_TILE_CHANGE2->x = 0x01;
-        CLYDE_POS_TILE_CHANGE->y = CLYDE_POS_TILE_CHANGE2->y = 0x00;
-        CLYDE_POS_TILE_CHANGE->x = CLYDE_POS_TILE_CHANGE2->x = 0x01;
-        PACMAN_POS_TILE_CHANGE->y = PACMAN_POS_TILE_CHANGE2->y = 0x00;
-        PACMAN_TILE_CHANGE->x = PACMAN_TILE_CHANGE2->x = 0x01;
+        BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
+        BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
+        PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x00;
+        PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x01;
+        INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0x00;
+        INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x01;
+        CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0x00;
+        CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x01;
+        PACMAN_TILE_CHANGE.y = PACMAN_TILE_CHANGE2.y = 0x00;
+        PACMAN_TILE_CHANGE.x = PACMAN_TILE_CHANGE2.x = 0x01;
         //-------------------------------
         // 265a  21284d    ld      hl,#4d28
         // 265d  3e02      ld      a,#02
@@ -10147,16 +10536,16 @@ initialisePositions_25d3()
         // 2668  22084d    ld      (#4d08),hl
         //-------------------------------
         PACMAN_DESIRED_ORIENTATION = 0x02;
-        PACMAN_POS->y = 0x94;
-        PACMAN_POS->x = 0x08;
+        PACMAN_POS.y = 0x94;
+        PACMAN_POS.x = 0x08;
         //-------------------------------
         // 266b  21321f    ld      hl,#1f32
         // 266e  22124d    ld      (#4d12),hl
         // 2671  22394d    ld      (#4d39),hl
         // 2674  c9        ret     
         //-------------------------------
-        PACMAN_POS_TILE->y PACMAN_POS_TILE2->y = 0x32;
-        PACMAN_TILE->x PACMAN_TILE2->x = 0x32;
+        PACMAN_TILE.y = PACMAN_TILE2.y = 0x32;
+        PACMAN_TILE.x = PACMAN_TILE2.x = 0x32;
     }
 }
 
@@ -10167,8 +10556,8 @@ void resetPositions_2675()
     // 2678  22d24d    ld      (#4dd2),hl
     // 267b  22084d    ld      (#4d08),hl
     //-------------------------------
-    FRUIT_POS = 0;
-    PACMAN_POS->y = PACMAN_POS->x = 0;
+    FRUIT_POS.y = FRUIT_POS.x = 0;
+    PACMAN_POS.y = PACMAN_POS.x = 0;
     resetGhostPosition_267e (0, 0);
 }
 
@@ -10181,10 +10570,10 @@ void resetGhostPosition_267e (int y, int x)
     // 2687  22064d    ld      (#4d06),hl
     // 268a  c9        ret     
     //-------------------------------
-    BLINKY_POS->y = BLINKY_POS->x = x;
-    PINKY_POS->y = PINKY_POS->x = y;
-    INKY_POS->y = INKY_POS->x = x;
-    CLYDE_POS->y = CLYDE_POS->x = y;
+    BLINKY_POS.y = BLINKY_POS.x = x;
+    PINKY_POS.y = PINKY_POS.x = y;
+    INKY_POS.y = INKY_POS.x = x;
+    CLYDE_POS.y = CLYDE_POS.x = y;
 }
 
 void blinkySubstateTBD_268b(int param)
@@ -10196,7 +10585,7 @@ void blinkySubstateTBD_268b(int param)
     // 2691  c8        ret     z
     //-------------------------------
     GHOST_HOUSE_MOVE_COUNT=0x55;
-    if (--param === 0)
+    if (--param == 0)
         return;
     //-------------------------------
     // 2692  3e01      ld      a,#01
@@ -10215,8 +10604,8 @@ void resetGameState_2698()
     // 269e  32014e    ld      (#4e01),a
     // 26a1  c9        ret     
     //-------------------------------
-    GAME_STATE=1;
-    START_STATE=0;
+    MAIN_STATE=1;
+    MAIN_STATE_SUB0=0;
 }
 
 void func_26a2()
@@ -10246,7 +10635,7 @@ void showBonusLifeScore_26b2()
     // 26bd  dd7700    ld      (ix+#00),a
     //-------------------------------
     int digit = BONUS_LIFE;
-    VIDEO[0x136] = (digit & 0xf) + 0x30
+    VIDEO[0x136] = (digit & 0xf) + 0x30;
     //-------------------------------
     // 26c0  3a714e    ld      a,(#4e71)
     // 26c3  0f        rrca    
@@ -10276,7 +10665,7 @@ void setConfig_26d0()
     // 26d4  e603      and     #03
     // 26d6  c2de26    jp      nz,#26de
     //-------------------------------
-    a = DIP_SWITCH_TEST;
+    int a = DIP_SWITCH_TEST;
     if (a == 0)
     {
         // 26d9  216e4e    ld      hl,#4e6e
@@ -10328,7 +10717,7 @@ void setConfig_26d0()
     // 2703  d7        rst     #10
     // 2704  32714e    ld      (#4e71),a
     //-------------------------------
-    BONUS_LIFE= fetchOffset (bonusLifeData, a);
+    BONUS_LIFE= bonusLifeData[a];
     //-------------------------------
     // 2707  78        ld      a,b
     // 2708  07        rlca    
@@ -10348,7 +10737,7 @@ void setConfig_26d0()
     // 2719  df        rst     #18
     // 271a  22734e    ld      (#4e73),hl
     //-------------------------------
-    DIFFICULTY_PTR=tableLookup (difficultyData, a);
+    DIFFICULTY_PTR=*(uint16_t*)&difficultyData[a];
     //-------------------------------
     // 271d  3a4050    ld      a,(#5040)
     // 2720  07        rlca    
@@ -10366,7 +10755,7 @@ void setConfig_26d0()
     uint8_t bonusLifeData[] = { 0x10, 0x15, 0x20, 0xff };
     uint8_t difficultyData[] = { 0x68, 0x00, 0x7d, 0x00 };
 
-func_2730()
+void func_2730 (int param)
 {
     //-------------------------------
     // 2730  3ac14d    ld      a,(#4dc1)
@@ -10398,7 +10787,9 @@ func_2730()
                 // 2754  322c4d    ld      (#4d2c),a
                 // 2757  c9        ret     
                 //-------------------------------
-                BLINKY_TILE_CHANGE2 = findBestOrientation_2966 (BLINKY_TILE, 0x221d, &BLINKY_ORIENTATION);
+                XYPOS vector = { 0x1d, 0x22 };
+                BLINKY_TILE_CHANGE2 =
+                    findBestOrientation_2966 (BLINKY_TILE, vector, &BLINKY_ORIENTATION);
                 return;
             }
         }
@@ -10416,7 +10807,7 @@ func_2730()
     BLINKY_TILE_CHANGE2 = findBestOrientation_2966 (BLINKY_TILE, PACMAN_TILE2, &BLINKY_ORIENTATION);
 }
 
-void func_276c()
+void tileChangePinky_276c (int param)
 {
     //-------------------------------
     // 276c  3ac14d    ld      a,(#4dc1)
@@ -10441,7 +10832,8 @@ void func_276c()
             // 278a  322d4d    ld      (#4d2d),a
             // 278d  c9        ret     
             //-------------------------------
-            PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PINKY_TILE, 0x391d, &PINKY_ORIENTATION);
+            XYPOS vector = { 0x1d, 0x39 };
+            PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PINKY_TILE, vector, &PINKY_ORIENTATION);
             return;
         }
     }
@@ -10463,7 +10855,7 @@ void func_276c()
     PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PACMAN_TILE_CHANGE, PACMAN_TILE2, &PINKY_ORIENTATION);
 }
 
-void func_27a9()
+void tileChangeInky_27a9 (int param)
 {
     // 27a9  3ac14d    ld      a,(#4dc1)
     // 27ac  cb47      bit     0,a
@@ -10482,7 +10874,9 @@ void func_27a9()
             // 27c4  22224d    ld      (#4d22),hl
             // 27c7  322e4d    ld      (#4d2e),a
             // 27ca  c9        ret     
-            INKY_TILE_CHANGE2 = findBestOrientation_2966 (INKY_TILE, 0x2040, &INKY_ORIENTATION);
+            XYPOS vector = { 0x40, 0x20 };
+            INKY_TILE_CHANGE2 =
+                findBestOrientation_2966 (INKY_TILE, vector, &INKY_ORIENTATION);
             return;
         }
     }
@@ -10495,18 +10889,18 @@ void func_27a9()
     XYPOS pos=PACMAN_TILE_CHANGE;
     // 27d6  29        add     hl,hl
     // 27d7  19        add     hl,de
-    pos.y = PACMAN_TILE_CHANGE->y * 2 + PACMAN_TILE2->y;
-    pos.x = PACMAN_TILE_CHANGE->x * 2 + PACMAN_TILE2->x;
+    pos.y = PACMAN_TILE_CHANGE.y * 2 + PACMAN_TILE2.y;
+    pos.x = PACMAN_TILE_CHANGE.x * 2 + PACMAN_TILE2.x;
     // 27d8  7d        ld      a,l
     // 27d9  87        add     a,a
     // 27da  91        sub     c
     // 27db  6f        ld      l,a
-    pos.y = pos.y * 2 - BLINKY_TILE->x;
+    pos.y = pos.y * 2 - BLINKY_TILE.x;
     // 27dc  7c        ld      a,h
     // 27dd  87        add     a,a
     // 27de  90        sub     b
     // 27df  67        ld      h,a
-    pos.x = pos.x * 2 - BLINKY_TILE->y;
+    pos.x = pos.x * 2 - BLINKY_TILE.y;
     // 27e0  eb        ex      de,hl
     // 27e1  2a0e4d    ld      hl,(#4d0e)
     // 27e4  3a2e4d    ld      a,(#4d2e)
@@ -10514,10 +10908,11 @@ void func_27a9()
     // 27ea  22224d    ld      (#4d22),hl
     // 27ed  322e4d    ld      (#4d2e),a
     // 27f0  c9        ret     
-    INKY_TILE_CHANGE2 = findBestOrientation_2966 (INKY_TILE, pos, &INKY_ORIENTATION);
+    INKY_TILE_CHANGE2 =
+        findBestOrientation_2966 (INKY_TILE, pos, &INKY_ORIENTATION);
 }
 
-void func_27f1()
+void tileChangeClyde_27f1 (int param)
 {
     // 27f1  3ac14d    ld      a,(#4dc1)
     // 27f4  cb47      bit     0,a
@@ -10537,7 +10932,8 @@ void func_27f1()
             // 280c  22244d    ld      (#4d24),hl
             // 280f  322f4d    ld      (#4d2f),a
             // 2812  c9        ret     
-            CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, data_3b40,
+            CLYDE_TILE_CHANGE2 =
+                findBestOrientation_2966(CLYDE_TILE, data_3b40[0],
             &CLYDE_ORIENTATION);
             return;
         }
@@ -10546,7 +10942,7 @@ void func_27f1()
     // 2813  dd21394d  ld      ix,#4d39
     // 2817  fd21104d  ld      iy,#4d10
     // 281b  cdea29    call    #29ea
-    dist = computeDistance_29ea(PACMAN_TILE2, CLYDE_TILE);
+    uint16_t dist = computeDistance_29ea(PACMAN_TILE2, CLYDE_TILE);
     // 281e  114000    ld      de,#0040
     // 2821  a7        and     a
     // 2822  ed52      sbc     hl,de
@@ -10562,7 +10958,8 @@ void func_27f1()
     // 2834  22244d    ld      (#4d24),hl
     // 2837  322f4d    ld      (#4d2f),a
     // 283a  c9        ret     
-    CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, PACMAN_TILE2,
+    CLYDE_TILE_CHANGE2 =
+        findBestOrientation_2966(CLYDE_TILE, PACMAN_TILE2,
     &CLYDE_ORIENTATION);
 }
 
@@ -10580,7 +10977,9 @@ void tileChangeBlinky_283b()
         // 284e  221e4d    ld      (#4d1e),hl
         // 2851  322c4d    ld      (#4d2c),a
         // 2854  c9        ret     
-        BLINKY_TILE_CHANGE2 = findBestOrientation_2966(BLINKY_TILE, 0x2e2c, &BLINKY_ORIENTATION);
+        XYPOS vector = { 0x2c, 0x2e };
+        BLINKY_TILE_CHANGE2 =
+            findBestOrientation_2966(BLINKY_TILE, vector, &BLINKY_ORIENTATION);
         return;
     }
     // 2855  2a0a4d    ld      hl,(#4d0a)
@@ -10589,7 +10988,8 @@ void tileChangeBlinky_283b()
     // 285e  221e4d    ld      (#4d1e),hl
     // 2861  322c4d    ld      (#4d2c),a
     // 2864  c9        ret     
-    BLINKY_TILE_CHANGE2 = randomDirection_291e(BLINKY_TILE, &BLINKY_ORIENTATION);
+    BLINKY_TILE_CHANGE2 =
+        randomDirection_291e(BLINKY_TILE, &BLINKY_ORIENTATION);
 }
 
 void tileChangePinky_2865()
@@ -10606,7 +11006,9 @@ void tileChangePinky_2865()
         // 2878  22204d    ld      (#4d20),hl
         // 287b  322d4d    ld      (#4d2d),a
         // 287e  c9        ret     
-        PINKY_TILE_CHANGE2 = findBestOrientation_2966(PINKY_TILE, 0x2e2c,
+        XYPOS vector = { 0x2c, 0x2e };
+        PINKY_TILE_CHANGE2 =
+            findBestOrientation_2966(PINKY_TILE, vector,
         &PINKY_ORIENTATION);
         return;
     }
@@ -10617,7 +11019,8 @@ void tileChangePinky_2865()
     // 2888  22204d    ld      (#4d20),hl
     // 288b  322d4d    ld      (#4d2d),a
     // 288e  c9        ret     
-    PINKY_TILE_CHANGE2 = randomDirection_291e(PINKY_TILE, &PINKY_ORIENTATION);
+    PINKY_TILE_CHANGE2 =
+        randomDirection_291e(PINKY_TILE, &PINKY_ORIENTATION);
 }
 
 void tileChangeInky_288f()
@@ -10634,18 +11037,21 @@ void tileChangeInky_288f()
         // 28a2  22224d    ld      (#4d22),hl
         // 28a5  322e4d    ld      (#4d2e),a
         // 28a8  c9        ret     
-        INKY_TILE_CHANGE2 = findBestOrientation_2966(INKY_TILE, 0x2e2c,
+        XYPOS vector = { 0x2c, 0x2e };
+        INKY_TILE_CHANGE2 =
+            findBestOrientation_2966(INKY_TILE, vector,
         &INKY_ORIENTATION);
         return;
     }
-V
+
     // 28a9  2a0e4d    ld      hl,(#4d0e)
     // 28ac  3a2e4d    ld      a,(#4d2e)
     // 28af  cd1e29    call    #291e
     // 28b2  22224d    ld      (#4d22),hl
     // 28b5  322e4d    ld      (#4d2e),a
     // 28b8  c9        ret     
-    INKY_TILE_CHANGE2 = randomDirection_291e(INKY_TILE, &INKY_ORIENTATION);
+    INKY_TILE_CHANGE2 =
+        randomDirection_291e(INKY_TILE, &INKY_ORIENTATION);
 }
 
 void tileChangeClyde_28b9()
@@ -10662,7 +11068,9 @@ void tileChangeClyde_28b9()
         // 28cc  22244d    ld      (#4d24),hl
         // 28cf  322f4d    ld      (#4d2f),a
         // 28d2  c9        ret     
-        CLYDE_TILE_CHANGE2 = findBestOrientation_2966(CLYDE_TILE, 0x2e2c,
+        XYPOS vector = { 0x2c, 0x2e };
+        CLYDE_TILE_CHANGE2 =
+            findBestOrientation_2966(CLYDE_TILE, vector,
         &CLYDE_ORIENTATION);
         return;
     }
@@ -10673,9 +11081,12 @@ void tileChangeClyde_28b9()
     // 28dc  22244d    ld      (#4d24),hl
     // 28df  322f4d    ld      (#4d2f),a
     // 28e2  c9        ret     
-    CLYDE_TILE_CHANGE2 = randomDirection_291e(CLYDE_TILE, &CLYDE_ORIENTATION);
+    CLYDE_TILE_CHANGE2 =
+        randomDirection_291e(CLYDE_TILE, &CLYDE_ORIENTATION);
 }
 
+/*  Appears to choose pacman orientation in demo mode based on ghosts' locations
+ */
 void func_28e3()
 {
     // 28e3  3aa74d    ld      a,(#4da7)
@@ -10690,7 +11101,8 @@ void func_28e3()
         // 28f7  22264d    ld      (#4d26),hl
         // 28fa  323c4d    ld      (#4d3c),a
         // 28fd  c9        ret     
-        PACMAN_TILE_CHANGE2 = findBestOrientation_2966(PACMAN_DEMO_TILE, PINKY_TILE,
+        PACMAN_TILE_CHANGE2 =
+            findBestOrientation_2966(PACMAN_TILE, PINKY_TILE,
         &PACMAN_DESIRED_ORIENTATION);
         return;
     }
@@ -10702,12 +11114,12 @@ void func_28e3()
     // 2907  91        sub     c
     // 2908  6f        ld      l,a
     XYPOS desired;
-    desired->y=PACMAN_TILE2->y*2-PINKY_TILE->y;
+    desired.y=PACMAN_TILE2.y*2-PINKY_TILE.y;
     // 2909  7c        ld      a,h
     // 290a  87        add     a,a
     // 290b  90        sub     b
     // 290c  67        ld      h,a
-    desired->x=PACMAN_TILE2->x*2-PINKY_TILE->x;
+    desired.x=PACMAN_TILE2.x*2-PINKY_TILE.x;
     // 290d  eb        ex      de,hl
     // 290e  2a124d    ld      hl,(#4d12)
     // 2911  3a3c4d    ld      a,(#4d3c)
@@ -10715,10 +11127,11 @@ void func_28e3()
     // 2917  22264d    ld      (#4d26),hl
     // 291a  323c4d    ld      (#4d3c),a
     // 291d  c9        ret     
-    PACMAN_TILE_CHANGE2 = findBestOrientation_2966(PACMAN_DEMO_TILE, desired, &PACMAN_DESIRED_ORIENTATION);
+    PACMAN_TILE_CHANGE2 =
+        findBestOrientation_2966(PACMAN_TILE, desired, &PACMAN_DESIRED_ORIENTATION);
 }
 
-uint16_t randomDirection_291e (XYPOS hl, uint8_t *orientation)
+XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation)
 {
     // 291e  223e4d    ld      (#4d3e),hl
     // 2921  ee02      xor     #02
@@ -10736,34 +11149,38 @@ uint16_t randomDirection_291e (XYPOS hl, uint8_t *orientation)
     // 2933  dd21ff32  ld      ix,#32ff
     // 2937  dd19      add     ix,de
     // 2939  fd213e4d  ld      iy,#4d3e
-    ix = &moveData_32ff[BEST_ORIENTATION_FOUND*2];
-    iy = CURRENT_TILE_POS;
+    XYPOS *ix = &moveVectorData_32ff[BEST_ORIENTATION_FOUND];
+    XYPOS iy = CURRENT_TILE_POS;
 
     while (1)
     {
         // 293d  3a3d4d    ld      a,(#4d3d)
         // 2940  be        cp      (hl)
         // 2941  ca5729    jp      z,#2957
-        if (OPPOSITE_ORIENTATION != BEST_ORIENTATON_FOUND)
+
+        /* Prohibit ghosts from doing u-turns */
+        if (OPPOSITE_ORIENTATION != BEST_ORIENTATION_FOUND)
         {
             // 2944  cd0f20    call    #200f
-            a = getScreenCharPosOffset_200f(ix, iy);
             // 2947  e6c0      and     #c0
             // 2949  d6c0      sub     #c0
             // 294b  280a      jr      z,#2957         ; (10)
+
+            /* Ensure this direction is not into a wall */
+            int a = getScreenCharPosOffset_200f(*ix, iy);
             if ((a&0xc0) != 0xc0)
             {
                 // 294d  dd6e00    ld      l,(ix+#00)
                 // 2950  dd6601    ld      h,(ix+#01)
                 // 2953  3a3b4d    ld      a,(#4d3b)
                 // 2956  c9        ret     
-                hl=MEM[ix];
-                return hl;
+                *orientation = BEST_ORIENTATION_FOUND;
+                return *(XYPOS*)ix;
             }
         }
         // 2957  dd23      inc     ix
         // 2959  dd23      inc     ix
-        ix+=2;
+        ix++;
         // 295b  213b4d    ld      hl,#4d3b
         // 295e  7e        ld      a,(hl)
         // 295f  3c        inc     a
@@ -10772,6 +11189,9 @@ uint16_t randomDirection_291e (XYPOS hl, uint8_t *orientation)
         // 2963  c33d29    jp      #293d
         BEST_ORIENTATION_FOUND = (BEST_ORIENTATION_FOUND+1)&3;
     }
+
+    /*  Unreachable but must return something */
+    return hl;
 }
 
 /*  hl = current position
@@ -10780,7 +11200,7 @@ uint16_t randomDirection_291e (XYPOS hl, uint8_t *orientation)
  *
  *  returns new direction vector
  */
-XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
+XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, uint8_t *a)
 {
     //-------------------------------
     // 2966  223e4d    ld      (#4d3e),hl
@@ -10797,7 +11217,7 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
     // 2975  21ffff    ld      hl,#ffff
     // 2978  22444d    ld      (#4d44),hl
     //-------------------------------
-    MIN_DIST_FOUND = 0xffff;
+    MIN_DISTANCE_FOUND = 0xffff;
     //-------------------------------
     // 297b  dd21ff32  ld      ix,#32ff
     // 297f  fd213e4d  ld      iy,#4d3e
@@ -10805,6 +11225,7 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
     // 2986  3600      ld      (hl),#00
     //-------------------------------
     TRIAL_ORIENTATION = 0;
+    XYPOS *ix = moveVectorData_32ff;
 
     do
     {
@@ -10820,7 +11241,7 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
             // 2992  22424d    ld      (#4d42),hl
             // 2995  cd6500    call    #0065
             //-------------------------------
-            TMP_RESULT_POS = addXYOffset_2000(modeData_32ff, CURRENT_TILE_POS);
+            TMP_RESULT_POS = addXYOffset_2000(*ix, CURRENT_TILE_POS);
             int offset = getScreenOffset_0065(TMP_RESULT_POS);
             //-------------------------------
             // 2998  7e        ld      a,(hl)
@@ -10864,12 +11285,12 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
         // 29c6  dd23      inc     ix
         // 29c8  dd23      inc     ix
         //-------------------------------
-        modeData+=2;
+        ix++;
         //-------------------------------
         // 29ca  21c74d    ld      hl,#4dc7
         // 29cd  34        inc     (hl)
         //-------------------------------
-        TRIAL_ORIENTATON++;
+        TRIAL_ORIENTATION++;
         //-------------------------------
         // 29ce  3e04      ld      a,#04
         // 29d0  be        cp      (hl)
@@ -10883,9 +11304,6 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
     // 29d7  87        add     a,a
     // 29d8  5f        ld      e,a
     // 29d9  1600      ld      d,#00
-    //-------------------------------
-    de = BEST_ORIENTATION_FOUND * 2;
-    //-------------------------------
     // 29db  dd21ff32  ld      ix,#32ff
     // 29df  dd19      add     ix,de
     // 29e1  dd6e00    ld      l,(ix+#00)
@@ -10894,7 +11312,7 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, int *a)
     // 29e9  c9        ret     
     //-------------------------------
     *a = BEST_ORIENTATION_FOUND;
-    return moveData[de];
+    return ix[BEST_ORIENTATION_FOUND];
 }
 
 /*  Computes the distance between two sets of co-ords by summing the squares of
@@ -10919,7 +11337,7 @@ uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy)
         // 29f5  dd4600    ld      b,(ix+#00)
         // 29f8  90        sub     b
         //-------------------------------
-        b = iy.y - ix.y
+        b = iy.y - ix.y;
     }
     //-------------------------------
     // 29f9  cd122a    call    #2a12
@@ -10940,7 +11358,7 @@ uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy)
         // 2a08  dd4601    ld      b,(ix+#01)
         // 2a0b  90        sub     b
         //-------------------------------
-        b = iy.x - ix.x
+        b = iy.x - ix.x;
     }
     //-------------------------------
     // 2a0c  cd122a    call    #2a12
@@ -10997,7 +11415,7 @@ uint16_t calcSquare_2a12(uint8_t a)
 
 /*  Generates a random number by reading a byte from a randomised ROM address 
  *  TODO : this will generate different movement unless original ROM data is used */
-void random_2a23()
+uint8_t random_2a23 (void)
 {
     // 2a23  2ac94d    ld      hl,(#4dc9)
     uint16_t hl=RND_VAL_PTR;
@@ -11021,18 +11439,18 @@ void random_2a23()
 
 void func_2a35()
 {
+    //-------------------------------
     // 2a35  114040    ld      de,#4040
-    int de=0x4040;
-    while (1)
-    {
-        // 2a38  21c043    ld      hl,#43c0
-        // 2a3b  a7        and     a
-        // 2a3c  ed52      sbc     hl,de
-        // 2a3e  c8        ret     z
-        int hl=0x43c0;
-        if (de==hl)
-            return;
+    // 2a38  21c043    ld      hl,#43c0
+    // 2a3b  a7        and     a
+    // 2a3c  ed52      sbc     hl,de
+    // 2a3e  c8        ret     z
+    //-------------------------------
+    int de=0x40;
 
+    while (de != 0x3c0)
+    {
+        //-------------------------------
         // 2a3f  1a        ld      a,(de)
         // 2a40  fe10      cp      #10
         // 2a42  ca532a    jp      z,#2a53
@@ -11040,19 +11458,25 @@ void func_2a35()
         // 2a47  ca532a    jp      z,#2a53
         // 2a4a  fe14      cp      #14
         // 2a4c  ca532a    jp      z,#2a53
+        //-------------------------------
+        int a=VIDEO[de];
         if (a!=0x10 && a!=0x12 && a!=0x14)
         {
+            //-------------------------------
             // 2a4f  13        inc     de
             // 2a50  c3382a    jp      #2a38
+            //-------------------------------
             de++;
         }
         else
         {
+            //-------------------------------
             // 2a53  3e40      ld      a,#40
             // 2a55  12        ld      (de),a
             // 2a56  13        inc     de
             // 2a57  c3382a    jp      #2a38
-            MEM[de++]=0x40;
+            //-------------------------------
+            VIDEO[de++]=0x40;
         }
     }
 }
@@ -11072,7 +11496,8 @@ void addToScore_2a5a(int b)
     // 2a63  df        rst     #18
     //-------------------------------
     /*  Retrieve the 2-byte value to be added to the 4-byte score */
-    uint16_t add = tableLookup (scoreTable_2b17, b);
+    // uint16_t add = tableLookup_0018 (scoreTable_2b17, b);
+    uint16_t add = scoreTable_2b17[b];
 
     // 2a64  eb        ex      de,hl
     // 2a65  cd0b2b    call    #2b0b
@@ -11116,7 +11541,7 @@ void addToScore_2a5a(int b)
     // 2a82  bc        cp      h
     // 2a83  dc332b    call    c,#2b33
     if (hl>>8 > BONUS_LIFE-1)
-        extraLife_2b33();
+        extraLife_2b33(hl); // TODO should be de
 
     // 2a86  cdaf2a    call    #2aaf
     // 2a89  13        inc     de
@@ -11168,7 +11593,7 @@ void addToScore_2a5a(int b)
     // 2aaa  21f243    ld      hl,#43f2
     // 2aad  180f      jr      #2abe           ; (15)
     highScore--;
-    screenLoc = &VIDEO[0x3f2];
+    uint8_t *screenLoc = &VIDEO[0x3f2];
     drawScore_2abe (screenLoc, highScore, 4);
 }
 
@@ -11257,7 +11682,7 @@ void func_2ae0()
     // 2ae6  21804e    ld      hl,#4e80
     // 2ae9  0608      ld      b,#08
     // 2aeb  cf        rst     #8
-    P1_SCORE = 0;
+    memset (P1_SCORE, 0, 8);
 
     // 2aec  010403    ld      bc,#0304	; Draw Score P1
     // 2aef  11824e    ld      de,#4e82
@@ -11290,13 +11715,13 @@ uint8_t* getPlayerScorePtr_2b0b (void)
     // 2b12  c8        ret     z
     //-------------------------------
     if (PLAYER==0)
-        return &P1_SCORE;
+        return P1_SCORE;
 
     //-------------------------------
     // 2b13  21844e    ld      hl,#4e84
     // 2b16  c9        ret     
     //-------------------------------
-    return &P2_SCORE;
+    return P2_SCORE;
 }
 
 /*  Score table for edible things.  Encoded in BCD */
@@ -11364,7 +11789,7 @@ uint16_t displayLives_2b4a (int lives)
     // 2b50  a7        and     a
     // 2b51  280e      jr      z,#2b61         ; (14)
     //-------------------------------
-    int hl=0x401a;
+    int hl=0x1a;
     int c=5;
     if (lives != 0)
     {
@@ -11374,13 +11799,13 @@ uint16_t displayLives_2b4a (int lives)
         //-------------------------------
         if (lives < 6)
         {
-            for (i = 0; i < lives; i++)
+            for (int i = 0; i < lives; i++)
             {
                 //-------------------------------
                 // 2b57  3e20      ld      a,#20
                 // 2b59  cd8f2b    call    #2b8f
                 //-------------------------------
-                drawFruit_2b8f (hl, 0x20);
+                drawFruit_2b8f (&VIDEO[hl], 0x20);
                 //-------------------------------
                 // 2b5c  2b        dec     hl
                 // 2b5d  2b        dec     hl
@@ -11405,7 +11830,7 @@ uint16_t displayLives_2b4a (int lives)
         // 2b67  2b        dec     hl
         // 2b68  18f7      jr      #2b61           ; (-9)
         //-------------------------------
-        drawBlankSquare_2b7e(hl);
+        drawBlankSquare_2b7e(&VIDEO[hl]);
         hl-=2;
     }
 
@@ -11414,33 +11839,38 @@ uint16_t displayLives_2b4a (int lives)
 
 void func_2b6a()
 {
+    //-------------------------------
     // 2b6a  3a004e    ld      a,(#4e00)
     // 2b6d  fe01      cp      #01
     // 2b6f  c8        ret     z
-    if (GAME_STATE==1)
+    //-------------------------------
+    if (MAIN_STATE==1)
         return;
 
+    //-------------------------------
     // 2b70  cdcd2b    call    #2bcd
     // 2b73  12 44 09 0a 02
+    //-------------------------------
     fillScreenArea_2bcd (0x4412, 0x09, 0x0a, 0x02);
 
+    //-------------------------------
     // 2b78  21154e    ld      hl,#4e15
     // 2b7b  46        ld      b,(hl)
     // 2b7c  18cc      jr      #2b4a           ; (-52)
-    hl = displayLives_2b4a(P1_DISPLAY_LIVES);
-    drawBlankSquare_2b7e(hl);
+    //-------------------------------
+    uint16_t hl = displayLives_2b4a(P1_DISPLAY_LIVES);
 }
 
-void drawBlankSquare_2b7e(uint16_t hl)
+void drawBlankSquare_2b7e(uint8_t *hl)
 {
     // 2b7e  3e40      ld      a,#40
     drawCharSquare_2b80 (hl, 0x40);
 }
 
-void drawCharSquare_2b80 (uint16_t addr, int a)
+/* Draw [a] to a 2x2 char square */
+void drawCharSquare_2b80 (uint8_t *hl, int a)
 {
     //-------------------------------
-    // 	;; Draw [a] to a 2x2 char square
     // 2b80  e5        push    hl
     // 2b81  d5        push    de
     // 2b82  77        ld      (hl),a
@@ -11455,16 +11885,15 @@ void drawCharSquare_2b80 (uint16_t addr, int a)
     // 2b8d  e1        pop     hl
     // 2b8e  c9        ret     
     //-------------------------------
-    MEM[addr] = a;
-    MEM[addr+1] = a;
-    MEM[addr+0x20] = a;
-    MEM[addr+0x21] = a;
+    hl[0] = a;
+    hl[1] = a;
+    hl[0x20] = a;
+    hl[0x21] = a;
 }
 
-void drawFruit_2b8f (uint16_t addr, int a)
+void drawFruit_2b8f (uint8_t *hl, int a)
 {
     //-------------------------------
-    // 	;; Used to draw fruit
     // 2b8f  e5        push    hl
     // 2b90  d5        push    de
     // 2b91  111f00    ld      de,#001f
@@ -11482,10 +11911,10 @@ void drawFruit_2b8f (uint16_t addr, int a)
     // 2b9f  e1        pop     hl
     // 2ba0  c9        ret     
     //-------------------------------
-    MEM[addr] = a++;
-    MEM[addr+1] = a++;
-    MEM[addr+0x20] = a++;
-    MEM[addr+0x21] = a;
+    hl[0] = a++;
+    hl[1] = a++;
+    hl[0x20] = a++;
+    hl[0x21] = a;
 }
 
 void displayCredits ()
@@ -11502,7 +11931,7 @@ void displayCredits ()
         // 2ba8  0602      ld      b,#02
         // 2baa  c35e2c    jp      #2c5e
         //-------------------------------
-        drawMsgFromTable (2);
+        displayMsg_2c5e (2);
         return;
     }
     //-------------------------------
@@ -11512,7 +11941,7 @@ void displayCredits ()
     // 2bb5  e6f0      and     #f0
     // 2bb7  2809      jr      z,#2bc2         ; (9)
     //-------------------------------
-    drawMsgFromTable (1);
+    displayMsg_2c5e (1);
     int digit = CREDITS & 0xf0;
     if (digit != 0)
     {
@@ -11597,14 +12026,14 @@ void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
     //-------------------------------
 }
 
-bool func_2bea ()
+void func_2bea (int param)
 {
     //-------------------------------
     // 2bea  3a004e    ld      a,(#4e00)
     // 2bed  fe01      cp      #01
     // 2bef  c8        ret     z
     //-------------------------------
-    if (GAME_STATE == 1)
+    if (MAIN_STATE == 1)
         return;
 
     //-------------------------------
@@ -11618,86 +12047,88 @@ bool func_2bea ()
     {
         // 2bf9  11083b    ld      de,#3b08	; Fruit table?  
         // 2bfc  47        ld      b,a
-        {
-        // 2bfd  0e07      ld      c,#07		; Fruit count	 
-        // 2bff  210440    ld      hl,#4004	; Starting loc 
-        c=7;
-        hl=0x4004;
-        for (int i = 0; i < P1_LEVEL; i++)
-        {
-            // 2c02  1a        ld      a,(de)		;  
-            // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
-            a=MEM[de];
-            drawFruit_2b8f (hl, a);
-
-            // 2c06  3e04      ld      a,#04		; v
-            // 2c08  84        add     a,h		; v
-            // 2c09  67        ld      h,a		; v
-            h+=4;
-            // 2c0a  13        inc     de		; v
-            // 2c0b  1a        ld      a,(de)		; v
-            a=MEM[++de];
-            // 2c0c  cd802b    call    #2b80		; Erase next fruit 
-            drawCharSquare_2b80 (hl, a);
-            // 2c0f  3efc      ld      a,#fc		; 
-            // 2c11  84        add     a,h		; 
-            // 2c12  67        ld      h,a		; 
-            h-=0xfc;
-            // 2c13  13        inc     de
-            de++;
-            // 2c14  23        inc     hl
-            // 2c15  23        inc     hl
-            hl+=2;
-            // 2c16  0d        dec     c
-            c--;
-            // 2c17  10e9      djnz    #2c02           ; (-23)
-        }
+        uint8_t *de = fruitTable_3b08;
 
         while (1)
         {
-            // 2c19  0d        dec     c
-            // 2c1a  f8        ret     m
-            if (--c < 0)
-                return;
+            // 2bfd  0e07      ld      c,#07		; Fruit count	 
+            // 2bff  210440    ld      hl,#4004	; Starting loc 
+            int c=7;
+            uint16_t hl=0x4; // offset into video
+            for (int i = 0; i < P1_LEVEL; i++)
+            {
+                // 2c02  1a        ld      a,(de)		;  
+                // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
+                // int a=*de;
+                drawFruit_2b8f (&VIDEO[hl], *de);
 
-            // 2c1b  cd7e2b    call    #2b7e
-            drawBlankSquare_2b7e(hl);
+                // 2c06  3e04      ld      a,#04		; v
+                // 2c08  84        add     a,h		; v
+                // 2c09  67        ld      h,a		; v
+                /*  No need to modify hl as we just pass colour hl+=0x400;*/
+                // 2c0a  13        inc     de		; v
+                // 2c0b  1a        ld      a,(de)		; v
+                // 2c0c  cd802b    call    #2b80		; Erase next fruit 
+                drawCharSquare_2b80 (&COLOUR[hl], *++de);
+                // 2c0f  3efc      ld      a,#fc		; 
+                // 2c11  84        add     a,h		; 
+                // 2c12  67        ld      h,a		; 
+                // hl-=0xfc00;
+                // 2c13  13        inc     de
+                de++;
+                // 2c14  23        inc     hl
+                // 2c15  23        inc     hl
+                hl+=2;
+                // 2c16  0d        dec     c
+                c--;
+                // 2c17  10e9      djnz    #2c02           ; (-23)
+            }
 
-            // 2c1e  3e04      ld      a,#04
-            // 2c20  84        add     a,h
-            // 2c21  67        ld      h,a
-            // 2c22  af        xor     a
-            // 2c23  cd802b    call    #2b80
-            hl += 0x400;
-            drawCharSquare_2b80 (hl, 0);
+            while (1)
+            {
+                // 2c19  0d        dec     c
+                // 2c1a  f8        ret     m
+                if (--c < 0)
+                    return;
 
-            // 2c26  3efc      ld      a,#fc
-            // 2c28  84        add     a,h
-            // 2c29  67        ld      h,a
-            // 2c2a  23        inc     hl
-            // 2c2b  23        inc     hl
-            // 2c2c  18eb      jr      #2c19           ; (-21)
-            hl -= 0x400;
-            hl += 2;
+                // 2c1b  cd7e2b    call    #2b7e
+                drawBlankSquare_2b7e(&VIDEO[hl]);
+
+                // 2c1e  3e04      ld      a,#04
+                // 2c20  84        add     a,h
+                // 2c21  67        ld      h,a
+                // 2c22  af        xor     a
+                // 2c23  cd802b    call    #2b80
+                // hl += 0x400;
+                drawCharSquare_2b80 (&COLOUR[hl], 0);
+
+                // 2c26  3efc      ld      a,#fc
+                // 2c28  84        add     a,h
+                // 2c29  67        ld      h,a
+                // 2c2a  23        inc     hl
+                // 2c2b  23        inc     hl
+                // 2c2c  18eb      jr      #2c19           ; (-21)
+                // hl -= 0x400;
+                hl += 2;
+            }
         }
-    }
 
-    // 2c2e  fe13      cp      #13
-    // 2c30  3802      jr      c,#2c34         ; (2)
-    // 2c32  3e13      ld      a,#13
-    if (level >= 0x13)
-        level=0x13;
-    // 2c34  d607      sub     #07
-    // 2c36  4f        ld      c,a
-    c=a-7;
-    // 2c37  0600      ld      b,#00
-    // 2c39  21083b    ld      hl,#3b08
-    // 2c3c  09        add     hl,bc
-    // 2c3d  09        add     hl,bc
-    hl=&fruitTable[(level - 7) * 2];
-    // 2c3e  eb        ex      de,hl
-    // 2c3f  0607      ld      b,#07
-    // 2c41  c3fd2b    jp      #2bfd
+        // 2c2e  fe13      cp      #13
+        // 2c30  3802      jr      c,#2c34         ; (2)
+        // 2c32  3e13      ld      a,#13
+        if (level >= 0x13)
+            level = 0x13;
+        // 2c34  d607      sub     #07
+        // 2c36  4f        ld      c,a
+        // c=a-7;
+        // 2c37  0600      ld      b,#00
+        // 2c39  21083b    ld      hl,#3b08
+        // 2c3c  09        add     hl,bc
+        // 2c3d  09        add     hl,bc
+        uint8_t *hl=&fruitTable_3b08[(level - 7) * 2];
+        // 2c3e  eb        ex      de,hl
+        // 2c3f  0607      ld      b,#07
+        // 2c41  c3fd2b    jp      #2bfd
     }
 }
 
@@ -11707,7 +12138,7 @@ void func_2c44(uint8_t a)
     // 2c45  e60f      and     #0f
     // 2c47  c600      add     a,#00
     // 2c49  27        daa     
-    int b = a & 0xf;
+    uint8_t b = a & 0xf;
     bcdAdjust (&b);
     // 2c4a  4f        ld      c,a
     // 2c4b  78        ld      a,b
@@ -11722,7 +12153,7 @@ void func_2c44(uint8_t a)
         a>>=4;
         // 2c54  47        ld      b,a
         // 2c55  af        xor     a
-        for ()
+        for (int b = 0; b < a; b++)
         {
             // 2c56  c616      add     a,#16
             // 2c58  27        daa     
@@ -11735,7 +12166,8 @@ void func_2c44(uint8_t a)
     // 2c5c  27        daa     
     // 2c5d  c9        ret     
     bcdAdjust(&a);
-    return a;
+    // TODO return?
+    // return a;
 }
 
 /* draw messages from a table
@@ -11746,18 +12178,18 @@ void displayMsg_2c5e (int b)
 {
     // 2c5e  21a536    ld      hl,#36a5
     // 2c61  df        rst     #18		; (hl+2*b) -> hl 
-    uint16_t *hl = (uint16_t*) tableLookup (msgTable_36a5, b);
+    uint8_t *hl = msgTable_36a5 [b];
     // 2c62  5e        ld      e,(hl)
     // 2c63  23        inc     hl
     // 2c64  56        ld      d,(hl)
-    de=*hl;
+    uint8_t de=*hl;
 
 // 2c65  dd210044  ld      ix,#4400	; Start of Color RAM
 // 2c69  dd19      add     ix,de	; Calculate starting pos in CRAM
 // 2c6b  dde5      push    ix		; 4400 + (hl) -> stack 
     // 2c6d  1100fc    ld      de,#fc00	
     // 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
-    ix-=0x400;
+    int ix-=0x400;
     // 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
     de=-1;
     // 2c75  cb7e      bit     7,(hl)  
@@ -11772,41 +12204,42 @@ void displayMsg_2c5e (int b)
 // 2c7e  010000    ld      bc,#0000	; 0 -> b,c 
 // 2c81  87        add     a,a		; 2*a -> a 
 // 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
-if (a>=0x80)
-{
-while()
-{
+    int a = 0;
+    if (a>=0x80)
+    {
+        while(1)
+        {
 // 2c84  7e        ld      a,(hl)		; Read next char 
 // 2c85  fe2f      cp      #2f		; #2f = end of text
 // 2c87  2809      jr      z,#2c92         ; Done with VRAM
-break;
+            break;
 // 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
 // 2c8c  23        inc     hl		; Next char
 // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
 // 2c8f  04        inc     b		; Inc char count
 // 2c90  18f2      jr      #2c84           ; loop
-}
+        }
 // 2c92  23        inc     hl
 // 2c93  dde1      pop     ix		; Get CRAM start pos
 // 2c95  7e        ld      a,(hl)		; Get color 
 // 2c96  a7        and     a
 // 2c97  faa42c    jp      m,#2ca4		; Jump if > #80 
-if (colour&0x80)
-{
+        if (a&0x80)
+        {
 // 2c9a  7e        ld      a,(hl)		; Get color  
 // 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
 // 2c9e  23        inc     hl		; Next color 
 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
 // 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
 // 2ca3  c9        ret     
-}
+        }
 
 // 	;; Same as above, but all the same color
 // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
 // 2ca7  dd19      add     ix,de		; Calc next CRAM pos
 // 2ca9  10f9      djnz    #2ca4           ; Loop until b=0
 // 2cab  c9        ret     
-}
+    }
 
 // 
 // 	;; Message # > 80 (erase previous message?!), use 2nd color code
@@ -11822,7 +12255,8 @@ if (colour&0x80)
 // 2cbc  04        inc     b		; Inc char count 
 // 2cbd  edb1      cpir			; Loop until [hl] = 2f 
 // 2cbf  18d2      jr      #2c93           ; Do CRAM
- 
+}
+
 void func_2cc1 (void)
 {
     // 2cc1  21c83b    ld      hl,#3bc8
@@ -11860,7 +12294,10 @@ func_2d44(SND_CH3_WAV_NUM, CH3_FREQ1, data_3bd0);
 // 2d07  78        ld      a,b
 // 2d08  329b4e    ld      (#4e9b),a
 // 2d0b  c9        ret     
-// 
+}
+
+void func_2d0c (void)
+{
 // 2d0c  21303b    ld      hl,#3b30
 // 2d0f  dd219c4e  ld      ix,#4e9c
 // 2d13  fd218c4e  ld      iy,#4e8c
@@ -11914,6 +12351,7 @@ void func_2d44(int ix, int iy, uint8_t data[])
     }
 
     // 2d58  c9        ret     
+    int b=1;
     if (b == 8)
         return;
 
@@ -11928,7 +12366,7 @@ void func_2d44(int ix, int iy, uint8_t data[])
         b--;
         // 2d63  df        rst     #18
         // 2d64  180c      jr      #2d72
-        tableLookup (ix+2, b); // TODO
+        uint8_t *hl=tableLookup_0018 (ix+2, b); // TODO
     }
     else
     {
@@ -11939,7 +12377,7 @@ void func_2d44(int ix, int iy, uint8_t data[])
 
         // 2d6c  dd6e06    ld      l,(ix+#06)
         // 2d6f  dd6607    ld      h,(ix+#07)
-        hl=ix+6;
+        int hl=ix+6;
     }
     // 2d72  7e        ld      a,(hl)
     // 2d73  23        inc     hl
@@ -11950,25 +12388,26 @@ void func_2d44(int ix, int iy, uint8_t data[])
 // 2d7e  216c2d    ld      hl,#2d6c
 // 2d81  e5        push    hl
 // 2d82  e60f      and     #0f
+int a = 0;
 
     // 2d84  e7        rst     #20
 
     // 2d85                 55 2f 65  2f 77 2f 89 2f 9b 2f 0c
     // 2d90  00 0c 00 0c 00 0c 00 0c  00 0c 00 0c 00 0c 00 0c
     // 2da0  00 0c 00 ad 2f                                 
-    void (*func)(int param)[] = 
-        { func_2f55, func_2f65, func_2f77, func_2f89, func_2f9b, nothing,
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
-        nothing, 
+    void (*func[])() = 
+        { func_2f55, func_2f65, func_2f77, func_2f89, func_2f9b, nothing_000c,
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
+        nothing_000c, 
         func_2fad };
-    tableCall (func, task, param);
+    tableCall_0020 (func, a);
 }
 
 void func_2da5(int a)
@@ -11978,6 +12417,7 @@ void func_2da5(int a)
 // 2da8  2803      jr      z,#2dad         ; (3)
 if (a!=0)
 {
+uint8_t*ix=NULL;
 // 2daa  dd700d    ld      (ix+#0d),b
 ix[0xd]=a;
 // 2dad  dd4e09    ld      c,(ix+#09)
@@ -11985,7 +12425,7 @@ ix[0xd]=a;
 // 2db3  e608      and     #08
 // 2db5  2802      jr      z,#2db9         ; (2)
 // 2db7  0e00      ld      c,#00
-c=ix[0x9];
+int c=ix[0x9];
 if ((ix[0xb] & 8) != 0)
 {
 c=0;
@@ -12000,7 +12440,7 @@ ix[0xf] = c;
 a = (a>>3) & 7;
 // 2dc2  21b03b    ld      hl,#3bb0
 // 2dc5  d7        rst     #10
-    a = fetchOffset (data_3bb0, a);
+    a = fetchOffset_0010 (data_3bb0, a);
 // 2dc6  dd770c    ld      (ix+#0c),a
 ix[0xc] = a;
     // 2dc9  78        ld      a,b
@@ -12012,12 +12452,17 @@ ix[0xc] = a;
         // 2dd0  21b83b    ld      hl,#3bb8
         // 2dd3  d7        rst     #10
         // 2dd4  dd770e    ld      (ix+#0e),a
-        a = fetchOffset (data_3bb8, a);
+        a = fetchOffset_0010 (data_3bb8, a);
         ix[0xe]=a;
     }
+    func_2dd7();
+}
+
+void func_2dd7 (void)
+{
     // 2dd7  dd6e0e    ld      l,(ix+#0e)
     // 2dda  2600      ld      h,#00
-    hl=ix[0xe];
+    int hl=ix[0xe];
     // 2ddc  dd7e0d    ld      a,(ix+#0d)
     // 2ddf  e610      and     #10
     // 2de1  2802      jr      z,#2de5         ; (2)
@@ -12031,17 +12476,20 @@ ix[0xc] = a;
     // 2de8  cae82e    jp      z,#2ee8
     if (ix[4] == 0xff)
     {
-        func_2ee8();
+        // TODO func_2ee8();
         return;
     }
 
     // 2deb  c3e42e    jp      #2ee4
-    func_2ee4();
+    // TODO func_2ee4();
 }
 
+void func_2dee (uint8_t *ix, uint8_t *iy)
+{
 // 2dee  dd7e00    ld      a,(ix+#00)
 // 2df1  a7        and     a
 // 2df2  2027      jr      nz,#2e1b        ; (39)
+}
 
 void func_2df4(int ix, int iy)
 {
@@ -12099,6 +12547,7 @@ void func_2e1b(int c)
         e>>=1;
     }
 
+    int b = 1; // TODO
     if (b==8)
         return;
  
@@ -12126,7 +12575,7 @@ void func_2e1b(int c)
         // 2e41  13        inc     de
         // 2e42  010800    ld      bc,#0008
         // 2e45  edb0      ldir    
-        de=ix+3;
+        int de=ix+3;
         memcpy (&MEM[de], &MEM[hl], 8);
         // 2e47  e1        pop     hl
         // 2e48  dd7e06    ld      a,(ix+#06)
@@ -12239,13 +12688,13 @@ if (--MEM[ix+8] == 0)
     // 2f1a  512f 522f 532f 542f 
     //-------------------------------
 
-    /*  Addresses 0x4a2f thru 0x542f are just a ret, so insert nothing in the
+    /*  Addresses 0x4a2f thru 0x542f are just a ret, so insert nothing_000c in the
      *  jump table */
-    void (*func)()[] = { func_2f22, func_2f26, func_2f2b, func_2f3c,
-                         func_2f43, nothing, nothing, nothing,
-                         nothing, nothing, nothing, nothing,
-                         nothing, nothing, nothing, nothing };
-    tableCall (MEM[ix+0xb], func);
+    void (*func[])() = { func_2f22, func_2f26, func_2f2b, func_2f3c,
+                         func_2f43, nothing_000c, nothing_000c, nothing_000c,
+                         nothing_000c, nothing_000c, nothing_000c, nothing_000c,
+                         nothing_000c, nothing_000c, nothing_000c, nothing_000c };
+    tableCall_0020 (func, MEM[ix+0xb]);
 }
 
 void func_2f22()
@@ -12264,7 +12713,7 @@ void func_2f26()
     // 2f29  1809      jr      #2f34           ; (9)
     //-------------------------------
     a = MEM[ix+0xf];
-    func_2f34();
+    // TODO func_2f34();
 }
 
 void func_2f2b()
@@ -12273,7 +12722,7 @@ void func_2f2b()
     // 2f2b  3a844c    ld      a,(#4c84)
     // 2f2e  e601      and     #01
     //-------------------------------
-    func_2f30(SOUND_COUNTER&1);
+    // TODO func_2f30(SOUND_COUNTER&1);
 }
 
 void func_2f30()
@@ -12305,7 +12754,7 @@ void func_2f3c()
     // 2f3c  3a844c    ld      a,(#4c84)
     // 2f3f  e603      and     #03
     // 2f41  18ed      jr      #2f30           ; (-19)
-    func_2f30(SOUND_COUNTER&3);
+    // TODO func_2f30(SOUND_COUNTER&3);
 }
 
 void func_2f43()
@@ -12313,7 +12762,7 @@ void func_2f43()
     // 2f43  3a844c    ld      a,(#4c84)
     // 2f46  e607      and     #07
     // 2f48  18e6      jr      #2f30           ; (-26)
-    func_2f30(SOUND_COUNTER&7);
+    // TODO func_2f30(SOUND_COUNTER&7);
 }
 
     // 2f4a  c9        ret     
@@ -12338,10 +12787,10 @@ void func_2f55()
 // 2f60  7e        ld      a,(hl)
 // 2f61  dd7707    ld      (ix+#07),a
 // 2f64  c9        ret     
-l=MEM[ix+6];
-h=MEM[ix+7];
-MEM[ix+6]=MEM[hl];
-MEM[ix+7]=MEM[hl+1];
+int l=MEM[ix+6];
+int h=MEM[ix+7];
+// MEM[ix+6]=MEM[hl];
+//MEM[ix+7]=MEM[hl+1];
 }
 
 void func_2f65()
@@ -12354,14 +12803,18 @@ void func_2f65()
 // 2f70  dd7407    ld      (ix+#07),h
 // 2f73  dd7703    ld      (ix+#03),a
 // 2f76  c9        ret     
+#if 0
 l=MEM[ix+6];
 h=MEM[ix+7];
 MEM[ix+3]=MEM[hl];
 hl++;
 MEM[ix+6]=l
 MEM[ix+7]=h;
+#endif
 }
-// 
+
+void func_2f77 (void)
+{
 // 2f77  dd6e06    ld      l,(ix+#06)
 // 2f7a  dd6607    ld      h,(ix+#07)
 // 2f7d  7e        ld      a,(hl)
@@ -12370,7 +12823,10 @@ MEM[ix+7]=h;
 // 2f82  dd7407    ld      (ix+#07),h
 // 2f85  dd7704    ld      (ix+#04),a
 // 2f88  c9        ret     
-// 
+}
+
+void func_2f89 (void)
+{
 // 2f89  dd6e06    ld      l,(ix+#06)
 // 2f8c  dd6607    ld      h,(ix+#07)
 // 2f8f  7e        ld      a,(hl)
@@ -12379,7 +12835,10 @@ MEM[ix+7]=h;
 // 2f94  dd7407    ld      (ix+#07),h
 // 2f97  dd7709    ld      (ix+#09),a
 // 2f9a  c9        ret     
-// 
+}
+
+void func_2f9b (void)
+{
 // 2f9b  dd6e06    ld      l,(ix+#06)
 // 2f9e  dd6607    ld      h,(ix+#07)
 // 2fa1  7e        ld      a,(hl)
@@ -12388,7 +12847,10 @@ MEM[ix+7]=h;
 // 2fa6  dd7407    ld      (ix+#07),h
 // 2fa9  dd770b    ld      (ix+#0b),a
 // 2fac  c9        ret     
-// 
+}
+
+void func_2fad (void)
+{
 // 2fad  dd7e02    ld      a,(ix+#02)
 // 2fb0  2f        cpl     
 // 2fb1  dda600    and     (ix+#00)
@@ -12609,12 +13071,15 @@ func_2c5e		; <=- gets called. ();
 // 3123  320442    ld      (#4204),a
 // 3126  7c        ld      a,h
 // 3127  326442    ld      (#4264),a
-// 312a  3a0050    ld      a,(#5000)
-// 312d  47        ld      b,a
-// 312e  3a4050    ld      a,(#5040)
-// 3131  b0        or      b
-// 3132  e601      and     #01
-// 3134  2011      jr      nz,#3147        ; (17)
+
+    // 312a  3a0050    ld      a,(#5000)
+    // 312d  47        ld      b,a
+    // 312e  3a4050    ld      a,(#5040)
+    // 3131  b0        or      b
+    // 3132  e601      and     #01
+    // 3134  2011      jr      nz,#3147        ; (17)
+    if ((IN0_UP | IN1_UP) == 0)
+    {
 // 3136  c1        pop     bc
 // 3137  79        ld      a,c
 // 3138  e60f      and     #0f
@@ -12627,6 +13092,7 @@ func_2c5e		; <=- gets called. ();
 // 3141  0f        rrca    
 // 3142  4f        ld      c,a
 // 3143  ed438541  ld      (#4185),bc
+    }
 // 3147  32c050    ld      (#50c0),a
 kickWatchdog();
 // 314a  3a4050    ld      a,(#5040)
@@ -12676,10 +13142,10 @@ kickWatchdog();
 kickWatchdog();
 // 318b  af        xor     a		; 0x00->a
 // 318c  32004e    ld      (#4e00),a
-GAME_STATE=0;
+MAIN_STATE=0;
 // 318f  3c        inc     a		; 0x01->a
 // 3190  32014e    ld      (#4e01),a
-START_STATE=1;
+MAIN_STATE_SUB0=1;
 // 3193  320050    ld      (#5000),a	; enable interrupts
 // 3196  fb        ei			; enable interrupts
 // 
@@ -12877,11 +13343,16 @@ kickWatchdog();
 // 32da  10f7      djnz    #32d3           ; (-9)
 // 32dc  cdf43a    call    #3af4
 func_3af4();
-// 32df  32c050    ld      (#50c0),a
-kickWatchdog();
-// 32e2  3a4050    ld      a,(#5040)
-// 32e5  e610      and     #10
-// 32e7  cadf32    jp      z,#32df
+
+    // 32df  32c050    ld      (#50c0),a
+    // 32e2  3a4050    ld      a,(#5040)
+    // 32e5  e610      and     #10
+    // 32e7  cadf32    jp      z,#32df
+    while (IN1_SERVICE)
+    {
+        kickWatchdog();
+    }
+
 // 32ea  c34b23    jp      #234b
 // 32ed  32c050    ld      (#50c0),a
 kickWatchdog();
@@ -12895,23 +13366,34 @@ kickWatchdog();
     // 32f9  30 31 35 31 30 32
     uint8_t data_32f9[] = { '0','1','5','1','0','2' };
 
-    // 32ff  00ff    // LEFT
-    // 3301  0100    // DOWN
-    // 3303  0001    // RIGHT
-    uint8_t moveData_32ff[] = { 0x00ff, 0x0100, 0x0001 };
-
-    // 3305  ff00    // UP
-    // 3307  00ff    // LEFT
+    // 32ff  00ff    // RIGHT dy=0, dx=-1
+    // 3301  0100    // DOWN  dy=1, dx=0
+    // 3303  0001    // LEFT  dy=0, dx=1
+    // 3305  ff00    // UP    dy=-1, dx=0
+    // 3307  00ff    // RIGHT
     // 3309  0100    // DOWN
-    // 330b  0001    // RIGHT
+    // 330b  0001    // LEFT
     // 330d  ff00    // UP
-    uint8_t moveData_3305[] = { 0xff00, 0x00ff, 0x0100, 0x0001, 0xff00 };
-    #define MOVE_DATA_LEFT data_32ff[0];
-    #define MOVE_DATA_DOWN data_3301[0];
-    #define MOVE_DATA_RIGHT data_3303[0];
-    #define MOVE_DATA_UP data_3305[0];
 
-    uint8_t moveData_330f[];
+    /*  Table of vectors is repeated to allow a loop to count forwards 4 times
+     *  from any starting orientation */
+    XYPOS moveVectorData_32ff[] =
+    {
+        { 0x00, 0xff },
+        { 0x01, 0x00 },
+        { 0x00, 0x01 },
+        { 0xff, 0x00 },
+        { 0x00, 0xff },
+        { 0x01, 0x00 },
+        { 0x00, 0x01 },
+        { 0xff, 0x00 }
+    };
+    XYPOS moveVectorRight_32ff = moveVectorData[0];
+    XYPOS moveVectorDown_3301 =  moveVectorData[1];
+    XYPOS moveVectorLeft_3303 =  moveVectorData[2];
+    XYPOS moveVectorUp_3305 =    moveVectorData[3];
+
+    uint8_t moveData_330f[] = { 0x55 };
 
     // 330f                                                55
     // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25
@@ -12933,7 +13415,12 @@ kickWatchdog();
     // 3410  6a d5 6a b6 6d 6d db 6d  6d 6d 6d d6 5a ad b5 48
     // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
     // 3430  0c fe ff ff ff 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2
-    // 3440  d4 fc fc fc da 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
+    // 3440  d4 fc fc fc da 
+
+    uint8_t data_3445[] = { 0x02 };
+    uint8_t data_35b5[] = { 0xfc };
+
+    // 3440                 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
     // 3450  d8 d2 d2 d2 d2 d4 fc da  09 dc fc fc fc da 02 dc
     // 3460  fc fc fc da 05 de e4 05  dc fc da 02 e6 e8 ea 02
     // 3470  e6 ea 02 dc fc fc fc da  02 dc fc fc fc da 02 e6
@@ -13481,15 +13968,15 @@ kickWatchdog();
     // 3b06  18f2      jr      #3afa           ; (-14)
     }
 
-    uint8_t fruitTable_3b08[];
+    uint8_t fruitTable_3b08[] = { 0x90 };
 
     // 3b08                           90 14 94 0f 98 15 98 15
     // 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16
     // 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16
     // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00
-    uint8_t data_3b30[] = { 0xd4 };
+    XYPOS data_3b30[] = { { 0x73, 0x20 } };
     // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00
-    uint8_t data_3b40[] = { 0xd4 };
+    XYPOS data_3b40[] = { { 0x36, 0x20 } };
     // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00
     // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00
     // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00
@@ -13498,6 +13985,7 @@ kickWatchdog();
     // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00
     // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00
     uint8_t data_3bb0[] = { 0x01 };
+    uint8_t data_3bb8[] = { 0x01 };
     // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b
     // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c
     // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82
