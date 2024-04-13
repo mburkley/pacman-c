@@ -45,6 +45,7 @@ struct
 }
 memmap;
 
+#define ROM memmap.rom
 #define MEM memmap.mem
 #define RAM memmap.ram
 #define VIDEO memmap.video
@@ -120,6 +121,16 @@ memmap;
 /*  ISR tasks are 3 bytes each and there are 16 entries */
 #define ISR_TASKS (&memmap.mem[0x4c90])
 
+#define ISRTASK_INC_LEVEL_STATE        0
+#define ISRTASK_INC_MAIN_SUB2        1
+#define ISRTASK_INC_MAIN_SUB1        2
+#define ISRTASK_INC_KILLED_STATE        3
+#define ISRTASK_RESET_FRUIT     4
+#define ISRTASK_DISPLAY_READY         6
+#define ISRTASK_INC_SCENE1_STATE         7
+#define ISRTASK_INC_SCENE2_STATE         8
+#define ISRTASK_INC_SCENE3_STATE         9
+
 /*  non-ISR tasks are 2 bytes each and there are 16 entries */
 #define NONISR_TASKS (&memmap.mem[0x4cc0])
 
@@ -131,12 +142,27 @@ memmap;
 #define TASK_BLINKY_SUBSTATE 0x05
 #define TASK_CLEAR_COLOUR         0x06
 #define TASK_RESET_GAME_STATE         0x07
+#define TASK_TILE_CHANGE_PINKY 0x09
 #define TASK_CLEAR_PILLS 0x12
 #define TASK_UPDATE_PILLS 0x15
 #define TASK_DISPLAY_MSG 0x1c
 #define TASK_DISPLAY_CREDITS 0x1d
 #define TASK_RESET_POSITIONS 0x1e
 #define TASK_SHOW_BONUS_LIFE_SCORE 0x1f
+
+#define MSG_HIGHSCORE   0
+#define MSG_CREDIT      1
+#define MSG_FREEPLAY    2
+#define MSG_PLAYER1     3
+#define MSG_PLAYER2     4
+#define MSG_GAMEOVER    5
+#define MSG_READY       6
+#define MSG_BADROMRAM    0x24
+#define MSG_PACMAN       0x29
+#define MSG_BONUS_NONE   0x2a
+#define MSG_BONUS        0x2b
+#define MSG_TABLE        0x2c
+#define MSG_000          0x2e
 
 /*  X and Y coords are frequently stored together and accessed as a single 16-
  *  bit value (e.g. through the hl reg).  To simplify C code, declare a union of
@@ -425,48 +451,16 @@ static inline int bcdAdjust (uint8_t *value)
 }
 
 
-void start_230b ();
-uint16_t getScreenOffset_202d (XYPOS hl);
-    void kickWatchdog();
 void func_01dc();
 void dispatchISRTasks_0221();
-void advanceGameState  ();
-void func_039d (void);
-void func_1490();
-void drawMazeTBD_2419 (int param);
-int main (void);
-uint8_t* getPlayerScorePtr_2b0b (void);
-void addISRTask(uint8_t *ptr, int count, uint8_t* data);
-void addTask (uint8_t task, uint8_t param);
-void addToScore_2a5a(int b);
-void advanceGameState  ();
-void advanceStartState();
-void blinkySubstateTBD_268b(int param);
 void checkCoinInput_0267 ();
-void checkPacmanGhostCoincidence_171d();
-void checkStartButtons ();
-void clearColour_240d (int param);
-void clearMaze_2400 (void);
-void clearPills_24c9();
-void clearScreen_23f3 (void);
-void decrementLives_1353();
-void dispatchISRTasks_0221();
-void displayCredits ();
-void displayMsg_2c5e (int b);
-void drawBlankSquare_2b7e(uint8_t *hl);
-void drawCharSquare_2b80 (uint8_t *hl, int a);
-void drawFruit_2b8f (uint8_t *hl, int a);
-void drawPills_2448(int param);
-void drawPlayerScore_2aaf (uint8_t *score);
-void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks);
-void extraLife_2b33(int de);
-void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
-void func_01dc();
 void func_02ad();
+void func_039d (void);
 void func_03dc (void);
 void func_03fe();
 void func_045f();
 void func_0471();
+void func_047f(void );
 void func_048b();
 void func_0499();
 void func_049f();
@@ -491,6 +485,12 @@ void func_0585(int c);
 void func_0593(int c);
 XYPOS func_05a5 (void);
 void func_05bf (int hl, int a);
+void func_05e5 (void);
+void func_0485(void );
+void func_05f3(void );
+void func_0674(void );
+void func_0899(void );
+void func_0a2c (void);
 void func_06a8();
 void func_06be();
 void func_070e(int b);
@@ -517,10 +517,10 @@ void func_0aa6();
 void func_0ac3();
 void func_0c0d();
 void func_0c42();
-void func_0e23();
+void toggleGhostAnimation_0e23();
 void func_0e36 ();
 void func_0ead();
-void func_1000();
+void resetFruit_1000();
 void func_100b();
 void func_1017 ();
 void func_1066();
@@ -550,6 +550,7 @@ void func_132e();
 void func_1336();
 void func_133e();
 void func_1346();
+void decrementLives_1353();
 void func_1376();
 void func_141f (void);
 void func_1490();
@@ -559,15 +560,16 @@ void func_15e6();
 void func_162d();
 void func_16d6();
 void func_16f7();
+void checkPacmanGhostCoincidence_171d();
 void func_1763 (int b);
 void func_1789 ();
-void func_1806 (void);
+void updatePacmanVector_1806 (void);
 void func_18e4 (int b);
 void func_1985(XYPOS pos);
 void func_1a19 ();
 void func_1a6a ();
 void func_1a70 ();
-void func_1b36();
+void updateBlinkyMovePat_1b36();
 void func_1c4b ();
 void func_1d22();
 void func_1df9();
@@ -576,6 +578,7 @@ void reverseBlinky_1efe (void);
 void func_1f25();
 void func_1f4c();
 void func_1f73();
+uint16_t getScreenOffset_202d (XYPOS hl);
 void func_205a(XYPOS pos, uint8_t *aux);
 void func_208c();
 void func_20af();
@@ -605,29 +608,61 @@ void func_22dd();
 void func_22e4();
 void func_22f5();
 void func_22fe();
+void start_230b ();
+void clearScreen_23f3 (void);
+void clearMaze_2400 (void);
+void clearColour_240d (int param);
+void drawMazeTBD_2419 (int param);
+void drawPills_2448(int param);
+void clearPills_24c9();
+void blinkySubstateTBD_268b(int param);
 void func_26a2();
 void tileChangePinky_276c (int param);
 void tileChangeInky_27a9 (int param);
 void tileChangeClyde_27f1 (int param);
 void func_28e3();
 void func_2a35();
+void addToScore_2a5a(int b);
 void func_2ae0();
+uint8_t* getPlayerScorePtr_2b0b (void);
+void drawBlankSquare_2b7e(uint8_t *hl);
+void drawCharSquare_2b80 (uint8_t *hl, int a);
+void drawFruit_2b8f (uint8_t *hl, int a);
 void func_2b6a();
 void func_2c44(uint8_t a);
 void func_2cc1 (void);
-void func_2d44(int ix, int iy, uint8_t data[]);
+void displayMsg_2c5e (int b);
+uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t data[]);
 void func_2da5(int a);
-void func_2df4(int ix, int iy);
-void func_2e1b(int c);
-void func_2f22();
-void func_2f26();
-void func_2f2b();
-void func_2f30();
-void func_2f3c();
-void func_2f43();
-void func_2f55();
-void func_2f65();
-void func_4da3();
+uint8_t func_2df4(uint8_t *ix, uint8_t *iy);
+uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c);
+uint8_t func_2f22 (uint8_t *ix);
+uint8_t func_2f26 (uint8_t *ix);
+uint8_t func_2f2b (uint8_t *ix);
+uint8_t func_2f30 (uint8_t *ix, uint8_t a);
+uint8_t func_2f34 (uint8_t *ix, uint8_t a);
+uint8_t func_2f3c (uint8_t *ix);
+uint8_t func_2f43 (uint8_t *ix);
+uint8_t func_2f55 (uint8_t *ix, uint8_t *iy);
+uint8_t func_2f65 (uint8_t *ix, uint8_t *iy);
+uint8_t func_2f77 (uint8_t *ix, uint8_t *iy);
+uint8_t func_2f89 (uint8_t *ix, uint8_t *iy);
+uint8_t func_2f9b (uint8_t *ix, uint8_t *iy);
+uint8_t func_2fad (uint8_t *ix, uint8_t *iy);
+
+    void kickWatchdog();
+void advanceGameState  ();
+int main (void);
+void addISRTask(uint8_t *ptr, int count, uint8_t* data);
+void addTask (uint8_t task, uint8_t param);
+void advanceGameState  ();
+void advanceStartState();
+void checkStartButtons ();
+void displayCredits ();
+void drawPlayerScore_2aaf (uint8_t *score);
+void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks);
+void extraLife_2b33(int de);
+void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
 void incLevelStateSubr_0894();
 void incMainSub2_06a3();
 void initLeaveHomeCounters_083a(uint8_t *hl);
@@ -671,36 +706,16 @@ void interruptDisable();
 void interruptMode (int mode);
 void interruptVector (int vector);
 bool interruptActive (void);
-uint8_t data_0219[];
-void func_058e(void);
+void incMainStateSub1_058e(void);
 void addTask_0042 (uint8_t task, uint8_t param);
 void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data);
-void func_1272 (void);
+void incKilledState_1272 (void);
 void displayReady_0263 (void);
-void func_212b (void);
-void func_21f0 (void);
+void incScene1State_212b (void);
+void incScene2State_212b (void);
 bool checkCoinCredit_02df (void);
-void func_22b9 (void);
-void func_05e5 (void);
-void func_047f(void );
-void func_0485(void );
-void func_05f3(void );
-void func_0674(void );
-void func_0899(void );
-void func_0a2c (void);
-    uint8_t data_0796[];
-    XYPOS moveVectorData_32ff[];
-    XYPOS moveVectorRight_32ff;
-    XYPOS moveVectorDown_3301;
-    XYPOS moveVectorLeft_3303;
-    XYPOS moveVectorUp_3305;
+void advanceScene3State_22b9 (void);
 void selectFruit_0ead (void);
-    uint8_t fruitData_0efd[];
-    uint8_t moveData_330f[];
-    uint8_t data_0843[];
-    uint8_t data_084f[];
-    uint8_t data_0861[];
-    uint8_t data_0873[];
 void func_2bea (int param);
 void func_13dd (void);
 void func_0e6c (void);
@@ -709,7 +724,7 @@ XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy);
 void func_1f2e (void);
 void func_1f55 (void);
 void func_1f7c (void);
-void func_1291 (void);
+void pacmanDeadAnimState_1291 (void);
 void func_2069 (void);
 void func_115c(void);
 void func_1bd8 (void);
@@ -727,7 +742,7 @@ void pacmanOrientUp_1ae8 (void);
 void pacmanOrientDown_1af8 (void);
 uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos);
 XYPOS pixelToTile_2018 (XYPOS pos);
-void func_1004 (void);
+void resetFruitState_1004 (void);
 void func_1b08 (void);
 void func_1a5c (void);
 void func_20d7 (void);
@@ -735,14 +750,11 @@ uint16_t getColourOffset_2052 (XYPOS pos);
 void func_0506 (void);
 void func_221e (uint16_t param);
 void func_22a7 (void);
+void startGame_234b (void);
 void func_24d7(int param);
 void initialisePositions_25d3 (int param);
 void func_2730 (int param);
 void func_23e8 (int param);
-    uint8_t data_3445[];
-    uint8_t data_35b5[];
-    uint8_t bonusLifeData[];
-    uint8_t difficultyData[];
 XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, uint8_t *a);
 uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy);
 XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation);
@@ -750,20 +762,37 @@ uint16_t calcSquare_2a12(uint8_t a);
 uint16_t scoreTable_2b17[];
 int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks);
 uint16_t displayLives_2b4a (int lives);
-    XYPOS data_3b30[];
-    XYPOS data_3b40[];
-    uint8_t fruitTable_3b08[];
-    uint8_t *msgTable_36a5[];
-    uint8_t data_3bc8[];
-    uint8_t data_3bb0[];
-    uint8_t data_3bb8[];
-    uint8_t data_3bcc[];
-    uint8_t data_3bd0[];
-void func_2dee (uint8_t *ix, uint8_t *iy);
-    uint8_t data_3b80[];
-void func_2f65();
-void func_2f77 (void);
-void func_2f89 (void);
-void func_2f9b (void);
-void func_2fad (void);
+uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl);
 void func_2dd7 (void);
+uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val);
+uint8_t func_2f4a (uint8_t *ix);
+void func_32ed (void);
+void func_3af4 (void);
+
+#define DATA_0219 (&ROM[0x0219])
+#define DATA_3445 &ROM[0x3445]
+#define DATA_35b5 (&ROM[0x35b5])
+#define BONUS_LIFE_DATA (&ROM[0x2728])
+#define DIFFICULTY_DATA ((uint16_t*)(&ROM[0x272c]))
+#define DATA_3b80 (&ROM[0x3b80])
+#define DATA_3b30 (&ROM[0x3b30])
+#define DATA_3b40 (&ROM[0x3b40])
+#define FRUIT_DATA (&ROM[0x0efd])
+#define FRUIT_TABLE (&ROM[0x3b08])
+#define DATA_MSG_TABLE ((uint16_t*)(&ROM[0x36a5]))
+#define DATA_3bc8 (&ROM[0x3bc8])
+#define DATA_3bb0 (&ROM[0x3bb0])
+#define DATA_3bb8 (&ROM[0x3bb8])
+#define DATA_3bcc (&ROM[0x3bcc])
+#define DATA_3bd0 (&ROM[0x3bd0])
+#define DATA_0796 (&ROM[0x0796])
+#define MOVE_VECTOR_DATA ((XYPOS*)(&ROM[0x32ff]))
+#define MOVE_VECTOR_RIGHT ((XYPOS*)(&ROM[0x32ff]))
+#define MOVE_VECTOR_DOWN ((XYPOS*)(&ROM[0x3301]))
+#define MOVE_VECTOR_LEFT ((XYPOS*)(&ROM[0x3303]))
+#define MOVE_VECTOR_UP ((XYPOS*)(&ROM[0x3305]))
+#define MOVE_DATA (&ROM[0x330f])
+#define DATA_0843 (&ROM[0x0843])
+#define DATA_084f (&ROM[0x084f])
+#define DATA_0861 (&ROM[0x0861])
+#define DATA_0873 (&ROM[0x0873])
