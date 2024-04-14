@@ -15,6 +15,7 @@
  *  inserted the action into the caller code instead of creating a fucntion.
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -26,6 +27,11 @@
 // #include "pacman.6e.h"
 
 // TODO prototypes are here temporarily to make find-and-replace easier */
+void interruptHalt (void);
+void interruptEnable (void);
+void interruptDisable (void);
+void interruptMode (int mode);
+void interruptVector (int vector);
 
 void updateCounters_01dc (void);
 void dispatchISRTasks_0221 (void);
@@ -33,7 +39,7 @@ void checkCoinInput_0267 (void);
 void checkCoinCounterTimeout_02ad (void);
 void func_039d (void);
 void func_03dc (void);
-void func_03fe (void);
+void mainState1_03fe (void);
 void func_045f (void);
 void func_0471 (void);
 void func_047f (void);
@@ -61,7 +67,7 @@ void displayGhostName_0585(int c);
 void func_0593(int c);
 XYPOS func_05a5 (void);
 void func_05bf (int hl, int a);
-void func_05e5 (void);
+void mainState2_05e5 (void);
 void func_0485 (void);
 void func_05f3 (void);
 void func_0674 (void);
@@ -181,7 +187,7 @@ void scene2State13_228d(uint16_t iy);
 void scene3StateMachine_2297 (void);
 void scene3State1_22be (void);
 void scene3State3_22dd (void);
-void func_22e4 (void);
+void scene3FruitPos_22e4 (void);
 void scene3State4_22f5 (void);
 void scene3State5_22fe (void);
 void start_230b (void);
@@ -196,10 +202,10 @@ void clearGhostState_26a2 ();
 void scatterOrChasePinky_276c (int param);
 void scatterOrChaseInky_27a9 (int param);
 void scatterOrChaseClyde_27f1 (int param);
-void func_28e3 ();
+void pacmanOrientationDemo_28e3 ();
 void clearPillsScreen_2a35 ();
 void addToScore_2a5a(int b);
-void func_2ae0 ();
+void clearScores_2ae0 ();
 uint8_t* getPlayerScorePtr_2b0b (void);
 void drawBlankSquare_2b7e(uint8_t *hl);
 void drawCharSquare_2b80 (uint8_t *hl, int a);
@@ -276,11 +282,6 @@ void updatePillsFromScreen_2487 (int param);
 void waitForever (void);
 void showStartNumPlayers_02fd (void);
 void func_2d0c (void);
-void interruptEnable (void);
-void interruptDisable (void);
-void interruptMode (int mode);
-void interruptVector (int vector);
-bool interruptActive (void);
 void incMainStateSub1_058e(void);
 void addTask_0042 (uint8_t task, uint8_t param);
 void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data);
@@ -289,7 +290,7 @@ void displayReady_0263 (void);
 void incScene1State_212b (void);
 void incScene2State_212b (void);
 bool checkCoinCredit_02df (void);
-void advanceScene3State_22b9 (void);
+void incScene3State_22b9 (void);
 void selectFruit_0ead (void);
 void func_2bea (int param);
 void func_13dd (void);
@@ -341,7 +342,7 @@ uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl);
 void func_2dd7 (void);
 uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val);
 uint8_t func_2f4a (uint8_t *ix);
-void func_32ed (void);
+void delay_32ed (void);
 void func_3af4 (void);
 
 #define DATA_0219 (&ROM[0x0219])
@@ -494,6 +495,7 @@ void schedTask (int b, int c)
     // 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
     // 002e  1812      jr      #0042           ; (18)
     //-------------------------------
+    printf("%s t=%d p=%d\n", __func__, b, c);
     addTask_0042 (b, c);
 }
 
@@ -546,11 +548,11 @@ void addTask_0042 (uint8_t task, uint8_t param)
     // 004d  22804c    ld      (#4c80),hl
     // 0050  c9        ret     
     //-------------------------------
-    MEM[TASK_LIST_BEGIN++]=task; 
-    MEM[TASK_LIST_BEGIN++]=param; 
+    MEM[TASK_LIST_END++]=task; 
+    MEM[TASK_LIST_END++]=param; 
 
-    if (TASK_LIST_BEGIN == 0x4d00)
-        TASK_LIST_BEGIN = 0x4cc0;
+    if (TASK_LIST_END == 0x4d00)
+        TASK_LIST_END = 0x4cc0;
 }
 
 /*  Called from rst #30.  Adds a task to the ISR task queue */
@@ -834,6 +836,7 @@ void isr_008d (void)
     // 018f  cd2102    call    #0221
     // 0192  cdc803    call    #03c8
     //-------------------------------
+    printf("%s upd counters\n", __func__);
     updateCounters_01dc();
     dispatchISRTasks_0221();
     advanceGameState_03c8 ();
@@ -870,8 +873,8 @@ void isr_008d (void)
         // 01b3  32ac4e    ld      (#4eac),a
         // 01b6  32bc4e    ld      (#4ebc),a
         //-------------------------------
-        MEM[0x4eac] = 0;
-        MEM[0x4ebc] = 0;
+        SND_CH2_EFF_NUM = 0;
+        SND_CH3_EFF_NUM = 0;
     }
     //-------------------------------
     // 01b9  cd0c2d    call    #2d0c
@@ -1078,9 +1081,20 @@ void dispatchISRTasks_0221 (void)
                     // 025b  e1        pop     hl
                     // 025c  c1        pop     bc
                     //-------------------------------
-                    void (*func[])() = { incLevelStateSubr_0894, incMainSub2_06a3, incMainStateSub1_058e, incKilledState_1272,
-                                         resetFruit_1000, func_100b, displayReady_0263, incScene1State_212b,
-                                         incScene2State_212b, advanceScene3State_22b9 };
+                    printf("%s disp tsk %d\n", __func__, a);
+                    void (*func[])() =
+                    {
+                        incLevelStateSubr_0894,
+                        incMainSub2_06a3,
+                        incMainStateSub1_058e,
+                        incKilledState_1272,
+                        resetFruit_1000,
+                        func_100b,
+                        displayReady_0263,
+                        incScene1State_212b,
+                        incScene2State_212b,
+                        incScene3State_22b9
+                    };
                     tableCall_0020 (func, a);
                     /*  No return as this addr was pushed as ret addr */
                 }
@@ -1527,7 +1541,10 @@ void advanceGameState_03c8 (void)
     //-------------------------------
     void (*func[])() =
     {
-        advanceStartState_03d4, func_03fe, func_05e5, levelStateSubroutineStateMachine_06be
+        advanceStartState_03d4,
+        mainState1_03fe,
+        mainState2_05e5,
+        levelStateSubroutineStateMachine_06be
     };
     tableCall_0020 (func, MAIN_STATE);
 }
@@ -1591,7 +1608,7 @@ void func_03dc (void)
 }
 
 /*  4e00==1.  If have credit, 4e00=2 */
-void func_03fe (void)
+void mainState1_03fe (void)
 {
     //-------------------------------
     // 03fe  cda12b    call    #2ba1			; Write # credits on screen
@@ -2035,7 +2052,7 @@ void displayGhostName_0585(int c)
     // 058a  f7        rst     #30
     // 058b  4a0200
     //-------------------------------
-    schedISRTask (0x4a, 0x02, 0x00);
+    schedISRTask (0x4a, ISRTASK_INC_MAIN_SUB1, 0x00);
 
     incMainStateSub1_058e();
 }
@@ -2067,7 +2084,7 @@ void func_0593(int c)
     // 05a1  cd8e05    call    #058e
     // 05a4  c9        ret     
     //-------------------------------
-    schedISRTask (0x45, 0x02, 0x00);
+    schedISRTask (0x45, ISRTASK_INC_MAIN_SUB1, 0x00);
     incMainStateSub1_058e();
 }
 
@@ -2138,18 +2155,16 @@ void func_05bf (int hl, int a)
     //-------------------------------
     // 05d3  110004    ld      de,#0400
     // 05d6  19        add     hl,de
-    //-------------------------------
-    hl+=0x400;
-    //-------------------------------
     // 05d7  77        ld      (hl),a
     // 05d8  2d        dec     l
     // 05d9  77        ld      (hl),a
     // 05da  2d        dec     l
     // 05db  77        ld      (hl),a
     //-------------------------------
-    VIDEO[hl--]=a;
-    VIDEO[hl--]=a;
-    VIDEO[hl--]=a;
+    /*  ASM adds 0x400 to move to colour table, we just used it is an array */
+    COLOUR[hl--]=a;
+    COLOUR[hl--]=a;
+    COLOUR[hl--]=a;
     //-------------------------------
     // 05dc  a7        and     a
     // 05dd  ed42      sbc     hl,bc
@@ -2163,13 +2178,13 @@ void func_05bf (int hl, int a)
     // 05e3  77        ld      (hl),a
     // 05e4  c9        ret     
     //-------------------------------
-    VIDEO[hl--]=a;
-    VIDEO[hl--]=a;
-    VIDEO[hl--]=a;
+    COLOUR[hl--]=a;
+    COLOUR[hl--]=a;
+    COLOUR[hl--]=a;
 }
 
 /*  4e00 == 2 */
-void func_05e5 (void)
+void mainState2_05e5 (void)
 {
     //-------------------------------
     // 05e5  3a034e    ld      a,(#4e03)
@@ -2394,7 +2409,7 @@ void func_0674 (void)
     // 069f  f7        rst     #30
     // 06a0  570100
     //-------------------------------
-    schedISRTask (0x57, 0x01, 0x00);
+    schedISRTask (0x57, ISRTASK_INC_MAIN_SUB2, 0x00);
     incMainSub2_06a3();
 }
 
@@ -2768,8 +2783,8 @@ void func_0899 (void)
     // 08bb  f7        rst     #30
     // 08bc  540600
     //-------------------------------
-    schedISRTask (0x54, 0x00, 0x00);
-    schedISRTask (0x54, 0x06, 0x00);
+    schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
+    schedISRTask (0x54, ISRTASK_DISPLAY_READY, 0x00);
 
     //-------------------------------
     // 08bf  3a724e    ld      a,(#4e72)
@@ -2899,7 +2914,7 @@ void playerDied_090d (void)
                 // 093d  c9        ret     
                 //-------------------------------
                 schedTask (TASK_DISPLAY_MSG, MSG_GAMEOVER);
-                schedISRTask (0x54, 0x00, 0x00);
+                schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
                 return;
             }
         }
@@ -2934,7 +2949,7 @@ void switchPlayers_0940 (void)
             // 0959  540000
             displayCredits_2ba1();
             schedTask (TASK_DISPLAY_MSG, MSG_GAMEOVER);
-            schedISRTask (0x54, 0x00, 0x00);
+            schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
 
             // 095c  21044e    ld      hl,#4e04
             // 095f  34        inc     (hl)
@@ -3047,7 +3062,7 @@ void func_0988 (void)
     // 09b6  f7        rst     #30
     // 09b7  540000
     //-------------------------------
-    schedISRTask (0x54, 0x00, 0x00);
+    schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
 
     //-------------------------------
     // 09ba  3a004e    ld      a,(#4e00)
@@ -3060,7 +3075,7 @@ void func_0988 (void)
         // 09c0  f7        rst     #30
         // 09c1  540600 
         //-------------------------------
-        schedISRTask (0x54, 0x06, 0x00);
+        schedISRTask (0x54, ISRTASK_DISPLAY_READY, 0x00);
     }
 
     //-------------------------------
@@ -3093,7 +3108,7 @@ void func_09d8 (void)
     // 09dc  21044e    ld      hl,#4e04
     // 09df  34        inc     (hl)
     //-------------------------------
-    schedISRTask (0x54, 0x00, 0x00);
+    schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
     LEVEL_STATE_SUBR++;
 
     //-------------------------------
@@ -3102,8 +3117,8 @@ void func_09d8 (void)
     // 09e4  32bc4e    ld      (#4ebc),a
     // 09e7  c9        ret     
     //-------------------------------
-    MEM[0x4eac] =
-    MEM[0x4ebc] = 0;
+    SND_CH2_EFF_NUM =
+    SND_CH3_EFF_NUM = 0;
 }
 
 void func_09e8 (void)
@@ -3121,7 +3136,7 @@ void func_09e8 (void)
     // 09f3  210000    ld      hl,#0000
     // 09f6  cd7e26    call    #267e
     //-------------------------------
-    schedISRTask (0x42, 0x00, 0x00);
+    schedISRTask (0x42, ISRTASK_INC_LEVEL_STATE, 0x00);
     resetGhostPosition_267e (0, 0);
 
     //-------------------------------
@@ -3138,7 +3153,7 @@ void func_09fe (void)
     // 09fe  0e00      ld      c,#00
     // 0a00  18e8      jr      #09ea           ; (-24)
     //-------------------------------
-    // TODO does more than just this
+    // TODO 9ea does more than just this
     addTask_0042 (TASK_FLASH_MAZE, 0x00);
 }
 
@@ -3212,12 +3227,12 @@ void func_0a0e (void)
     //-------------------------------
     schedTask (TASK_CLEAR_SCREEN, 0x01);
     schedTask (TASK_CLEAR_COLOUR, 0x00);
-    schedTask (0x11, 0x00);
-    schedTask (0x13, 0x00);
+    schedTask (TASK_CLEAR_GHOST_STATE, 0x00);
+    schedTask (TASK_CLEAR_PILLS_SCREEN, 0x00);
     schedTask (TASK_INIT_POSITIONS, 0x01);
     schedTask (TASK_BLINKY_SUBSTATE, 0x01);
     schedTask (0x10, 0x13);
-    schedISRTask (0x43, 0x00, 0x00);
+    schedISRTask (0x43, ISRTASK_INC_LEVEL_STATE, 0x00);
 
     //-------------------------------
     // 0a27  21044e    ld      hl,#4e04
@@ -4536,7 +4551,7 @@ void selectFruit_0ead (void)
     // 0ef8  f7        rst     #30
     // 0ef9  8a0400
     //-------------------------------
-    schedISRTask (0x8a, 0x04, 0x00);
+    schedISRTask (0x8a, ISRTASK_RESET_FRUIT, 0x00);
     //-------------------------------
     // 0efc  c9        ret     
     //-------------------------------
@@ -5275,7 +5290,7 @@ void func_123f (void)
         // 126e  f7        rst     #30
         // 126f  4a0300
         //-------------------------------
-        schedISRTask (0x4a, 0x03, 0x00);
+        schedISRTask (0x4a, ISRTASK_INC_KILLED_STATE, 0x00);
         //-------------------------------
         // 1272  21d14d    ld      hl,#4dd1
         // 1275  34        inc     (hl)
@@ -9584,7 +9599,7 @@ void scene1State2_214b (void)
     // 2169  f7        rst     #30
     // 216a  450700
     //-------------------------------
-    schedISRTask (0x45, 0x07, 0x00);
+    schedISRTask (0x45, ISRTASK_INC_SCENE1_STATE, 0x00);
 
     //-------------------------------
     // 216d  c32b21    jp      #212b
@@ -9637,7 +9652,7 @@ void scene1State6_2186 (void)
     // 2195  f7        rst     #30
     // 2196  450000
     SCENE1_STATE = 0x3d;
-    schedISRTask (0x45, 0x00, 0x00);
+    schedISRTask (0x45, ISRTASK_INC_LEVEL_STATE, 0x00);
 
     // 2199  21044e    ld      hl,#4e04
     // 219c  34        inc     (hl)
@@ -9702,7 +9717,7 @@ void scene2State0_21c2 (uint16_t iy)
     // 21db  f7        rst     #30
     // 21dc  430800
     //-------------------------------
-    schedISRTask (0x43, 0x08, 0x00);
+    schedISRTask (0x43, ISRTASK_INC_SCENE2_STATE, 0x00);
     //-------------------------------
     // 21df  180f      jr      #21f0           ; (15)
     //-------------------------------
@@ -9887,7 +9902,7 @@ void scene2State7_225d (uint16_t iy)
     // 2265  4f0800
     // 2268  1886      jr      #21f0           ; (-122)
     //-------------------------------
-    schedISRTask (0x4f, 0x08, 0x00);
+    schedISRTask (0x4f, ISRTASK_INC_SCENE2_STATE, 0x00);
     incScene2State_212b();
 }
 
@@ -9913,7 +9928,7 @@ void scene2State9_226a (uint16_t iy)
     // 227f  f7        rst     #30
     // 2280  4a0800
     //-------------------------------
-    schedISRTask (0x4a, 0x08, 0x00);
+    schedISRTask (0x4a, ISRTASK_INC_SCENE2_STATE, 0x00);
     //-------------------------------
     // 2283  c3f021    jp      #21f0
     //-------------------------------
@@ -9926,7 +9941,7 @@ void scene2State11_2286 (uint16_t iy)
     // 2286  f7        rst     #30
     // 2287  540800
     //-------------------------------
-    schedISRTask (0x54, 0x08, 0x00);
+    schedISRTask (0x54, ISRTASK_INC_SCENE2_STATE, 0x00);
     //-------------------------------
     // 228a  c3f021    jp      #21f0
     //-------------------------------
@@ -9991,10 +10006,10 @@ void scene3State0_22a7 (void)
     //-------------------------------
     BLINKY_SUBSTATE = DIFF_FLAG_2 = 0x26;
     func_0506();
-    advanceScene3State_22b9();
+    incScene3State_22b9();
 }
 
-void advanceScene3State_22b9 (void)
+void incScene3State_22b9 (void)
 {
     //-------------------------------
     // 22b9  21084e    ld      hl,#4e08
@@ -10038,12 +10053,12 @@ void scene3State1_22be (void)
     // 22d7  f7        rst     #30
     // 22d8  4a0900
     //-------------------------------
-    schedISRTask (0x4a, 0x09, 0x00);
+    schedISRTask (0x4a, ISRTASK_INC_SCENE3_STATE, 0x00);
 
     //-------------------------------
     // 22db  18dc      jr      #22b9           ; (-36)
     //-------------------------------
-    advanceScene3State_22b9();
+    incScene3State_22b9();
 }
 
 void scene3State3_22dd (void)
@@ -10053,13 +10068,13 @@ void scene3State3_22dd (void)
     // 22e2  28d5      jr      z,#22b9         ; (-43)
     if (BLINKY_TILE2.x == 0x2d)
     {
-        advanceScene3State_22b9();
+        incScene3State_22b9();
         return;
     }
-    func_22e4 ();
+    scene3FruitPos_22e4 ();
 }
 
-void func_22e4 (void)
+void scene3FruitPos_22e4 (void)
 {
     // 22e4  3a004d    ld      a,(#4d00)
     // 22e7  32d24d    ld      (#4dd2),a
@@ -10081,12 +10096,12 @@ void scene3State4_22f5 (void)
     // 22fa  28bd      jr      z,#22b9         ; (-67)
     if (BLINKY_TILE2.x == 0x1e)
     {
-        advanceScene3State_22b9 ();
+        incScene3State_22b9 ();
         return;
     }
 
     // 22fc  18e6      jr      #22e4           ; (-26)
-    func_22e4();
+    scene3FruitPos_22e4();
 }
 
 void scene3State5_22fe (void)
@@ -10098,7 +10113,7 @@ void scene3State5_22fe (void)
     // 2303  450000
     //-------------------------------
     SCENE3_STATE = 0;
-    schedISRTask (0x45, 0x00, 0x00);
+    schedISRTask (0x45, ISRTASK_INC_LEVEL_STATE, 0x00);
 
     //-------------------------------
     // 2306  21044e    ld      hl,#4e04
@@ -10141,52 +10156,69 @@ void start_230b (void)
         kickWatchdog();
         COINCOUNTER = 0;
 
+        //-------------------------------
         // 2320  3e40      ld      a,#40
         // 2322  77        ld      (hl),a
         // 2323  2c        inc     l
         // 2324  20fc      jr      nz,#2322        ; (-4)
-        for (int l = 0; l < 0x100; l++)
-            VIDEO[hl++] = 0x40;
         // 2326  24        inc     h
         // 2327  10f1      djnz    #231a           ; (-15)
+        //-------------------------------
+        for (int l = 0; l < 0x100; l++)
+            VIDEO[hl++] = 0x40;
     }
 
-    // 	;; Set 4400-47ff to 0x0f (color ram)
+    /* Set 4400-47ff to 0x0f (color ram) */
+    hl = 0;
+    //-------------------------------
     // 2329  0604      ld      b,#04
-    // 232b  32c050    ld      (#50c0),a	; Kick the dog
+    //-------------------------------
+    for (int b = 0; b <= 4; b++)
+    {
+        //-------------------------------
+        // 232b  32c050    ld      (#50c0),a	; Kick the dog
+        // 232e  af        xor     a		; a=0
+        // 232f  320750    ld      (#5007),a	; Clear coin
+        //-------------------------------
         kickWatchdog();
-    // 232e  af        xor     a		; a=0
-    // 232f  320750    ld      (#5007),a	; Clear coin
         COINCOUNTER = 0;
-    // 2332  3e0f      ld      a,#0f
-    // 2334  77        ld      (hl),a
-    // 2335  2c        inc     l
-    // 2336  20fc      jr      nz,#2334        ; (-4)
-    // 2338  24        inc     h
-    // 2339  10f0      djnz    #232b           ; (-16)
 
-    for (int i = 0; i < 0x3ff; i++)
-        COLOUR[i] = 0x0f;
+        //-------------------------------
+        // 2332  3e0f      ld      a,#0f
+        // 2334  77        ld      (hl),a
+        // 2335  2c        inc     l
+        // 2336  20fc      jr      nz,#2334        ; (-4)
+        // 2338  24        inc     h
+        // 2339  10f0      djnz    #232b           ; (-16)
+        //-------------------------------
+        for (int i = 0; i < 0x100; i++)
+            COLOUR[hl++] = 0x0f;
+    }
 
+    //-------------------------------
     // 233b  ed5e      im      2		; interrupt mode 2
-    interruptMode (2);
-
     // 233d  3efa      ld      a,#fa		
     // 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
+    //-------------------------------
+    interruptMode (2);
     interruptVector (0xfa);
 
+    //-------------------------------
     // 2341  af        xor     a		; a=0
     // 2342  320750    ld      (#5007),a	; Clear coin
-    COINCOUNTER = 0;
     // 2345  3c        inc     a		; a=1 
     // 2346  320050    ld      (#5000),a	; Enable interrupts
+    //-------------------------------
+    COINCOUNTER = 0;
     INTENABLE = 1;
 
+    //-------------------------------
     // 2349  fb        ei			; Enable interrupts
-    interruptEnable();
     // 234a  76        halt			; Wait for interrupt
-    while (!interruptActive())
-        ;
+    //-------------------------------
+    interruptEnable();
+    interruptHalt();
+    startGame_234b();
 }
 
 void startGame_234b (void)
@@ -10263,8 +10295,14 @@ void startGame_234b (void)
         // 2391  a7        and     a
         // 2392  fa8d23    jp      m,#238d
         //-------------------------------
-        while (MEM[TASK_LIST_BEGIN] < 0)
-            ;
+
+        /* Spin waiting for a task.  Since we are a single thread, add a check
+         * for interrupts while we're here */
+        while (MEM[TASK_LIST_BEGIN] > 0x80)
+        {
+            printf ("MEM[%x]=%x\n", TASK_LIST_BEGIN, MEM[TASK_LIST_BEGIN]);
+            interruptHalt();
+        }
 
         //-------------------------------
         // 2395  36ff      ld      (hl),#ff
@@ -10278,6 +10316,7 @@ void startGame_234b (void)
         MEM[TASK_LIST_BEGIN] = 0xff;
         MEM[TASK_LIST_BEGIN+1] = 0xff;
         TASK_LIST_BEGIN+=2;
+            printf ("pop task %d next %x\n", task, TASK_LIST_BEGIN);
         //-------------------------------
         // 239c  2002      jr      nz,#23a0        ; (2)
         // 239e  2ec0      ld      l,#c0
@@ -10327,8 +10366,8 @@ void startGame_234b (void)
             setConfig_26d0,
             updatePillsFromScreen_2487,
             advanceLevelState_23e8,
-            func_28e3,
-            func_2ae0,
+            pacmanOrientationDemo_28e3,
+            clearScores_2ae0,
             addToScore_2a5a,
             func_2b6a,
             func_2bea,
@@ -10338,6 +10377,7 @@ void startGame_234b (void)
             showBonusLifeScore_26b2
         };
         // tableCall_0020 (func, task, param);
+        printf ("%s dispatch task %d\n", __func__, task);
         func[task] (param);
     }
 }
@@ -10377,6 +10417,7 @@ void clearScreen_23f3 (void)
     // 23ff  c9        ret     
     //-------------------------------
     memset (VIDEO, 0x40, 0x400);
+    printf ("%s\n", __func__);
 }
 
 void clearMaze_2400 (void)
@@ -10394,6 +10435,7 @@ void clearMaze_2400 (void)
     /*  Only clear the maze part of the screen.  Leave the 2 lines at the top
      *  and at the bottom intact */
     memset (VIDEO+0x40, 0x40, 0x380);
+    printf ("%s\n", __func__);
 }
 
 void clearColour_240d (int param)
@@ -10409,6 +10451,7 @@ void clearColour_240d (int param)
     // 2418  c9        ret     
     //-------------------------------
     memset (COLOUR, 0, 0x400);
+    printf ("%s\n", __func__);
 }
 
 void drawMazeTBD_2419 (int param)
@@ -10418,6 +10461,7 @@ void drawMazeTBD_2419 (int param)
     // 241c  013534    ld      bc,#3435
     //-------------------------------
 
+    printf ("%s\n", __func__);
     uint8_t *hl = VIDEO;
     uint8_t *bc = DATA_3445;
 
@@ -11538,7 +11582,7 @@ void homeOrRandomClyde_28b9 ()
 
 /*  Appears to choose pacman orientation in demo mode based on ghosts' locations
  */
-void func_28e3 ()
+void pacmanOrientationDemo_28e3 ()
 {
     // 28e3  3aa74d    ld      a,(#4da7)
     // 28e6  a7        and     a
@@ -12121,26 +12165,32 @@ int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks)
     return blanks;
 }
 
-void func_2ae0 ()
+void clearScores_2ae0 ()
 {
     //-------------------------------
     // 2ae0  0600      ld      b,#00		; Draw 'High Score' 
     // 2ae2  cd5e2c    call    #2c5e
     //-------------------------------
-    displayMsg_2c5e(0);
+    displayMsg_2c5e(MSG_HIGHSCORE);
 
-    // 2ae5  af        xor     a		; Clear P1 score 
+    //-------------------------------
+    // 2ae5  af        xor     a
     // 2ae6  21804e    ld      hl,#4e80
     // 2ae9  0608      ld      b,#08
     // 2aeb  cf        rst     #8
+    //-------------------------------
+    /*  Zero both P1 and P2 scores */
     memset (P1_SCORE, 0, 8);
 
+    //-------------------------------
     // 2aec  010403    ld      bc,#0304	; Draw Score P1
     // 2aef  11824e    ld      de,#4e82
     // 2af2  21fc43    ld      hl,#43fc	; location 
     // 2af5  cdbe2a    call    #2abe
+    //-------------------------------
     drawScore_2abe(&VIDEO[0x3fc], &P1_SCORE[2], 4);
 
+    //-------------------------------
     // 2af8  010403    ld      bc,#0304	; Draw Score P2
     // 2afb  11864e    ld      de,#4e86
     // 2afe  21e943    ld      hl,#43e9
@@ -12148,6 +12198,7 @@ void func_2ae0 ()
     // 2b04  a7        and     a
     // 2b05  20b7      jr      nz,#2abe        ; score needed
     // 2b07  0e06      ld      c,#06
+    //-------------------------------
     int blanks = 4;
     if (TWO_PLAYERS)
         blanks = 6;
@@ -13491,7 +13542,7 @@ uint8_t func_2fad (uint8_t *ix, uint8_t *iy)
 // 	;; Interrupt routine for vector #3ffa
 // 
 // 	;; Check rom checksums
-void func_3000 (void)
+void isr_3000 (void)
 {
     //-------------------------------
     // 3000  210000    ld      hl,#0000
@@ -13977,12 +14028,17 @@ jump_3031:
 // 3279  d9        exx     
 // 327a  10dc      djnz    #3258           ; (-36)
 // 327c  31c04f    ld      sp,#4fc0
-// 327f  0608      ld      b,#08
+
+    //-------------------------------
+    // 327f  0608      ld      b,#08
+    //-------------------------------
     for (int b = 0; b < 8; b++)
     {
+        //-------------------------------
         // 3281  cded32    call    #32ed
         // 3284  10fb      djnz    #3281           ; (-5)
-        func_32ed();
+        //-------------------------------
+        delay_32ed();
     }
     // 3286  32c050    ld      (#50c0),a	; Kick the dog
     kickWatchdog();
@@ -13995,7 +14051,7 @@ jump_3031:
 // 3295  c24b23    jp      nz,#234b
 // 3298  0608      ld      b,#08
     // 329a  cded32    call    #32ed
-    func_32ed();
+    delay_32ed();
 // 329d  10fb      djnz    #329a           ; (-5)
 // 329f  3a4050    ld      a,(#5040)
 // 32a2  e610      and     #10
@@ -14005,12 +14061,12 @@ jump_3031:
     // 32ab  32c050    ld      (#50c0),a
     kickWatchdog();
     // 32ae  cded32    call    #32ed
-    func_32ed();
+    delay_32ed();
 // 32b1  3a0050    ld      a,(#5000)
 // 32b4  a3        and     e
 // 32b5  20f4      jr      nz,#32ab        ; (-12)
     // 32b7  cded32    call    #32ed
-    func_32ed();
+    delay_32ed();
     // 32ba  32c050    ld      (#50c0),a
     kickWatchdog();
 // 32bd  3a0050    ld      a,(#5000)
@@ -14042,20 +14098,26 @@ jump_3031:
         kickWatchdog();
     }
 
-// 32ea  c34b23    jp      #234b
+    // 32ea  c34b23    jp      #234b
     startGame_234b ();
 }
 
-void func_32ed (void)
+void delay_32ed (void)
 {
-// 32ed  32c050    ld      (#50c0),a
+    //-------------------------------
+    // 32ed  32c050    ld      (#50c0),a
+    //-------------------------------
     kickWatchdog();
-// 32f0  210028    ld      hl,#2800
-// 32f3  2b        dec     hl
-// 32f4  7c        ld      a,h
-// 32f5  b5        or      l
-// 32f6  20fb      jr      nz,#32f3        ; (-5)
-// 32f8  c9        ret     
+    //-------------------------------
+    // 32f0  210028    ld      hl,#2800
+    // 32f3  2b        dec     hl
+    // 32f4  7c        ld      a,h
+    // 32f5  b5        or      l
+    // 32f6  20fb      jr      nz,#32f3        ; (-5)
+    // 32f8  c9        ret     
+    //-------------------------------
+    for (int hl = 0x2800; hl > 0; hl--)
+        ;
 }
     // 32f9  30 31 35 31 30 32
 //     uint8_t data_32f9[] = { '0','1','5','1','0','2' };
