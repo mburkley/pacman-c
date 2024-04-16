@@ -1,6 +1,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "video.h"
+#include "kbd.h"
+
 void interruptEnable ()
 {
 }
@@ -20,12 +23,12 @@ void interruptVector (int vector)
 void interruptHalt (void)
 {
 void isr_008d (void);
-    sleep(1);
+    usleep(100000);
     isr_008d ();
-void showScreen (void);
-showScreen();
-void videoRefresh (void);
-videoRefresh();
+// void showScreen (void);
+// showScreen();
+    videoRefresh();
+    kbdPoll();
 }
 
 void kickWatchdog (void)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 204 Mark Burkley.
+ * Copyright (c) 2004-2023 Mark Burkley.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,16 +20,14 @@
  * SOFTWARE.
  */
 
-#ifndef __VIDEO_H
-#define __VIDEO_H
+#ifndef __KBD_H
+#define __KBD_H
 
-#include <stdint.h>
+#define KBD_ROW 8
+#define KBD_COL 8
 
-uint16_t videoRead (uint8_t *ptr, uint16_t addr, int size);
-void videoWrite (uint8_t *ptr, uint16_t addr, uint16_t data, int size);
-void videoRefresh (void);
-void videoPlotRaw (int x, int y, int colour);
-void videoInit (int scale);
+void kbdPoll (void);
+void kbdClose (void);
+void kbdOpen (const char *device);
 
 #endif
-

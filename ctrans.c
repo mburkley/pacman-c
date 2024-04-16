@@ -12471,6 +12471,7 @@ void displayCredits_2ba1 ()
 
 void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
 {
+    printf ("%s %04x %02x @ %dx%d\n", __func__, addr, ch, cols, rows);
     //-------------------------------
     // fetch e,d,c,b,a from stack
     // de = screen location
@@ -12503,7 +12504,8 @@ void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
         //-------------------------------
 
         int pos = addr;
-        while(cols--)
+        int n = cols;
+        while(n--)
         {
             //-------------------------------
             // 2bdf  71        ld      (hl),c
@@ -12714,7 +12716,7 @@ void displayMsg_2c5e (int b)
     // 2c7e  010000    ld      bc,#0000	; 0 -> b,c 
     // 2c81  87        add     a,a		; 2*a -> a 
     // 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
-    hl++;
+    chr++;
     uint16_t bc = 0;
     if (b < 0x80)
     {
@@ -12750,7 +12752,7 @@ jump_2c93:
                 // 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
                 // 2c9e  23        inc     hl		; Next color 
                 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
-                printf ("col %c\n", *chr);
+                printf ("col %02x\n", *chr);
                 *colour = *chr++;
                 colour += de;
                 // 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
@@ -12766,7 +12768,7 @@ jump_2c93:
             {
                 // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
                 // 2ca7  dd19      add     ix,de		; Calc next CRAM pos
-                printf ("col %c\n", *chr);
+                printf ("col %02x\n", *chr);
                 *colour = *chr;
                 colour += de;
                 // 2ca9  10f9      djnz    #2ca4           ; Loop until b=0

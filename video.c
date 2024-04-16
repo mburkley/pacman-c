@@ -109,17 +109,18 @@ static void videoPlot (int x, int y, int col)
             videoPlotRaw (x*frameBufferScale+i, y*frameBufferScale+j, col);
 }
 
-/*  Draw an 8x8 character on screen.  cx and cy are the column (0 to 31) and row
- *  (0 to 23).  ch is the character index (0 to 255).  Values are multiplied by
- *  8 (<< 3) to convert to pixel coords.  bits is 6 or 8 for text or graphics.
+/*  Draw an 8x8 character on screen.  cx and cy are the column (0 to 27) and row
+ *  (0 to 35).  ch is the character index (0 to 255).  Values are multiplied by
+ *  8 (<< 3) to convert to pixel coords.
  *
- *  https://www.walkofmind.com/programming/pie/char_defs.htm
+ *  Mapping of charset to pixels is a bit weird.  see here:
+ *
+ *      https://www.walkofmind.com/programming/pie/char_defs.htm
  */
 static void videoDrawChar (int cx, int cy, int ch, int col)
 {
     int x, y;
 
-    printf ("[%d;%d]", ch, col);
     for (y = 0; y < 8; y++)
     {
         for (x = 0; x < 8; x++)
@@ -127,10 +128,10 @@ static void videoDrawChar (int cx, int cy, int ch, int col)
             int z = ch * 16;
             z += (4-(y&4)) * 2;
             z += (7-x);
-            char c = charset[z];
-            col &= 0x3f;
-            col |= (c & (0x01 << (y&3))) ? 0x40 : 0;
-            col |= (c & (0x10 << (y&3))) ? 0x80 : 0;
+            uint8_t c = charset[z];
+            col = col & 0x3f;
+            col |= (c & (0x08 >> (y&3))) ? 0x40 : 0;
+            col |= (c & (0x80 >> (y&3))) ? 0x80 : 0;
 
             videoPlot ((cx << 3) + x, (cy << 3) + y, col);
         }

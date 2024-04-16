@@ -4,6 +4,7 @@
 
 #include "memmap.h"
 #include "video.h"
+#include "kbd.h"
 
 #include "p5e.h"
 #include "p5f.h"
@@ -61,6 +62,7 @@ int main (void)
     memcpy (&ROM[0x3000], rom_pacman_6j, 0x1000);
 void reset_0000 (void);
     videoInit (3);
+    kbdOpen (NULL);
     reset_0000 ();
 }
 

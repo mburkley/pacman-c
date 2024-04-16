@@ -4,7 +4,8 @@ SRCS=\
 ctrans.c \
 cpu.c \
 harness.c \
-video.c 
+video.c \
+kbd.c
 
 LIBS=\
 -l glut\
