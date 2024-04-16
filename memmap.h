@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-struct
+typedef struct
 {
     struct
     {
@@ -43,7 +43,10 @@ struct
     } regs;
     uint8_t mem[0x5100];
 }
-memmap;
+CPU_MEMMAP;
+
+extern CPU_MEMMAP memmap;
+extern uint8_t charset[];
 
 #define ROM memmap.rom
 #define MEM memmap.mem

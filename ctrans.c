@@ -24,8 +24,6 @@
 #include "consts.h"
 #include "structs.h"
 
-// #include "pacman.6e.h"
-
 // TODO prototypes are here temporarily to make find-and-replace easier */
 void interruptHalt (void);
 void interruptEnable (void);
@@ -162,8 +160,8 @@ void reverseCheckInky_1f4c (void);
 void reverseCheckClyde_1f73 (void);
 uint16_t getScreenOffset_202d (XYPOS hl);
 void func_205a(XYPOS pos, uint8_t *aux);
-void func_208c (void);
-void func_20af (void);
+void checkInkyLeaveHome_208c (void);
+void checkClydeLeaveHome_20af (void);
 void scene1StateMachine_2108 (void);
 void scene1State0_211a (void);
 void func_2130 (void);
@@ -234,7 +232,6 @@ uint8_t func_2fad (uint8_t *ix, uint8_t *iy);
 
 void kickWatchdog (void);
 void advanceGameState_03c8  (void);
-int main (void);
 void addISRTask(uint8_t *ptr, int count, uint8_t* data);
 void addTask (uint8_t task, uint8_t param);
 void advanceGameState_03c8  (void);
@@ -299,9 +296,9 @@ void func_0a6f (void);
 XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy);
 void reversePinky_1f2e (void);
 void reverseInky_1f55 (void);
-void func_1f7c (void);
+void reverseClyde_1f7c (void);
 void pacmanDeadAnimState_1291 (void);
-void func_2069 (void);
+void checkPinkyLeaveHome_2069 (void);
 void func_115c(void);
 void func_1bd8 (void);
 void func_1caf (void);
@@ -355,7 +352,7 @@ void func_3af4 (void);
 #define DATA_3b40 (&ROM[0x3b40])
 #define FRUIT_DATA (&ROM[0x0efd])
 #define FRUIT_TABLE (&ROM[0x3b08])
-#define DATA_MSG_TABLE ((uint16_t*)(&ROM[0x36a5]))
+#define DATA_MSG_TABLE (&ROM[0x36a5])
 #define DATA_3bc8 (&ROM[0x3bc8])
 #define DATA_3bb0 (&ROM[0x3bb0])
 #define DATA_3bb8 (&ROM[0x3bb8])
@@ -373,7 +370,7 @@ void func_3af4 (void);
 #define DATA_0861 (&ROM[0x0861])
 #define DATA_0873 (&ROM[0x0873])
 
-int main (void)
+void reset_0000 (void)
 {
     //-------------------------------
     // 0000  f3        di			; Disable interrupts
@@ -458,7 +455,7 @@ uint16_t tableLookup_0018 (uint8_t *hl, uint8_t b)
     int e = fetchOffset_0010(&hl, b*2);
     hl++;
     int d = *hl;
-    return e + d<<8;
+    return e | (d << 8);
 }
 
 /*  Lookup a function address in a table pointed to by the return address.  The
@@ -1428,7 +1425,7 @@ void showStartNumPlayers_02fd (void)
     // 0365  cc9003    call    z,#0390
     // 0368  c9        ret     
     //-------------------------------
-    if (TWO_PLAYERS == 0)
+    if (!TWO_PLAYERS)
         twoBlank(iy);
 }
 
@@ -1927,13 +1924,12 @@ void func_0524 (uint8_t *hl, int b, int a)
     // 0527  3601      ld      (hl),#01
     // 0529  c38e05    jp      #058e
     //-------------------------------
-    if (a == 0x21)
-    {
-        *hl=1;
-        incMainStateSub1_058e();
-        return;
-    }
-    func_052c();
+    if (a != b)
+        func_052c();
+
+    *hl=1;
+    incMainStateSub1_058e();
+    return;
 }
 
 void func_052c (void)
@@ -3901,6 +3897,9 @@ void func_0c42 (void)
         // 0c6f  fe64      cp      #64
         // 0c71  c2900c    jp      nz,#0c90
         //-------------------------------
+
+        /*  Once blinky has moved upwards enough to clear the house, he turns
+         *  right(?) and hsi substate advances to 1 */
         if (BLINKY_POS.y == 0x64)
         {
             //-------------------------------
@@ -3950,8 +3949,12 @@ void func_0c42 (void)
             // 0ca5  fe80      cp      #80
             // 0ca7  cc2e1f    call    z,#1f2e
             //-------------------------------
+
+            /*  Pinky is still in the house.  He just moves up and down so
+             *  reverse his direction when he gets to top or bottom of house */
             if (PINKY_POS.y == 0x78 || PINKY_POS.y == 0x80)
                 reversePinky_1f2e ();
+
             //-------------------------------
             // 0caa  3a2d4d    ld      a,(#4d2d)
             // 0cad  32294d    ld      (#4d29),a
@@ -3962,12 +3965,9 @@ void func_0c42 (void)
             // 0cb4  fd21024d  ld      iy,#4d02
             // 0cb8  cd0020    call    #2000
             // 0cbb  22024d    ld      (#4d02),hl
-            //-------------------------------
-            PINKY_POS=addXYOffset_2000(PINKY_TILE_CHANGE, PINKY_POS);
-
-            //-------------------------------
             // 0cbe  c3fb0c    jp      #0cfb
             //-------------------------------
+            PINKY_POS=addXYOffset_2000(PINKY_TILE_CHANGE, PINKY_POS);
         }
         else
         {
@@ -4173,7 +4173,7 @@ void func_0c42 (void)
         // 0da8  cc7c1f    call    z,#1f7c
         //-------------------------------
         if (CLYDE_POS.y == 0x78 || CLYDE_POS.y == 0x80)
-            func_1f7c();
+            reverseClyde_1f7c();
         //-------------------------------
         // 0dab  3a2f4d    ld      a,(#4d2f)
         // 0dae  322b4d    ld      (#4d2b),a
@@ -4731,9 +4731,9 @@ void func_1017 (void)
     // 1065  c9        ret     
     //-------------------------------
     func_1376();
-    func_2069();
-    func_208c();
-    func_20af();
+    checkPinkyLeaveHome_2069();
+    checkInkyLeaveHome_208c();
+    checkClydeLeaveHome_20af();
 }
 
 void selectGhostState_1066 (void)
@@ -9069,10 +9069,10 @@ void reverseCheckClyde_1f73 (void)
     // 1f79  32b44d    ld      (#4db4),a
     //-------------------------------
     CLYDE_ORIENT_CHG_FLAG = 0;
-    func_1f7c();
+    reverseClyde_1f7c();
 }
 
-void func_1f7c (void)
+void reverseClyde_1f7c (void)
 {
     //-------------------------------
     // 1f7c  21ff32    ld      hl,#32ff
@@ -9269,10 +9269,10 @@ void func_205a (XYPOS pos, uint8_t *aux)
         //-------------------------------
         *aux=0;
     }
-    func_2069();
+    checkPinkyLeaveHome_2069();
 }
 
-void func_2069 (void)
+void checkPinkyLeaveHome_2069 (void)
 {
     //-------------------------------
     // 2069  3aa14d    ld      a,(#4da1)
@@ -9317,7 +9317,7 @@ void func_2069 (void)
     PINKY_SUBSTATE = 2;
 }
 
-void func_208c (void)
+void checkInkyLeaveHome_208c (void)
 {
     //-------------------------------
     // 208c  3aa24d    ld      a,(#4da2)
@@ -9363,7 +9363,7 @@ void func_208c (void)
     INKY_SUBSTATE = 3;
 }
 
-void func_20af (void)
+void checkClydeLeaveHome_20af (void)
 {
     //-------------------------------
     // 20af  3aa34d    ld      a,(#4da3)
@@ -9413,7 +9413,7 @@ void func_20af (void)
     // 20d3  32a34d    ld      (#4da3),a
     // 20d6  c9        ret     
     //-------------------------------
-    CLYDE_SUBSTATE = 2;
+    CLYDE_SUBSTATE = 3;
 }
 
 void func_20d7 (void)
@@ -10343,38 +10343,38 @@ void startGame_234b (void)
         //-------------------------------
         void (*func[])(int param) = 
         {
-            jumpClearScreen_23ed,
-            func_24d7,
-            drawMazeTBD_2419,
-            drawPills_2448,
-            initialisePositions_25d3, 
-            blinkySubstateTBD_268b,
+            jumpClearScreen_23ed,       // 0
+            func_24d7,                  // 1
+            drawMazeTBD_2419,           // 2
+            drawPills_2448,             // 3
+            initialisePositions_25d3,   // 4
+            blinkySubstateTBD_268b,     // 5
             clearColour_240d,
             resetGameState_2698,
-            scatterOrChaseBlinky_2730,
+            scatterOrChaseBlinky_2730,  // 8
             scatterOrChasePinky_276c,
             scatterOrChaseInky_27a9,
             scatterOrChaseClyde_27f1,
-            homeOrRandomBlinky_283b,
+            homeOrRandomBlinky_283b,    // 12
             homeOrRandomPinky_2865,
             homeOrRandomInky_288f,
             homeOrRandomClyde_28b9,
-            func_000d,
-            clearGhostState_26a2,
-            clearPillArrays_24c9,
+            func_000d,                  // 16
+            clearGhostState_26a2,       // 17
+            clearPillArrays_24c9,       // 18
             clearPillsScreen_2a35,
-            setConfig_26d0,
+            setConfig_26d0,             // 20 
             updatePillsFromScreen_2487,
             advanceLevelState_23e8,
             pacmanOrientationDemo_28e3,
             clearScores_2ae0,
-            addToScore_2a5a,
+            addToScore_2a5a,            // 25
             func_2b6a,
             func_2bea,
-            displayMsg_2c5e,
+            displayMsg_2c5e,            // 28
             displayCredits_2ba1,
-            resetPositions_2675,
-            showBonusLifeScore_26b2
+            resetPositions_2675,        // 30
+            showBonusLifeScore_26b2     // 31
         };
         // tableCall_0020 (func, task, param);
         printf ("%s dispatch task %d\n", __func__, task);
@@ -12680,83 +12680,130 @@ void displayMsg_2c5e (int b)
 {
     // 2c5e  21a536    ld      hl,#36a5
     // 2c61  df        rst     #18		; (hl+2*b) -> hl 
-    uint16_t hl = DATA_MSG_TABLE [b];
     // 2c62  5e        ld      e,(hl)
     // 2c63  23        inc     hl
     // 2c64  56        ld      d,(hl)
-    uint8_t de=ROM[hl];
+    uint16_t hl = tableLookup_0018 (DATA_MSG_TABLE, b);
+    int16_t de = *(int16_t*)(&ROM[hl]);
+    uint8_t *chr = &ROM[hl+1];
+    printf ("%s %d -> %x -> %x \n", __func__, b, hl, de);
 
-// 2c65  dd210044  ld      ix,#4400	; Start of Color RAM
-// 2c69  dd19      add     ix,de	; Calculate starting pos in CRAM
-// 2c6b  dde5      push    ix		; 4400 + (hl) -> stack 
+    /* TODO if the msg starts with 0x4d, 0x83, then what prevents the video
+     * address from being c74d ???? */
+    de &= 0x7fff;
+
+    // 2c65  dd210044  ld      ix,#4400	; Start of Color RAM
+    // 2c69  dd19      add     ix,de	; Calculate starting pos in CRAM
+    uint8_t *colour = &COLOUR[de];
+    // 2c6b  dde5      push    ix		; 4400 + (hl) -> stack 
     // 2c6d  1100fc    ld      de,#fc00	
     // 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
-    int ix=0x400;
     // 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
+    uint8_t *video = &VIDEO[de];
     de=-1;
     // 2c75  cb7e      bit     7,(hl)  
     // 2c77  2003      jr      nz,#2c7c     ; (3) 
-    if ((ROM[hl] & 0x80) == 0)
+    if ((*chr & 0x80) == 0)
     {
         // 2c79  11e0ff    ld      de,#ffe0	; Offset for top + bottom 2 lines 
         de=-0x20;
     }
-// 2c7c  23        inc     hl
-// 2c7d  78        ld      a,b		; b -> a
-// 2c7e  010000    ld      bc,#0000	; 0 -> b,c 
-// 2c81  87        add     a,a		; 2*a -> a 
-// 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
-    int a = 0;
-    if (a>=0x80)
+
+    // 2c7c  23        inc     hl
+    // 2c7d  78        ld      a,b		; b -> a
+    // 2c7e  010000    ld      bc,#0000	; 0 -> b,c 
+    // 2c81  87        add     a,a		; 2*a -> a 
+    // 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
+    hl++;
+    uint16_t bc = 0;
+    if (b < 0x80)
     {
-        while(1)
+        // 2c84  7e        ld      a,(hl)		; Read next char 
+        // 2c85  fe2f      cp      #2f		; #2f = end of text
+        // 2c87  2809      jr      z,#2c92         ; Done with VRAM
+        while(*chr != 0x2f)
         {
-// 2c84  7e        ld      a,(hl)		; Read next char 
-// 2c85  fe2f      cp      #2f		; #2f = end of text
-// 2c87  2809      jr      z,#2c92         ; Done with VRAM
-            break;
-// 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
-// 2c8c  23        inc     hl		; Next char
-// 2c8d  dd19      add     ix,de		; Calc next VRAM pos
-// 2c8f  04        inc     b		; Inc char count
-// 2c90  18f2      jr      #2c84           ; loop
-        }
-// 2c92  23        inc     hl
-// 2c93  dde1      pop     ix		; Get CRAM start pos
-// 2c95  7e        ld      a,(hl)		; Get color 
-// 2c96  a7        and     a
-// 2c97  faa42c    jp      m,#2ca4		; Jump if > #80 
-        if (a&0x80)
-        {
-// 2c9a  7e        ld      a,(hl)		; Get color  
-// 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
-// 2c9e  23        inc     hl		; Next color 
-// 2c9f  dd19      add     ix,de		; Calc next CRAM pos
-// 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
-// 2ca3  c9        ret     
+            // 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
+            // 2c8c  23        inc     hl		; Next char
+            // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
+            // 2c8f  04        inc     b		; Inc char count
+            printf ("out %c, move %d\n", *chr, de);
+            *video = *chr++;
+            video += de;
+            bc++;
+            // 2c90  18f2      jr      #2c84           ; loop
         }
 
-// 	;; Same as above, but all the same color
-// 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
-// 2ca7  dd19      add     ix,de		; Calc next CRAM pos
-// 2ca9  10f9      djnz    #2ca4           ; Loop until b=0
-// 2cab  c9        ret     
+        // 2c92  23        inc     hl
+        chr++;
+       
+jump_2c93:
+        // 2c93  dde1      pop     ix		; Get CRAM start pos
+        // 2c95  7e        ld      a,(hl)		; Get color 
+        // 2c96  a7        and     a
+        // 2c97  faa42c    jp      m,#2ca4		; Jump if > #80 
+        if (*chr < 0x80)
+        {
+            while (bc--)
+            {
+                // 2c9a  7e        ld      a,(hl)		; Get color  
+                // 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
+                // 2c9e  23        inc     hl		; Next color 
+                // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
+                printf ("col %c\n", *chr);
+                *colour = *chr++;
+                colour += de;
+                // 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
+                // 2ca3  c9        ret     
+            }
+
+            return;
+        }
+        else
+        {
+            // 	;; Same as above, but all the same color
+            while (bc--)
+            {
+                // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
+                // 2ca7  dd19      add     ix,de		; Calc next CRAM pos
+                printf ("col %c\n", *chr);
+                *colour = *chr;
+                colour += de;
+                // 2ca9  10f9      djnz    #2ca4           ; Loop until b=0
+                // 2cab  c9        ret     
+            }
+
+            return;
+        }
     }
+    else
+    {
+        // 	;; Message # > 80 (erase previous message?!), use 2nd color code
+        // 2cac  7e        ld      a,(hl)		; Read next char
+        // 2cad  fe2f      cp      #2f
+        // 2caf  280a      jr      z,#2cbb         ; Done with VRAM
+        while (*chr != 0x2f)
+        {
+            // 2cb1  dd360040  ld      (ix+#00),#40	; Write 40 to VRAM? 
+            // 2cb5  23        inc     hl		; Next char 
+            // 2cb6  dd19      add     ix,de		; Next screen pos
+            // 2cb8  04        inc     b		; Inc char count  
+            *video++ = 0x40;
+            video += de;
+            bc++;
+            // 2cb9  18f1      jr      #2cac           ; Loop
+        }
 
-// 
-// 	;; Message # > 80 (erase previous message?!), use 2nd color code
-// 2cac  7e        ld      a,(hl)		; Read next char
-// 2cad  fe2f      cp      #2f
-// 2caf  280a      jr      z,#2cbb         ; Done with VRAM
-// 2cb1  dd360040  ld      (ix+#00),#40	; Write 40 to VRAM? 
-// 2cb5  23        inc     hl		; Next char 
-// 2cb6  dd19      add     ix,de		; Next screen pos
-// 2cb8  04        inc     b		; Inc char count  
-// 2cb9  18f1      jr      #2cac           ; Loop
-// 2cbb  23        inc     hl		; Next char 
-// 2cbc  04        inc     b		; Inc char count 
-// 2cbd  edb1      cpir			; Loop until [hl] = 2f 
-// 2cbf  18d2      jr      #2c93           ; Do CRAM
+        // 2cbb  23        inc     hl		; Next char 
+        // 2cbc  04        inc     b		; Inc char count 
+        // 2cbd  edb1      cpir			; Loop until [hl] = 2f 
+        chr++;
+        bc++;
+        while (*chr != 0x2f && bc > 0)
+            bc--;
+        // 2cbf  18d2      jr      #2c93           ; Do CRAM
+        goto jump_2c93;
+    }
 }
 
 void func_2cc1 (void)

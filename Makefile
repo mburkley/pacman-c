@@ -1,5 +1,14 @@
 all: pacmanc
 
+SRCS=\
+ctrans.c \
+cpu.c \
+harness.c \
+video.c 
+
+LIBS=\
+-l glut\
+-l GL
 
 ROMS=\
 pacman.5e \
@@ -12,5 +21,5 @@ pacman.6j
 # $(ROMS): %.h: %
 # 	@xxd -i $< > $@
 
-pacmanc: ctrans.c cpu.c
-	$(CC) -ggdb3 cpu.c ctrans.c -o pacmanc
+pacmanc: $(SRCS)
+	$(CC) -ggdb3 $^ -o $@ $(LIBS)
