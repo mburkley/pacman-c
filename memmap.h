@@ -14,7 +14,7 @@ typedef struct
         uint8_t video[0x400]; // starts at 0x4000
         uint8_t colour[0x400]; // starts at 0x4400
         uint8_t ram[0x7f0];  // starts at 0x4800
-        uint8_t sprites[0x10];  // starts at 0x4ff0
+        uint8_t spriteAttrib[0x10];  // starts at 0x4ff0
     };
     union
     {
@@ -35,9 +35,10 @@ typedef struct
             uint8_t coinLockout; // 0x5006
             uint8_t coinCounter; // 0x5007
             uint8_t outputs[8]; // 0x5000-0x5007
-            uint8_t __unused[0x38];
-            uint8_t soundRegs[0x40]; // 0x5040
+            uint8_t __unused1[0x38];
+            uint8_t soundRegs[0x20]; // 0x5040
             uint8_t spriteCoords[0x10]; // 0x5060
+            uint8_t __unused2[0x50];
             uint8_t watchdog[0x40]; // 0x50c0-0x50ff
         } write;
     } regs;
@@ -54,7 +55,8 @@ extern uint8_t charset[];
 #define VIDEO memmap.video
 #define COLOUR memmap.colour
 #define SOUND memmap.regs.write.soundRegs
-#define SPRITES memmap.sprites
+#define SPRITEATTRIB memmap.spriteAttrib
+#define SPRITECOORDS memmap.regs.write.spriteCoords
 #define INTENABLE memmap.regs.write.intEnable
 #define SOUNDENABLE memmap.regs.write.soundEnable
 #define AUXENABLE memmap.regs.write.auxEnable
@@ -94,6 +96,7 @@ extern uint8_t charset[];
 #define DIP_SWITCH_FREE (memmap.regs.read.in0[0] & 0x03)
 #define DIP_SWITCH_TEST (memmap.regs.read.in0[0] & 0x10)
 #define DIP_SWITCH_BONUS (memmap.regs.read.in0[0] & 0x30)
+#define DIP_SWITCH_TODO  (memmap.regs.read.in0[0] & 0x0c)
 
 #define BLINKY_SPRITE memmap.mem[0x4c02]
 #define BLINKY_COLOUR memmap.mem[0x4c03]
@@ -384,12 +387,11 @@ extern uint8_t charset[];
 #define ORIENT_LEFT     2
 #define ORIENT_UP       3
 
-#define SWAP16(addr1,addr2)\
-{ \
-    uint8_t tmp1, tmp2; \
-    tmp1 = MEM(addr1); tmp2 = MEM(addr1+1); \
-    MEM(addr1) = MEM(addr2); MEM(addr1+1) = MEM(addr2+1); \
-    MEM(addr2) = tmp1; MEM(addr2+1) = tmp2; \
+static inline void swap16 (uint8_t *a, uint8_t *b)
+{
+    uint8_t tmp;
+    tmp = a[0]; a[0] = b[0]; b[0] = tmp;
+    tmp = a[1]; a[1] = b[1]; b[1] = tmp;
 }
 
 /*  Function to emulate the Z80 daa instruction.  Convert a value to BCD by
@@ -410,4 +412,13 @@ static inline int bcdAdjust (uint8_t *value)
     return 0;
 }
 
+static inline void assert (bool cond, char *file, int line)
+{
+    if (!cond)
+    {
+        fprintf (stderr, "ASSERT %s:%d\n", file, line);
+        exit(1);
+    }
+}
 
+#define ASSERT(cond) assert(cond,__FILE__,__LINE__)

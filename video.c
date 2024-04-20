@@ -37,8 +37,13 @@
 #include "memmap.h"
 #include "video.h"
 
-// #include "p5e.h"
-// #include "p5f.h"
+// 82s123.7f = colour palette.  16 bytes.  Each byte is BBGGGRRR (3-3-2 RGB)
+
+// 82s126.4a = colour table.  32 x 16-bit entries.  each 16-bit entry is 4x4 bit
+//             palette entries.
+
+#include "82s123.7f.h"
+#include "82s126.4a.h"
 
 #define VIDEO_XSIZE 256
 #define VIDEO_YSIZE 288
@@ -53,7 +58,7 @@ static bool videoSpritesEnabled = false;
 /*  The framebuffer is a 2D array of pixels with 4 bytes per pixel.  The first 3
  *  bytes of each pixel are r, g, b respectively and the 4th is not
  *  used.  The framebuffer is increased in size by the pixel magnification
- *  factor and also if a status pane is displayed.  Since these are
+ *  factor.  Since this is
  *  configurable, the framebuffer is allocated at runtime.
  */
 static struct _frameBuffer
@@ -95,6 +100,12 @@ static void videoPlot (int x, int y, int col)
 {
     int i, j;
 
+    /*  Lookup the colour in the 128-entry colour table to find the 4-bit colour */
+    col = rom_82s126_4a[col & 0x7f];
+
+    /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */
+    col = rom_82s123_7f[col & 0xf];
+
     if (x < 0 || y < 0 || 
         x >= VIDEO_XSIZE || 
         y >= VIDEO_YSIZE)
@@ -116,8 +127,10 @@ static void videoPlot (int x, int y, int col)
  *  Mapping of charset to pixels is a bit weird.  see here:
  *
  *      https://www.walkofmind.com/programming/pie/char_defs.htm
+ *
+ *  and colour info here: https://aarongiles.com/old/mamemem/part3.html
  */
-static void videoDrawChar (int cx, int cy, int ch, int col)
+static void videoDrawChar (int cx, int cy, int chr, int chrCol)
 {
     int x, y;
 
@@ -125,220 +138,54 @@ static void videoDrawChar (int cx, int cy, int ch, int col)
     {
         for (x = 0; x < 8; x++)
         {
-            int z = ch * 16;
+            int z = chr * 16;
             z += (4-(y&4)) * 2;
             z += (7-x);
-            uint8_t c = charset[z];
-            col = col & 0x3f;
-            col |= (c & (0x08 >> (y&3))) ? 0x40 : 0;
-            col |= (c & (0x80 >> (y&3))) ? 0x80 : 0;
+            uint8_t pixelData = charset[z];
+            uint8_t col = chrCol << 2;
+            col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
+            col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
             videoPlot ((cx << 3) + x, (cy << 3) + y, col);
         }
     }
 }
+
+static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
+{
+    int x, y;
+
+    /*  TODO invert and mirror
+     *  TODO find PROM layout of chr data
+      */
+    for (y = 0; y < 16; y++)
+    {
+        for (x = 0; x < 16; x++)
+        {
+            int z = shape * 64;
+            z += (0xc-(y&0xc)) * 2;
+            z += (15-x);
+            uint8_t pixelData = charset[z + 0x1000];
+            uint8_t col = colour << 2;
+            col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
+            col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
+
+            if (px+x >= VIDEO_XSIZE || 
+                py+y >= VIDEO_YSIZE)
+            {
+                // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
+            }
+            else
+                videoPlot (px + x, py + y, col);
+        }
+    }
+}
                      
-#if 0
-static void videoDrawByte (int data, int x, int y, int col, int sprite)
-{
-    int i;
-
-    for (i = 0; i < 8; i++)
-    {
-        if (data & 0x80)
-        {
-            if (x+i < 0 || y < 0 || 
-                x+i >= VIDEO_XSIZE || 
-                y >= VIDEO_YSIZE)
-            {
-                /*  This pixel of the sprite is not visible */
-                continue;
-            }
-
-            videoPlot (x + i, y, col);
-        }
-
-        data <<= 1;
-    }
-}
-#endif
-
-#if 0
-static void videoDrawByteMagnified (int data, int x, int y, int col, int sprite)
-{
-    int i;
-
-    for (i = 0; i < 8; i++)
-    {
-        if (data & 0x80)
-        {
-            if (x+i*2 < 0 || y < 0 || 
-                x+i*2 >= VIDEO_XSIZE-1 || 
-                y >= VIDEO_YSIZE)
-            {
-                /*  This pixel of the sprite is not visible */
-                continue;
-            }
-
-            if (videoSpriteCoinc[x+i*2][y] || videoSpriteCoinc[x+i*2+1][y])
-                video.st |= VIDEO_SPRITE_COINC;
-
-            videoSpriteCoinc[x+i*2][y] = true;
-            videoSpriteCoinc[x+i*2+1][y] = true;
-
-            videoPlot (x+i*2, y, col);
-            videoPlot (x+i*2+1, y, col);
-        }
-
-        data <<= 1;
-    }
-}
-#endif
-
-#if 0
-static void videoDrawSprites8x8 (int x, int y, int p, int c, int sprite)
-{
-    int i;
-
-    mprintf (LVL_VIDEO, "Draw sprite pat 8x8 0x%x at %d,%d\n", p, x, y);
-    for (i = 0; i < 8; i++)
-    {
-        videoDrawByte (video.ram[p+i], x, y + i, c & 0x0F, sprite);
-    }
-}
-#endif
-
-#if 0
-static void videoDrawSprites16x16 (int x, int y, int p, int c, int sprite)
-{
-    int i, col;
-
-    mprintf (LVL_VIDEO, "Draw sprite pat 16x16 0x%x at %d,%d\n", p, x, y);
-
-    for (i = 0; i < 16; i++)
-    {
-        if (maxSpritesPerLine (y+i, sprite))
-            continue;
-
-        for (col = 0; col < 16; col += 8)
-        {
-            videoDrawByte (video.ram[p+i+col*2], x + col, y + i, c & 0x0F, sprite);
-        }
-    }
-}
-
-static void videoDrawSprites8x8Mag (int x, int y, int p, int c, int sprite)
-{
-    int i;
-
-    mprintf (LVL_VIDEO, "Draw sprite 8x8 mag pat 0x%x at %d,%d\n", p, x, y);
-
-    for (i = 0; i < 8; i++)
-    {
-        if (maxSpritesPerLine (y+i*2, sprite))
-            continue;
-
-        videoDrawByteMagnified (video.ram[p+i], x, y + i*2, c & 0x0F, sprite);
-
-        if (maxSpritesPerLine (y+i*2+1, sprite))
-            continue;
-
-        videoDrawByteMagnified (video.ram[p+i], x, y + i*2+1, c & 0x0F, sprite);
-    }
-}
-
-static void videoDrawSprites16x16Mag (int x, int y, int p, int c, int sprite)
-{
-    int i, col;
-
-    mprintf (LVL_VIDEO, "Draw sprite 16x16 mag pat 0x%x at %d,%d\n", p, x, y);
-
-    for (i = 0; i < 16; i++)
-    {
-        for (col = 0; col < 16; col += 8)
-        {
-            if (maxSpritesPerLine (y+i*2, sprite))
-                continue;
-
-            videoDrawByteMagnified (video.ram[p+i+col*2], x + col, y + i*2, c & 0x0F, sprite);
-
-            if (maxSpritesPerLine (y+i*2+1, sprite))
-                continue;
-
-            videoDrawByteMagnified (video.ram[p+i+col*2], x + col, y + i*2+1, c & 0x0F, sprite);
-        }
-    }
-}
-
-static void videoDrawSprites (void)
-{
-    int size;
-    int i;
-    int x, y, p, c;
-    int attr = VIDEO_SPRITEATTR_TAB;
-    int entrySize = 8;
-
-    video.st &= ~VIDEO_SPRITE_COINC;
-    memset (videoSpriteCoinc, 0, VIDEO_XSIZE * VIDEO_YSIZE * sizeof (bool));
-
-    size = (VIDEO_SPRITESIZE ? 1 : 0);
-    size |= (VIDEO_SPRITEMAG ? 2 : 0);
-
-    for (i = 0; i < VIDEO_YSIZE; i++)
-        videoSpritesPerLine[i] = 0;
-
-    for (i = 0; i < 32; i++)
-    {
-        y = video.ram[attr + i*4] + 1;
-        x = video.ram[attr + i*4 + 1];
-        p = video.ram[attr + i*4 + 2] * entrySize + VIDEO_SPRITEPAT_TAB;
-        c = video.ram[attr + i*4 + 3];
-
-        if (y == 0xD1)
-        {
-            mprintf (LVL_VIDEO, "Sprite %d switched off\n", y);
-            return;
-        }
-
-        if (c & 0x80)
-            x -= 32;
-
-        mprintf (LVL_VIDEO, "Draw sprite %d @ %d,%d pat=%d, colour=%d\n", i, x, y, p, c);
-
-        statusSpriteUpdate (i, x, y, p, c);
-
-        #if 0
-        /*  Transparent sprites don't get drawn */
-        if (c == 0)
-            continue;
-        #endif
-
-        switch (size)
-        {
-        case 0: videoDrawSprites8x8 (x, y, p, c, i); break;
-        case 1: videoDrawSprites16x16 (x, y, p, c, i); break;
-        case 2: videoDrawSprites8x8Mag (x, y, p, c, i); break;
-        case 3: videoDrawSprites16x16Mag (x, y, p, c, i); break;
-        }
-    }
-}
-#endif
 
 void videoRefresh (void)
 {
     int sc;
 
-    #if 0
-    if (VIDEO_INT_ENABLE)
-    {
-        /*
-         *  Clear bit 2 to indicate VIDEO interrupt
-         */
-        mprintf (LVL_VIDEO, "IRQ_VIDEO lowered\n");
-        // cruBitInput (0, IRQ_VIDEO, 0);
-        // video.st |= VIDEO_VERT_RETRACE;
-    }
-    #endif
 
     // if (!videoRefreshNeeded || !videoInitialised)
     //     return;
@@ -363,6 +210,13 @@ void videoRefresh (void)
             videoDrawChar (x, y, VIDEO[pos], COLOUR[pos]);
             pos += inc;
         }
+    }
+
+    for (int sprite = 7; sprite >= 0; sprite--)
+    {
+        videoDrawSprite (SPRITECOORDS[sprite * 2], SPRITECOORDS[sprite * 2 + 1],
+                         SPRITEATTRIB[sprite * 2] >> 2, SPRITEATTRIB[sprite * 2] & 3,
+                         SPRITEATTRIB[sprite * 2 + 1]);
     }
 
     // if (videoSpritesEnabled)

@@ -4,6 +4,8 @@
 #include "video.h"
 #include "kbd.h"
 
+static void (*intVector) (void);
+
 void interruptEnable ()
 {
 }
@@ -16,19 +18,21 @@ void interruptMode (int mode)
 {
 }
 
-void interruptVector (int vector)
-{
-}
-
+/*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
-void isr_008d (void);
     usleep(100000);
-    isr_008d ();
+    if (intVector)
+        intVector();
 // void showScreen (void);
 // showScreen();
     videoRefresh();
     kbdPoll();
+}
+
+void interruptVector (void (*func) (void))
+{
+    intVector = func;
 }
 
 void kickWatchdog (void)

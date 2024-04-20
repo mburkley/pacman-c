@@ -23,13 +23,9 @@
 #include "protos.h"
 #include "consts.h"
 #include "structs.h"
+#include "cpu.h"
 
 // TODO prototypes are here temporarily to make find-and-replace easier */
-void interruptHalt (void);
-void interruptEnable (void);
-void interruptDisable (void);
-void interruptMode (int mode);
-void interruptVector (int vector);
 
 void updateCounters_01dc (void);
 void dispatchISRTasks_0221 (void);
@@ -209,6 +205,7 @@ void drawBlankSquare_2b7e(uint8_t *hl);
 void drawCharSquare_2b80 (uint8_t *hl, int a);
 void drawFruit_2b8f (uint8_t *hl, int a);
 void func_2b6a ();
+void displayFruitHistory_2bfd (uint8_t *table, int level);
 void func_2c44(uint8_t a);
 void func_2cc1 (void);
 void displayMsg_2c5e (int b);
@@ -289,7 +286,7 @@ void incScene2State_212b (void);
 bool checkCoinCredit_02df (void);
 void incScene3State_22b9 (void);
 void selectFruit_0ead (void);
-void func_2bea (int param);
+void fruitHistoryLevelCheck_2bea (int param);
 void func_13dd (void);
 void func_0e6c (void);
 void func_0a6f (void);
@@ -335,22 +332,40 @@ uint16_t calcSquare_2a12(uint8_t a);
 uint16_t scoreTable_2b17[];
 int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks);
 uint16_t displayLives_2b4a (int lives);
+void fruitHistoryLevelHigherThan8_2c2e (int level);
 uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl);
 void func_2dd7 (void);
 uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val);
 uint8_t func_2f4a (uint8_t *ix);
+void isr_3000 (void);
+void func_3031 (uint8_t h);
+void func_3042 (void);
+void func_30b5 (uint8_t e);
+void func_30bd (int e, int b);
+void func_30fb (int e, int h);
 void delay_32ed (void);
 void func_3af4 (void);
 
 #define DATA_0219 (&ROM[0x0219])
-#define DATA_3445 &ROM[0x3445]
-#define DATA_35b5 (&ROM[0x35b5])
+#define DATA_0796 (&ROM[0x0796])
+#define DATA_0843 (&ROM[0x0843])
+#define DATA_084f (&ROM[0x084f])
+#define DATA_0861 (&ROM[0x0861])
+#define DATA_0873 (&ROM[0x0873])
+#define FRUIT_DATA (&ROM[0x0efd])
 #define BONUS_LIFE_DATA (&ROM[0x2728])
 #define DIFFICULTY_DATA ((uint16_t*)(&ROM[0x272c]))
+#define MOVE_VECTOR_DATA ((XYPOS*)(&ROM[0x32ff]))
+#define MOVE_VECTOR_RIGHT ((XYPOS*)(&ROM[0x32ff]))
+#define MOVE_VECTOR_DOWN ((XYPOS*)(&ROM[0x3301]))
+#define MOVE_VECTOR_LEFT ((XYPOS*)(&ROM[0x3303]))
+#define MOVE_VECTOR_UP ((XYPOS*)(&ROM[0x3305]))
+#define MOVE_DATA (&ROM[0x330f])
+#define DATA_3445 &ROM[0x3445]
+#define DATA_35b5 (&ROM[0x35b5])
 #define DATA_3b80 (&ROM[0x3b80])
 #define DATA_3b30 (&ROM[0x3b30])
 #define DATA_3b40 (&ROM[0x3b40])
-#define FRUIT_DATA (&ROM[0x0efd])
 #define FRUIT_TABLE (&ROM[0x3b08])
 #define DATA_MSG_TABLE (&ROM[0x36a5])
 #define DATA_3bc8 (&ROM[0x3bc8])
@@ -358,17 +373,13 @@ void func_3af4 (void);
 #define DATA_3bb8 (&ROM[0x3bb8])
 #define DATA_3bcc (&ROM[0x3bcc])
 #define DATA_3bd0 (&ROM[0x3bd0])
-#define DATA_0796 (&ROM[0x0796])
-#define MOVE_VECTOR_DATA ((XYPOS*)(&ROM[0x32ff]))
-#define MOVE_VECTOR_RIGHT ((XYPOS*)(&ROM[0x32ff]))
-#define MOVE_VECTOR_DOWN ((XYPOS*)(&ROM[0x3301]))
-#define MOVE_VECTOR_LEFT ((XYPOS*)(&ROM[0x3303]))
-#define MOVE_VECTOR_UP ((XYPOS*)(&ROM[0x3305]))
-#define MOVE_DATA (&ROM[0x330f])
-#define DATA_0843 (&ROM[0x0843])
-#define DATA_084f (&ROM[0x084f])
-#define DATA_0861 (&ROM[0x0861])
-#define DATA_0873 (&ROM[0x0873])
+#define DATA_3154 ((uint16_t *)(&ROM[0x3154]))
+#define BAD_ROM_316c (&ROM[0x316c])
+#define BAD_W_RAM_316e (&ROM[0x316e])
+#define BAD_V_RAM_3170 (&ROM[0x3170])
+#define BAD_C_RAM_3172 (&ROM[0x3172])
+#define DATA_32f9 (&ROM[0x32f9])
+#define DATA_3ae2 ((uint16_t *)(&ROM[0x3ae2]))
 
 void reset_0000 (void)
 {
@@ -509,6 +520,7 @@ void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
     data[0] = time;
     data[1] = routine;
     data[2] = param;
+    printf ("%s t=%d f=%d p=%d\n", __func__, time, routine, param);
     addISRTask_0051 (ISR_TASKS, 0x10, data);
 }
 
@@ -705,7 +717,7 @@ void isr_008d (void)
     // 00e8  07        rlca    
     // 00e9  dd7702    ld      (ix+#02),a
     //-------------------------------
-    *SPRITE_POS = (*SPRITE_POS << 2) | (*SPRITE_POS>>6);
+    SPRITE_POS[0] = (SPRITE_POS[0] << 2) | (SPRITE_POS[0]>>6);
 
     //-------------------------------
     // 00ec  dd7e04    ld      a,(ix+#04)
@@ -761,19 +773,8 @@ void isr_008d (void)
         // 0123  5f        ld      e,a
         // 0124  1600      ld      d,#00
         // 0126  dd19      add     ix,de
-        //-------------------------------
-        uint8_t *ix = SPRITE_POS + KILLED_GHOST_INDEX*2;
-
-        //-------------------------------
         // 0128  2a244c    ld      hl,(#4c24)
         // 012b  ed5b344c  ld      de,(#4c34)
-        //-------------------------------
-        #if 0
-        hl = SPRITE_POS[2];
-        de = SPRITE_DATA[2];
-        #endif
-
-        //-------------------------------
         // 012f  dd7e00    ld      a,(ix+#00)
         // 0131  32244c    ld      (#4c24),a
         // 0135  dd7e01    ld      a,(ix+#01)
@@ -787,8 +788,8 @@ void isr_008d (void)
         // 014d  dd7310    ld      (ix+#10),e
         // 0150  dd7211    ld      (ix+#11),d
         //-------------------------------
-        // TODO SWAP16 (0x4c24, ix);
-        // TODO SWAP16 (0x4c34, ix+0x10);
+        swap16 (&SPRITE_POS[2], &SPRITE_POS[KILLED_GHOST_INDEX*2]);
+        swap16 (&SPRITE_DATA[2], &SPRITE_POS[KILLED_GHOST_INDEX*2 + 0x10]);
     }
 
     //-------------------------------
@@ -808,8 +809,8 @@ void isr_008d (void)
         // 016e  ed432a4c  ld      (#4c2a),bc
         // 0172  ed533a4c  ld      (#4c3a),de
         //-------------------------------
-        // TODO SWAP16 (0x4c22, 0x4c2a);
-        // TODO SWAP16 (0x4c32, 0x4c3a);
+        swap16 (SPRITE_POS, &SPRITE_POS[8]);
+        swap16 (SPRITE_DATA, &SPRITE_DATA[8]);
     }
 
     //-------------------------------
@@ -818,7 +819,8 @@ void isr_008d (void)
     // 017c  010c00    ld      bc,#000c
     // 017f  edb0      ldir    
     //-------------------------------
-    memcpy (SPRITES, SPRITE_POS, 0xc);
+    // TODO looks backwards, positions and attributed
+    memcpy (SPRITEATTRIB+2, SPRITE_POS, 0xc);
 
     //-------------------------------
     // 0181  21324c    ld      hl,#4c32
@@ -826,14 +828,13 @@ void isr_008d (void)
     // 0187  010c00    ld      bc,#000c
     // 018a  edb0      ldir    
     //-------------------------------
-    memcpy (SPRITES+2, SPRITE_DATA, 0xc);
+    memcpy (SPRITECOORDS+2, SPRITE_DATA, 0xc);
 
     //-------------------------------
     // 018c  cddc01    call    #01dc
     // 018f  cd2102    call    #0221
     // 0192  cdc803    call    #03c8
     //-------------------------------
-    printf("%s upd counters\n", __func__);
     updateCounters_01dc();
     dispatchISRTasks_0221();
     advanceGameState_03c8 ();
@@ -851,6 +852,7 @@ void isr_008d (void)
     //-------------------------------
     if (MAIN_STATE != 0)
     {
+        printf ("ISR: MAIN != 0\n");
         func_039d();
         func_1490();
         func_141f();
@@ -908,6 +910,7 @@ void isr_008d (void)
 
 void updateCounters_01dc (void)
 {
+    printf("%s\n", __func__);
     //-------------------------------
     // 01dc  21844c    ld      hl,#4c84
     // 01df  34        inc     (hl)
@@ -1029,7 +1032,7 @@ void dispatchISRTasks_0221 (void)
         // 022b  a7        and     a
         // 022c  282f      jr      z,#025d         ; (47)
         //-------------------------------
-        int a = *hl;
+        int a = hl[0];
         if (a != 0)
         {
             //-------------------------------
@@ -1039,9 +1042,9 @@ void dispatchISRTasks_0221 (void)
             // 0232  b9        cp      c
             // 0233  3028      jr      nc,#025d        ; (40)
             //-------------------------------
-            /*  TODO how can 0xc0 << 2 be anything other than 0 ? */
             a &= 0xc0;
             a>>=6;
+            printf ("%s limits=%d timer=%d\n", __func__, c, a);
             if(a<c)
             {
                 //-------------------------------
@@ -1050,8 +1053,8 @@ void dispatchISRTasks_0221 (void)
                 // 0237  e63f      and     #3f
                 // 0239  2022      jr      nz,#025d        ; (34)
                 //-------------------------------
-                a = (*--hl & 0x3f);
-                if (a == 0)
+                hl[0]--;
+                if ((hl[0] & 0x3f) == 0)
                 {
                     //-------------------------------
                     // 023b  77        ld      (hl),a
@@ -1064,9 +1067,9 @@ void dispatchISRTasks_0221 (void)
                     // 0242  215b02    ld      hl,#025b         ; return to 025b
                     // 0245  e5        push    hl
                     //-------------------------------
-                    *hl=0;
-                    a=*++hl;
-                    b=*++hl;
+                    hl[0]=0;
+                    a=hl[1];
+                    b=hl[2];
 
                     //-------------------------------
                     // 0246  e7        rst     #20
@@ -1079,6 +1082,7 @@ void dispatchISRTasks_0221 (void)
                     // 025c  c1        pop     bc
                     //-------------------------------
                     printf("%s disp tsk %d\n", __func__, a);
+                    ASSERT (a < 10);
                     void (*func[])() =
                     {
                         incLevelStateSubr_0894,
@@ -2608,7 +2612,7 @@ void func_070e (int b)
     // 0792  cdea2b    call    #2bea
     // 0795  c9        ret     
     //-------------------------------
-    func_2bea (b);
+    fruitHistoryLevelCheck_2bea (b);
 }
 
     //-------------------------------
@@ -10201,7 +10205,7 @@ void start_230b (void)
     // 233f  d300      out     (#00),a		; interrupt vector -> 0xfa
     //-------------------------------
     interruptMode (2);
-    interruptVector (0xfa);
+    interruptVector (isr_3000);
 
     //-------------------------------
     // 2341  af        xor     a		; a=0
@@ -10300,7 +10304,7 @@ void startGame_234b (void)
          * for interrupts while we're here */
         while (MEM[TASK_LIST_BEGIN] > 0x80)
         {
-            printf ("MEM[%x]=%x\n", TASK_LIST_BEGIN, MEM[TASK_LIST_BEGIN]);
+            printf ("game task list empty, MEM[%x]=%x, halt\n", TASK_LIST_BEGIN, MEM[TASK_LIST_BEGIN]);
             interruptHalt();
         }
 
@@ -10316,7 +10320,7 @@ void startGame_234b (void)
         MEM[TASK_LIST_BEGIN] = 0xff;
         MEM[TASK_LIST_BEGIN+1] = 0xff;
         TASK_LIST_BEGIN+=2;
-            printf ("pop task %d next %x\n", task, TASK_LIST_BEGIN);
+            printf ("pop game task %d next %x\n", task, TASK_LIST_BEGIN);
         //-------------------------------
         // 239c  2002      jr      nz,#23a0        ; (2)
         // 239e  2ec0      ld      l,#c0
@@ -10370,7 +10374,7 @@ void startGame_234b (void)
             clearScores_2ae0,
             addToScore_2a5a,            // 25
             func_2b6a,
-            func_2bea,
+            fruitHistoryLevelCheck_2bea,
             displayMsg_2c5e,            // 28
             displayCredits_2ba1,
             resetPositions_2675,        // 30
@@ -12530,7 +12534,7 @@ void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
     //-------------------------------
 }
 
-void func_2bea (int param)
+void fruitHistoryLevelCheck_2bea (int param)
 {
     //-------------------------------
     // 2bea  3a004e    ld      a,(#4e00)
@@ -12547,93 +12551,116 @@ void func_2bea (int param)
     // 2bf6  d22e2c    jp      nc,#2c2e	; No -> 0x2c2e 
     //-------------------------------
     int level = P1_LEVEL;
-    if (level < 8)
+
+    if (level >= 8)
     {
-        // 2bf9  11083b    ld      de,#3b08	; Fruit table?  
-        // 2bfc  47        ld      b,a
-        uint8_t *de = FRUIT_TABLE;
-
-        while (1)
-        {
-            // 2bfd  0e07      ld      c,#07		; Fruit count	 
-            // 2bff  210440    ld      hl,#4004	; Starting loc 
-            int c=7;
-            uint16_t hl=0x4; // offset into video
-            for (int i = 0; i < P1_LEVEL; i++)
-            {
-                // 2c02  1a        ld      a,(de)		;  
-                // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
-                // int a=*de;
-                drawFruit_2b8f (&VIDEO[hl], *de);
-
-                // 2c06  3e04      ld      a,#04		; v
-                // 2c08  84        add     a,h		; v
-                // 2c09  67        ld      h,a		; v
-                /*  No need to modify hl as we just pass colour hl+=0x400;*/
-                // 2c0a  13        inc     de		; v
-                // 2c0b  1a        ld      a,(de)		; v
-                // 2c0c  cd802b    call    #2b80		; Erase next fruit 
-                drawCharSquare_2b80 (&COLOUR[hl], *++de);
-                // 2c0f  3efc      ld      a,#fc		; 
-                // 2c11  84        add     a,h		; 
-                // 2c12  67        ld      h,a		; 
-                // hl-=0xfc00;
-                // 2c13  13        inc     de
-                de++;
-                // 2c14  23        inc     hl
-                // 2c15  23        inc     hl
-                hl+=2;
-                // 2c16  0d        dec     c
-                c--;
-                // 2c17  10e9      djnz    #2c02           ; (-23)
-            }
-
-            while (1)
-            {
-                // 2c19  0d        dec     c
-                // 2c1a  f8        ret     m
-                if (--c < 0)
-                    return;
-
-                // 2c1b  cd7e2b    call    #2b7e
-                drawBlankSquare_2b7e(&VIDEO[hl]);
-
-                // 2c1e  3e04      ld      a,#04
-                // 2c20  84        add     a,h
-                // 2c21  67        ld      h,a
-                // 2c22  af        xor     a
-                // 2c23  cd802b    call    #2b80
-                // hl += 0x400;
-                drawCharSquare_2b80 (&COLOUR[hl], 0);
-
-                // 2c26  3efc      ld      a,#fc
-                // 2c28  84        add     a,h
-                // 2c29  67        ld      h,a
-                // 2c2a  23        inc     hl
-                // 2c2b  23        inc     hl
-                // 2c2c  18eb      jr      #2c19           ; (-21)
-                // hl -= 0x400;
-                hl += 2;
-            }
-        }
-
-        // 2c2e  fe13      cp      #13
-        // 2c30  3802      jr      c,#2c34         ; (2)
-        // 2c32  3e13      ld      a,#13
-        if (level >= 0x13)
-            level = 0x13;
-        // 2c34  d607      sub     #07
-        // 2c36  4f        ld      c,a
-        // c=a-7;
-        // 2c37  0600      ld      b,#00
-        // 2c39  21083b    ld      hl,#3b08
-        // 2c3c  09        add     hl,bc
-        // 2c3d  09        add     hl,bc
-        uint8_t *hl = &FRUIT_TABLE[(level - 7) * 2];
-        // 2c3e  eb        ex      de,hl
-        // 2c3f  0607      ld      b,#07
-        // 2c41  c3fd2b    jp      #2bfd
+        fruitHistoryLevelHigherThan8_2c2e(level);
+        return;
     }
+
+    //-------------------------------
+    // 2bf9  11083b    ld      de,#3b08	; Fruit table
+    // 2bfc  47        ld      b,a
+    //-------------------------------
+    displayFruitHistory_2bfd (FRUIT_TABLE, level);
+}
+
+void displayFruitHistory_2bfd (uint8_t *table, int level)
+{
+    //-------------------------------
+    // 2bfd  0e07      ld      c,#07		; Fruit count	 
+    // 2bff  210440    ld      hl,#4004	; Starting loc 
+    //-------------------------------
+    int c=7;
+    uint16_t hl=0x4; // offset into video
+    for (int i = 0; i < level; i++)
+    {
+        //-------------------------------
+        // 2c02  1a        ld      a,(de)		;  
+        // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
+        //-------------------------------
+        drawFruit_2b8f (&VIDEO[hl], table[0]);
+
+        //-------------------------------
+        // 2c06  3e04      ld      a,#04		; v
+        // 2c08  84        add     a,h		; v
+        // 2c09  67        ld      h,a		; v
+        // 2c0a  13        inc     de		; v
+        // 2c0b  1a        ld      a,(de)		; v
+        // 2c0c  cd802b    call    #2b80		; Erase next fruit 
+        //-------------------------------
+        /*  No need to modify hl as we just pass colour hl+=0x400;*/
+        drawCharSquare_2b80 (&COLOUR[hl], table[1]);
+        //-------------------------------
+        // 2c0f  3efc      ld      a,#fc		; 
+        // 2c11  84        add     a,h		; 
+        // 2c12  67        ld      h,a		; 
+        // 2c13  13        inc     de
+        // 2c14  23        inc     hl
+        // 2c15  23        inc     hl
+        //-------------------------------
+        table += 2;
+        hl += 2;
+        //-------------------------------
+        // 2c16  0d        dec     c
+        // 2c17  10e9      djnz    #2c02           ; (-23)
+        //-------------------------------
+        c--;
+    }
+
+    //-------------------------------
+    // 2c19  0d        dec     c
+    // 2c1a  f8        ret     m
+    //-------------------------------
+    while (c-- > 0)
+    {
+        //-------------------------------
+        // 2c1b  cd7e2b    call    #2b7e
+        //-------------------------------
+        drawBlankSquare_2b7e(&VIDEO[hl]);
+
+        //-------------------------------
+        // 2c1e  3e04      ld      a,#04
+        // 2c20  84        add     a,h
+        // 2c21  67        ld      h,a
+        // 2c22  af        xor     a
+        // 2c23  cd802b    call    #2b80
+        //-------------------------------
+        drawCharSquare_2b80 (&COLOUR[hl], 0);
+
+        //-------------------------------
+        // 2c26  3efc      ld      a,#fc
+        // 2c28  84        add     a,h
+        // 2c29  67        ld      h,a
+        // 2c2a  23        inc     hl
+        // 2c2b  23        inc     hl
+        // 2c2c  18eb      jr      #2c19           ; (-21)
+        //-------------------------------
+        hl += 2;
+    }
+}
+
+void fruitHistoryLevelHigherThan8_2c2e (int level)
+{
+    //-------------------------------
+    // 2c2e  fe13      cp      #13
+    // 2c30  3802      jr      c,#2c34         ; (2)
+    // 2c32  3e13      ld      a,#13
+    //-------------------------------
+    if (level >= 0x13)
+        level = 0x13;
+    //-------------------------------
+    // 2c34  d607      sub     #07
+    // 2c36  4f        ld      c,a
+    // 2c37  0600      ld      b,#00
+    // 2c39  21083b    ld      hl,#3b08
+    // 2c3c  09        add     hl,bc
+    // 2c3d  09        add     hl,bc
+    // 2c3e  eb        ex      de,hl
+    // 2c3f  0607      ld      b,#07
+    // 2c41  c3fd2b    jp      #2bfd
+    //-------------------------------
+    displayFruitHistory_2bfd (&FRUIT_TABLE[(level - 7) * 2], 7);
 }
 
 void func_2c44(uint8_t a)
@@ -13588,9 +13615,9 @@ uint8_t func_2fad (uint8_t *ix, uint8_t *iy)
     // 2ffe  834c      ; checksum
     //-------------------------------
 
-// 	;; Interrupt routine for vector #3ffa
-// 
-// 	;; Check rom checksums
+/* Interrupt routine for vector #3ffa
+ * 
+ * Check rom checksums */
 void isr_3000 (void)
 {
     //-------------------------------
@@ -13599,486 +13626,834 @@ void isr_3000 (void)
     uint8_t h = 0;
     uint8_t l = 0;
 
-    do
+    do // odd/even bytes
     {
-        //-------------------------------
-        // 3003  010010    ld      bc,#1000
-        //-------------------------------
-        uint8_t c = 0;
-
-        for (uint8_t b = 0; b < 0x10; b++)
+        do // all roms
         {
             //-------------------------------
-            // 3006  32c050    ld      (#50c0),a	; Kick the dog
+            // 3003  010010    ld      bc,#1000
             //-------------------------------
-            kickWatchdog();
-            do
+            uint8_t c = 0;
+
+            for (uint8_t b = 0; b < 0x10; b++)
             {
                 //-------------------------------
-                // 3009  79        ld      a,c
-                // 300a  86        add     a,(hl)
-                // 300b  4f        ld      c,a
+                // 3006  32c050    ld      (#50c0),a	; Kick the dog
                 //-------------------------------
-                c += ROM[(h << 8) | l];
+                kickWatchdog();
+                do
+                {
+                    //-------------------------------
+                    // 3009  79        ld      a,c
+                    // 300a  86        add     a,(hl)
+                    // 300b  4f        ld      c,a
+                    //-------------------------------
+                    c += ROM[(h << 8) | l];
+                    //-------------------------------
+                    // 300c  7d        ld      a,l
+                    // 300d  c602      add     a,#02
+                    // 300f  6f        ld      l,a
+                    //-------------------------------
+                    l += 2;
+                    //-------------------------------
+                    // 3010  fe02      cp      #02
+                    // 3012  d20930    jp      nc,#3009
+                    //-------------------------------
+                }
+                while (l >= 2);
                 //-------------------------------
-                // 300c  7d        ld      a,l
-                // 300d  c602      add     a,#02
-                // 300f  6f        ld      l,a
+                // 3015  24        inc     h
+                // 3016  10ee      djnz    #3006           ; (-18)
                 //-------------------------------
-                l += 2;
-                //-------------------------------
-                // 3010  fe02      cp      #02
-                // 3012  d20930    jp      nc,#3009
-                //-------------------------------
+                h++;
             }
-            while (l >= 2);
             //-------------------------------
-            // 3015  24        inc     h
-            // 3016  10ee      djnz    #3006           ; (-18)
+            // 3018  79        ld      a,c
+            // 3019  a7        and     a
+            // 301a  2015      jr      nz,#3031        ; Rom checksum bad (?)
             //-------------------------------
-            h++;
+            if (c != 0)
+            {
+                func_3031 (h);
+                return;
+            }
+
+            //-------------------------------
+            // 301c  320750    ld      (#5007),a	; Clear coin
+            //-------------------------------
+            COINCOUNTER = 0;
+
+            //-------------------------------
+            // 301f  7c        ld      a,h
+            // 3020  fe30      cp      #30
+            // 3022  c20330    jp      nz,#3003	; Continue for other roms
+            //-------------------------------
         }
-        // 3018  79        ld      a,c
-        // 3019  a7        and     a
-        // 301a  2015      jr      nz,#3031        ; Rom checksum bad (?)
-        if (c != 0)
-            goto jump_3031;
+        while (h != 0x30);
 
-        // 301c  320750    ld      (#5007),a	; Clear coin
-        // 301f  7c        ld      a,h
-        // 3020  fe30      cp      #30
-        // 3022  c20330    jp      nz,#3003	; Continue for other roms
-        COINCOUNTER = 0;
+        //-------------------------------
+        // 3025  2600      ld      h,#00
+        // 3027  2c        inc     l
+        //-------------------------------
+        h = 0;
+        l++;
+        //-------------------------------
+        // 3028  7d        ld      a,l
+        // 3029  fe02      cp      #02
+        // 302b  da0330    jp      c,#3003
+        //-------------------------------
     }
-    while (h != 0x30);
+    while (l < 2);
 
-// 3025  2600      ld      h,#00
-// 3027  2c        inc     l
-// 3028  7d        ld      a,l
-// 3029  fe02      cp      #02
-h = 0;
-l++;
-// 302b  da0330    jp      c,#3003
+    //-------------------------------
+    // 302e  c34230    jp      #3042
+    //-------------------------------
+    func_3042 ();
+}
 
-if (l < 2)
+/* Bad rom checksum (?) */
+void func_3031 (uint8_t h)
 {
-// 302e  c34230    jp      #3042
-    }
-jump_3031:
-// 	;; Bad rom checksum (?)
-// 3031  25        dec     h
-// 3032  7c        ld      a,h
-// 53033  e6f0      and     #f0
+    //-------------------------------
+    // 3031  25        dec     h
+    // 3032  7c        ld      a,h
+    // 3033  e6f0      and     #f0
     // 3035  320750    ld      (#5007),a	; Clear coin
-        COINCOUNTER = 0;
-// 3038  0f        rrca    
-// 3039  0f        rrca    
-// 303a  0f        rrca    
-// 303b  0f        rrca    
-// 303c  5f        ld      e,a		; Failed rom -> e (?)
-// 303d  0600      ld      b,#00
-// 303f  c3bd30    jp      #30bd
-// 
-// 	;; RAM test (4c00)
-// 3042  315431    ld      sp,#3154
-// 3045  06ff      ld      b,#ff
-    for (int b = 0; b < 0xff; b++)
+    //-------------------------------
+    h--;
+    COINCOUNTER = h & 0xf0;
+    //-------------------------------
+    // 3038  0f        rrca    
+    // 3039  0f        rrca    
+    // 303a  0f        rrca    
+    // 303b  0f        rrca    
+    // 303c  5f        ld      e,a		; Failed rom -> e (?)
+    // 303d  0600      ld      b,#00
+    // 303f  c3bd30    jp      #30bd
+    //-------------------------------
+    func_30bd (h>>4, 0);
+}
+
+/* RAM test (4c00) */
+void func_3042 (void)
+{
+    // 3042  315431    ld      sp,#3154
+    uint16_t *stackData = DATA_3154;
+    uint8_t a;
+    uint16_t de;
+
+    do
     {
-// 3047  e1        pop     hl		; 4c00 (first time)
-// 3048  d1        pop     de		; 040f (first time)
-// 3049  48        ld      c,b		; 0xff -> c
-// 
-// 	;; Write crap to ram
-        // 304a  32c050    ld      (#50c0),a	; Kick the dog
-        kickWatchdog();
-// 304d  79        ld      a,c		; 0xff -> a
-// 304e  a3        and     e		; e -> a
-// 304f  77        ld      (hl),a
-// 3050  c633      add     a,#33
-// 3052  4f        ld      c,a
-// 3053  2c        inc     l
-// 3054  7d        ld      a,l
-// 3055  e60f      and     #0f
-// 3057  c24d30    jp      nz,#304d
-// 305a  79        ld      a,c
-// 305b  87        add     a,a
-// 305c  87        add     a,a
-// 305d  81        add     a,c
-// 305e  c631      add     a,#31
-// 3060  4f        ld      c,a
-// 3061  7d        ld      a,l
-// 3062  a7        and     a		
-// 3063  c24d30    jp      nz,#304d
-// 3066  24        inc     h
-// 3067  15        dec     d
-// 3068  c24a30    jp      nz,#304a
-// 306b  3b        dec     sp
-// 306c  3b        dec     sp
-// 306d  3b        dec     sp
-// 306e  3b        dec     sp
-// 306f  e1        pop     hl		; 4c00
-// 3070  d1        pop     de		; 040f 
-// 3071  48        ld      c,b
-// 
-// 	;; Check crap in ram
-        // 3072  32c050    ld      (#50c0),a	; Kick the dog
-        kickWatchdog();
-// 3075  79        ld      a,c
-// 3076  a3        and     e
-// 3077  4f        ld      c,a
-// 3078  7e        ld      a,(hl)
-// 3079  a3        and     e
-// 307a  b9        cp      c
-// 307b  c2b530    jp      nz,#30b5	; Ram test failed
-// 307e  c633      add     a,#33
-// 3080  4f        ld      c,a
-// 3081  2c        inc     l
-// 3082  7d        ld      a,l
-// 3083  e60f      and     #0f
-// 3085  c27530    jp      nz,#3075
-// 3088  79        ld      a,c
-// 3089  87        add     a,a
-// 308a  87        add     a,a
-// 308b  81        add     a,c
-// 308c  c631      add     a,#31
-// 308e  4f        ld      c,a
-// 308f  7d        ld      a,l
-// 3090  a7        and     a
-// 3091  c27530    jp      nz,#3075
-// 3094  24        inc     h
-// 3095  15        dec     d
-// 3096  c27230    jp      nz,#3072
-// 3099  3b        dec     sp
-// 309a  3b        dec     sp
-// 309b  3b        dec     sp
-// 309c  3b        dec     sp
-// 309d  78        ld      a,b
-// 309e  d610      sub     #10
-// 30a0  47        ld      b,a
-        // 30a1  10a4      djnz    #3047           ; (-92)
+        // 3045  06ff      ld      b,#ff
+        for (uint8_t b = 0xff; b > 0; b -= 0x11)
+        {
+            // 3047  e1        pop     hl		; 4c00 (first time)
+            // 3048  d1        pop     de		; 040f (first time)
+            // 3049  48        ld      c,b		; 0xff -> c
+            uint16_t hl = *stackData++;
+            de = *stackData++;
+            uint8_t c = b;
+
+            do
+            {
+                // 304a  32c050    ld      (#50c0),a	; Kick the dog
+                kickWatchdog();
+
+                do
+                {
+                    do
+                    {
+                        // 304d  79        ld      a,c		; 0xff -> a
+                        // 304e  a3        and     e		; e -> a
+                        // 304f  77        ld      (hl),a
+                        MEM[hl] = c & de;
+                        // 3050  c633      add     a,#33
+                        // 3052  4f        ld      c,a
+                        // 3053  2c        inc     l
+                        c = MEM[hl] + 0x33;
+                        hl++;
+
+                        // 3054  7d        ld      a,l
+                        // 3055  e60f      and     #0f
+                        // 3057  c24d30    jp      nz,#304d
+                    }
+                    while ((hl & 0x0f) != 0);
+
+                    // 305a  79        ld      a,c
+                    // 305b  87        add     a,a
+                    // 305c  87        add     a,a
+                    // 305d  81        add     a,c
+                    // 305e  c631      add     a,#31
+                    // 3060  4f        ld      c,a
+                    c = c * 3 + 0x31;
+                    // 3061  7d        ld      a,l
+                    // 3062  a7        and     a		
+                    // 3063  c24d30    jp      nz,#304d
+                }
+                while ((hl & 0xff) != 0);
+
+                // 3066  24        inc     h
+                // 3067  15        dec     d
+                // 3068  c24a30    jp      nz,#304a
+                hl += 0x100;
+                de -= 0x100;
+            }
+            while ((de & 0x100) != 0);
+
+            // 306b  3b        dec     sp
+            // 306c  3b        dec     sp
+            // 306d  3b        dec     sp
+            // 306e  3b        dec     sp
+            // 306f  e1        pop     hl		; 4c00
+            // 3070  d1        pop     de		; 040f 
+            // 3071  48        ld      c,b
+            stackData -= 2;
+            hl = *stackData++;
+            de = *stackData++;
+            c=b;
+
+            // 	;; Check crap in ram
+            do
+            {
+                // 3072  32c050    ld      (#50c0),a	; Kick the dog
+                kickWatchdog();
+                do
+                {
+                    do
+                    {
+                        // 3075  79        ld      a,c
+                        // 3076  a3        and     e
+                        // 3077  4f        ld      c,a
+                        c &= de;
+                        // 3078  7e        ld      a,(hl)
+                        // 3079  a3        and     e
+                        // 307a  b9        cp      c
+                        // 307b  c2b530    jp      nz,#30b5	; Ram test failed
+                        if (c != (MEM[hl] & de))
+                        {
+                            func_30b5 (de & 0xff);
+                            return;
+                        }
+
+                        // 307e  c633      add     a,#33
+                        // 3080  4f        ld      c,a
+                        c += 0x33;
+                        // 3081  2c        inc     l
+                        // 3082  7d        ld      a,l
+                        // 3083  e60f      and     #0f
+                        // 3085  c27530    jp      nz,#3075
+                    }
+                    while ((++hl) & 0x0f == 0);
+
+                    // 3088  79        ld      a,c
+                    // 3089  87        add     a,a
+                    // 308a  87        add     a,a
+                    // 308b  81        add     a,c
+                    // 308c  c631      add     a,#31
+                    // 308e  4f        ld      c,a
+                    c = c * 3 + 0x31;
+                    // 308f  7d        ld      a,l
+                    // 3090  a7        and     a
+                    // 3091  c27530    jp      nz,#3075
+                }
+                while ((hl & 0xff) != 0);
+                // 3094  24        inc     h
+                // 3095  15        dec     d
+                // 3096  c27230    jp      nz,#3072
+                hl += 0x100;
+                de -= 0x100;
+            }
+            while ((de & 0x100) != 0);
+
+            // 3099  3b        dec     sp
+            // 309a  3b        dec     sp
+            // 309b  3b        dec     sp
+            // 309c  3b        dec     sp
+            // 309d  78        ld      a,b
+            // 309e  d610      sub     #10
+            // 30a0  47        ld      b,a
+            // 30a1  10a4      djnz    #3047           ; (-92)
+            stackData -= 2;
+            b -= 0x10;
+        }
+
+        // 30a3  f1        pop     af		; 4c00 
+        // 30a4  d1        pop     de
+        // 30a5  fe44      cp      #44
+        // 30a7  c24530    jp      nz,#3045	; Check if 0x44xx done
+        // 30aa  7b        ld      a,e
+        // 30ab  eef0      xor     #f0
+        // 30ad  c24530    jp      nz,#3045	; Check if totally done
+        a = *stackData++ >> 8;
+        de = *stackData++;
     }
-// 
-// 30a3  f1        pop     af		; 4c00 
-// 30a4  d1        pop     de
-// 30a5  fe44      cp      #44
-// 30a7  c24530    jp      nz,#3045	; Check if 0x44xx done
-// 30aa  7b        ld      a,e
-// 30ab  eef0      xor     #f0
-// 30ad  c24530    jp      nz,#3045	; Check if totally done
-// 30b0  0601      ld      b,#01
-// 30b2  c3bd30    jp      #30bd
-// 
-// 	;; Display bad ram (?)
-// 30b5  7b        ld      a,e
-// 30b6  e601      and     #01
-// 30b8  ee01      xor     #01
-// 30ba  5f        ld      e,a
-// 30bb  0600      ld      b,#00
-// 
-// 	;; Display bad rom (?)
-// 30bd  31c04f    ld      sp,#4fc0
-// 30c0  d9        exx			; Swap register pairs 
-// 
-// 	;; Clear all program ram
-// 30c1  21004c    ld      hl,#4c00
-// 30c4  0604      ld      b,#04
+    while ((a != 0x44) || ((de & 0xff) ^ 0xf0) != 0);
+    // 30b0  0601      ld      b,#01
+    // 30b2  c3bd30    jp      #30bd
+    func_30bd ((de & 0xff), 1);
+}
+
+/* Display bad ram (?) */
+void func_30b5 (uint8_t e)
+{
+    // 30b5  7b        ld      a,e
+    // 30b6  e601      and     #01
+    // 30b8  ee01      xor     #01
+    // 30ba  5f        ld      e,a
+    // 30bb  0600      ld      b,#00
+    func_30bd ((e&1)^1, 0);
+}
+
+/* Display bad rom (?) */
+void func_30bd (int e, int b)
+{
+    // 30bd  31c04f    ld      sp,#4fc0
+    // 30c0  d9        exx			; Swap register pairs 
+    // 
+    // 	;; Clear all program ram
+
+    // 30c1  21004c    ld      hl,#4c00
+    // 30c4  0604      ld      b,#04
     // 30c6  32c050    ld      (#50c0),a	; Kick watchdog
     kickWatchdog();
-// 30c9  3600      ld      (hl),#00
-// 30cb  2c        inc     l
-// 30cc  20fb      jr      nz,#30c9        ; (-5)
-// 30ce  24        inc     h
-// 30cf  10f5      djnz    #30c6           ; (-11)
-// 
-// 	;; Set all video ram to 0x40
-// 30d1  210040    ld      hl,#4000
-// 30d4  0604      ld      b,#04
-    // 30d6  32c050    ld      (#50c0),a	; Kick watchdog
-    kickWatchdog();
-// 30d9  3e40      ld      a,#40
-// 30db  77        ld      (hl),a
-// 30dc  2c        inc     l
-// 30dd  20fc      jr      nz,#30db        ; (-4)
-// 30df  24        inc     h
-// 30e0  10f4      djnz    #30d6           ; (-12)
-// 
-// 	;; Set all color ram to 0x0f
-// 30e2  0604      ld      b,#04
+    for (int i = 0; i < 0x400; i++)
     {
-        // 30e4  32c050    ld      (#50c0),a
-        kickWatchdog();
-// 30e7  3e0f      ld      a,#0f
-// 30e9  77        ld      (hl),a
-// 30ea  2c        inc     l
-// 30eb  20fc      jr      nz,#30e9        ; (-4)
-// 30ed  24        inc     h
-// 30ee  10f4      djnz    #30e4           ; (-12)
+        //-------------------------------
+        // 30c9  3600      ld      (hl),#00
+        //-------------------------------
+        MEM[0x4c00 + i] = 0;
+        //-------------------------------
+        // 30cb  2c        inc     l
+        // 30cc  20fb      jr      nz,#30c9        ; (-5)
+        // 30ce  24        inc     h
+        // 30cf  10f5      djnz    #30c6           ; (-11)
+        //-------------------------------
     }
-// 30f0  d9        exx			; Reswap register pairs 
-// 30f1  1008      djnz    #30fb           ; b=1 -> no errors
+
+    //-------------------------------
+    // 30d1  210040    ld      hl,#4000
+    // 30d4  0604      ld      b,#04
+    // 30d6  32c050    ld      (#50c0),a	; Kick watchdog
+    //-------------------------------
+    kickWatchdog();
+    /* Set all video ram to 0x40 */
+    for (int i = 0; i < 0x400; i++)
+    {
+        //-------------------------------
+        // 30d9  3e40      ld      a,#40
+        // 30db  77        ld      (hl),a
+        //-------------------------------
+        VIDEO[i] = 0x40;
+        //-------------------------------
+        // 30dc  2c        inc     l
+        // 30dd  20fc      jr      nz,#30db        ; (-4)
+        // 30df  24        inc     h
+        // 30e0  10f4      djnz    #30d6           ; (-12)
+        //-------------------------------
+    }
+
+    // 30e2  0604      ld      b,#04
+    // 30e4  32c050    ld      (#50c0),a
+    /* Set all color ram to 0x0f */
+    kickWatchdog();
+    for (int i = 0; i < 0x400; i++)
+    {
+        //-------------------------------
+        // 30e7  3e0f      ld      a,#0f
+        // 30e9  77        ld      (hl),a
+        //-------------------------------
+        COLOUR[i] = 0x0f;
+        //-------------------------------
+        // 30ea  2c        inc     l
+        // 30eb  20fc      jr      nz,#30e9        ; (-4)
+        // 30ed  24        inc     h
+        // 30ee  10f4      djnz    #30e4           ; (-12)
+        //-------------------------------
+    }
+
+    //-------------------------------
+    // 30f0  d9        exx			; Reswap register pairs 
+    // 30f1  1008      djnz    #30fb           ; b=1 -> no errors
+    //-------------------------------
+    if (--b != 0)
+    {
+        func_30fb(e, 4);
+        return;
+    }
+
+    //-------------------------------
     // 30f3  0623      ld      b,#2
     // 30f5  cd5e2c    call    #2c5e	
+    // 30f8  c37431    jp      #3174		; Run code ?!?!?
+    //-------------------------------
     displayMsg_2c5e (MSG_FREEPLAY);
-// 30f8  c37431    jp      #3174		; Run code ?!?!?
-// 
-// 
-// 30fb  7b        ld      a,e		; Bad rom # -> a 
-// 30fc  c630      add     a,#30 
-// 30fe  328441    ld      (#4184),a	; Write to screen  [31] [30]
-// 3101  c5        push    bc		; [ff0f] 
-// 3102  e5        push    hl		; [4c00] 
+    func_3174();
+}
+
+void func_30fb (int e, int h)
+{
+    //-------------------------------
+    // 30fb  7b        ld      a,e		; Bad rom # -> a 
+    // 30fc  c630      add     a,#30 
+    // 30fe  328441    ld      (#4184),a	; Write to screen  [31] [30]
+    //-------------------------------
+    VIDEO[0x184] = e + 0x30;
+    //-------------------------------
+    // 3101  c5        push    bc		; [ff0f] 
+    // 3102  e5        push    hl		; [4c00] 
     // 3103  0624      ld      b,#24
     // 3105  cd5e2c    call    #2c5e		; <=- gets called. 
+    //-------------------------------
     displayMsg_2c5e (MSG_BADROMRAM);
-// 3108  e1        pop     hl
-// 3109  7c        ld      a,h
-// 310a  fe40      cp      #40
-// 310c  2a6c31    ld      hl,(#316c)
-// 310f  3811      jr      c,#3122         ; (17)
-// 3111  fe4c      cp      #4c
-// 3113  2a6e31    ld      hl,(#316e)
-// 3116  300a      jr      nc,#3122        ; (10)
-// 3118  fe44      cp      #44
-// 311a  2a7031    ld      hl,(#3170)
-// 311d  3803      jr      c,#3122         ; (3)
-// 311f  2a7231    ld      hl,(#3172)
-// 3122  7d        ld      a,l
-// 3123  320442    ld      (#4204),a
-// 3126  7c        ld      a,h
-// 3127  326442    ld      (#4264),a
+    //-------------------------------
+    // 3108  e1        pop     hl
+    // 3109  7c        ld      a,h
+    // 310a  fe40      cp      #40
+    // 310c  2a6c31    ld      hl,(#316c)
+    // 310f  3811      jr      c,#3122         ; (17)
+    //-------------------------------
+    uint8_t *hl=BAD_ROM_316c;
+    if (h >= 0x40)
+    {
+        //-------------------------------
+        // 3111  fe4c      cp      #4c
+        // 3113  2a6e31    ld      hl,(#316e)
+        // 3116  300a      jr      nc,#3122        ; (10)
+        //-------------------------------
+        hl=BAD_W_RAM_316e;
+        if (h < 0x4c)
+        {
+            //-------------------------------
+            // 3118  fe44      cp      #44
+            // 311a  2a7031    ld      hl,(#3170)
+            // 311d  3803      jr      c,#3122         ; (3)
+            //-------------------------------
+            hl=BAD_V_RAM_3170;
+            if (h >= 0x44)
+            {
+                //-------------------------------
+                // 311f  2a7231    ld      hl,(#3172)
+                //-------------------------------
+                hl=BAD_C_RAM_3172;
+            }
+        }
+    }
 
+    //-------------------------------
+    // 3122  7d        ld      a,l
+    // 3123  320442    ld      (#4204),a
+    // 3126  7c        ld      a,h
+    // 3127  326442    ld      (#4264),a
+    //-------------------------------
+    VIDEO[0x204] = hl[0];
+    VIDEO[0x264] = hl[1];
+
+    //-------------------------------
     // 312a  3a0050    ld      a,(#5000)
     // 312d  47        ld      b,a
     // 312e  3a4050    ld      a,(#5040)
     // 3131  b0        or      b
     // 3132  e601      and     #01
     // 3134  2011      jr      nz,#3147        ; (17)
+    //-------------------------------
     if ((IN0_UP | IN1_UP) == 0)
     {
-// 3136  c1        pop     bc
-// 3137  79        ld      a,c
-// 3138  e60f      and     #0f
-// 313a  47        ld      b,a
-// 313b  79        ld      a,c
-// 313c  e6f0      and     #f0
-// 313e  0f        rrca    
-// 313f  0f        rrca    
-// 3140  0f        rrca    
-// 3141  0f        rrca    
-// 3142  4f        ld      c,a
-// 3143  ed438541  ld      (#4185),bc
+        // 3136  c1        pop     bc
+        // 3137  79        ld      a,c
+        // 3138  e60f      and     #0f
+        // 313a  47        ld      b,a
+        // 313b  79        ld      a,c
+        // 313c  e6f0      and     #f0
+        // 313e  0f        rrca    
+        // 313f  0f        rrca    
+        // 3140  0f        rrca    
+        // 3141  0f        rrca    
+        // 3142  4f        ld      c,a
+        // 3143  ed438541  ld      (#4185),bc
+        VIDEO[0x185] = c & 0xf;
+        VIDEO[0x186] = c >> 4;
     }
-    // 3147  32c050    ld      (#50c0),a
-    kickWatchdog();
-// 314a  3a4050    ld      a,(#5040)
-// 314d  e610      and     #10
-// 314f  28f6      jr      z,#3147         ; (-10)
-// 3151  c30b23    jp      #230b
-// 
-// 
-// 	;; Stack stuff used in ram test (?)
-// 3154  004c
-// 3156  0f04
-// 
-// 3158  004c
-// 315a  f004
-// 
-// 315c  0040
-// 315e  0f04
-// 
-// 3160  0040
-// 3162  f004
-// 	
-// 3164  0044
-// 3166  0f04
-// 	
-// 3168  0044
-// 316a  f004
-// 
-// 	;; RAM Error data
-// 316c  4f40				; O _ -> BAD   ROM 
-// 316e  4157				; A W -> BAD W RAM 
-// 3170  4156				; A V -> BAD V RAM 
-// 3172  4143				; A C -> BAD C RAM 
-// 
-// 
-// 	;; Start the game ?!?!?
+
+    do
+    {
+        // 3147  32c050    ld      (#50c0),a
+        kickWatchdog();
+        // 314a  3a4050    ld      a,(#5040)
+        // 314d  e610      and     #10
+        // 314f  28f6      jr      z,#3147         ; (-10)
+    }
+    while (IN1_SERVICE == 0);
+
+    // 3151  c30b23    jp      #230b
+    func_230b ();
+
+    /* Stack stuff used in ram test */
+
+    // 3154  004c
+    // 3156  0f04
+    // 3158  004c
+    // 315a  f004
+    // 315c  0040
+    // 315e  0f04
+    // 3160  0040
+    // 3162  f004
+    // 3164  0044
+    // 3166  0f04
+    // 3168  0044
+    // 316a  f004
+
+    // 	;; RAM Error data
+    // 316c  4f40				; O _ -> BAD   ROM 
+    // 316e  4157				; A W -> BAD W RAM 
+    // 3170  4156				; A V -> BAD V RAM 
+    // 3172  4143				; A C -> BAD C RAM 
+/* Start the game ?!?!? */
+void func_3174 (void)
+{
+    //-------------------------------
     // 3174  210650    ld      hl,#5006
     // 3177  3e01      ld      a,#01
     // 3179  77        ld      (hl),a		; Enable all
+    // 317a  2d        dec     l	
+    // 317b  20fc      jr      nz,#3179        ; (-4)
+    //-------------------------------
+    INTENABLE=
+    SOUNDENABLE=
+    AUXENABLE=
+    FLIPSCREEN=
+    P1START=
+    P2START=
     COINLOCKOUT=1;
-// 317a  2d        dec     l	
-// 317b  20fc      jr      nz,#3179        ; (-4)
+    //-------------------------------
     // 317d  af        xor     a		; 0x00->a
     // 317e  320350    ld      (#5003),a	; unflip screen
+    //-------------------------------
     FLIPSCREEN = 0;
-// 3181  d604      sub     #04		; 0xfc->a
-// 3183  d300      out     (#00),a		; set vector
-// 3185  31c04f    ld      sp,#4fc0
-    // 3188  32c050    ld      (#50c0),a	; Kick the dog
-    kickWatchdog();
-    // 318b  af        xor     a		; 0x00->a
-    // 318c  32004e    ld      (#4e00),a
-    MAIN_STATE=0;
-    // 318f  3c        inc     a		; 0x01->a
-    // 3190  32014e    ld      (#4e01),a
-    MAIN_STATE_SUB0=1;
-// 3193  320050    ld      (#5000),a	; enable interrupts
-// 3196  fb        ei			; enable interrupts
-// 
-// 	;; Test mode sound checks
-// 3197  3a0050    ld      a,(#5000)	
-// 319a  2f        cpl     
-// 319b  47        ld      b,a
-// 319c  e6e0      and     #e0		; Check coin/credit inputs
-// 319e  2805      jr      z,#31a5         ; (5)
-// 31a0  3e02      ld      a,#02
-// 31a2  329c4e    ld      (#4e9c),a	; Choose sound 2
-// 	
-// 31a5  3a4050    ld      a,(#5040)
-// 31a8  2f        cpl     
-// 31a9  4f        ld      c,a
-// 31aa  e660      and     #60		; Check p1/p2 start 
-// 31ac  2805      jr      z,#31b3         ; (5)
-// 31ae  3e01      ld      a,#01
-// 31b0  329c4e    ld      (#4e9c),a	; Choose sound 1
-// 	
-// 31b3  78        ld      a,b
-// 31b4  b1        or      c
-// 31b5  e601      and     #01		; Check up
-// 31b7  2805      jr      z,#31be         ; (5)
-// 31b9  3e08      ld      a,#08
-// 31bb  32bc4e    ld      (#4ebc),a	; Choose sound 8
-// 	
-// 31be  78        ld      a,b
-// 31bf  b1        or      c
-// 31c0  e602      and     #02		; Check left
-// 31c2  2805      jr      z,#31c9         ; (5)
-// 31c4  3e04      ld      a,#04
-// 31c6  32bc4e    ld      (#4ebc),a	; Choose sound 4
-// 	
-// 31c9  78        ld      a,b
-// 31ca  b1        or      c
-// 31cb  e604      and     #04		; Check right
-// 31cd  2805      jr      z,#31d4         ; (5)
-// 31cf  3e10      ld      a,#10
-// 31d1  32bc4e    ld      (#4ebc),a	; Choose sound 16
-// 	
-// 31d4  78        ld      a,b
-// 31d5  b1        or      c
-// 31d6  e608      and     #08		; Check down
-// 31d8  2805      jr      z,#31df         ; (5)
-// 31da  3e20      ld      a,#20
-// 31dc  32bc4e    ld      (#4ebc),a	; Choose sound 32
+    //-------------------------------
+    // 3181  d604      sub     #04		; 0xfc->a
+    // 3183  d300      out     (#00),a		; set vector
+    //-------------------------------
+    interruptVector (func_008d);
+    //-------------------------------
+    // 3185  31c04f    ld      sp,#4fc0
+    //-------------------------------
 
-    // 31df  3a8050    ld      a,(#5080)	; Read dips
-    // 31e2  e603      and     #03		; Mask coin info
-    // 31e4  c625      add     a,#25
-    // 31e6  47        ld      b,a
-    // 31e7  cd5e2c    call    #2c5e		
-    displayMsg_2c5e (MSG_FREEPLAY + DIP_SWITCH_FREE);
-
-    // 31ea  3a8050	ld      a,(#5080)	; Read dips
-    // 31ed  0f        rrca    
-    // 31ee  0f        rrca    
-    // 31ef  0f        rrca    
-    // 31f0  0f        rrca    
-    // 31f1  e603      and     #03		; Mask extras
-    // 31f3  fe03      cp      #03
-    // 31f5  2008      jr      nz,#31ff        ; (8)
-    if (DIP_SWITCH_BONUS == 0x30)
+    do
     {
-        // 31f7  062a      ld      b,#2a
-        // 31f9  cd5e2c    call    #2c5e
-        // 31fc  c31c32    jp      #321c
-        displayMsg_2c5e (MSG_BONUS_NONE);
-    }
-    else
-    {
-// 31ff  07        rlca    
-// 3200  5f        ld      e,a
-// 3201  d5        push    de
+        //-------------------------------
+        // 3188  32c050    ld      (#50c0),a	; Kick the dog
+        //-------------------------------
+        kickWatchdog();
+        //-------------------------------
+        // 318b  af        xor     a		; 0x00->a
+        // 318c  32004e    ld      (#4e00),a
+        //-------------------------------
+        MAIN_STATE=0;
+        //-------------------------------
+        // 318f  3c        inc     a		; 0x01->a
+        // 3190  32014e    ld      (#4e01),a
+        //-------------------------------
+        MAIN_STATE_SUB0=1;
+        //-------------------------------
+        // 3193  320050    ld      (#5000),a	; enable interrupts
+        // 3196  fb        ei			; enable interrupts
+        //-------------------------------
+        INTENABLE=1;
+        interruptEnable ();
 
-        // 3202  062b      ld      b,#2b
-        // 3204  cd5e2c    call    #2c5e
-        displayMsg_2c5e (MSG_BONUS);
-        // 3207  062e      ld      b,#2e
-        // 3209  cd5e2c    call    #2c5e
-        displayMsg_2c5e (MSG_000);
+        // 	;; Test mode sound checks
+        //-------------------------------
+        // 3197  3a0050    ld      a,(#5000)	
+        // 319a  2f        cpl     
+        // 319b  47        ld      b,a
+        // 319c  e6e0      and     #e0		; Check coin/credit inputs
+        // 319e  2805      jr      z,#31a5         ; (5)
+        //-------------------------------
+        if ((IN0_COIN1 | IN0_COIN2 | IN0_COIN3) != 0)
+        {
+            //-------------------------------
+            // 31a0  3e02      ld      a,#02
+            // 31a2  329c4e    ld      (#4e9c),a	; Choose sound 2
+            //-------------------------------
+            SND_CH1_EFF_NUM = 2;
+        }
 
-// 320c  d1        pop     de
-// 320d  1600      ld      d,#00
-// 320f  21f932    ld      hl,#32f9
-// 3212  19        add     hl,de
-// 3213  7e        ld      a,(hl)
-// 3214  322a42    ld      (#422a),a
-// 3217  23        inc     hl
-// 3218  7e        ld      a,(hl)
-// 3219  324a42    ld      (#424a),a
+        //-------------------------------
+        // 31a5  3a4050    ld      a,(#5040)
+        // 31a8  2f        cpl     
+        // 31a9  4f        ld      c,a
+        // 31aa  e660      and     #60		; Check p1/p2 start 
+        // 31ac  2805      jr      z,#31b3         ; (5)
+        //-------------------------------
+        if ((IN1_START1 | IN1_START2) != 0)
+        {
+            //-------------------------------
+            // 31ae  3e01      ld      a,#01
+            // 31b0  329c4e    ld      (#4e9c),a	; Choose sound 1
+            //-------------------------------
+            SND_CH1_EFF_NUM = 1;
+        }
+
+        //-------------------------------
+        // 31b3  78        ld      a,b
+        // 31b4  b1        or      c
+        // 31b5  e601      and     #01		; Check up
+        // 31b7  2805      jr      z,#31be         ; (5)
+        //-------------------------------
+        if (IN0_UP || IN1_UP)
+        {
+            //-------------------------------
+            // 31b9  3e08      ld      a,#08
+            // 31bb  32bc4e    ld      (#4ebc),a	; Choose sound 8
+            //-------------------------------
+            SND_CH3_EFF_NUM = 8;
+        }
+
+        //-------------------------------
+        // 31be  78        ld      a,b
+        // 31bf  b1        or      c
+        // 31c0  e602      and     #02		; Check left
+        // 31c2  2805      jr      z,#31c9         ; (5)
+        //-------------------------------
+        if (IN0_LEFT || IN1_LEFT)
+        {
+            //-------------------------------
+            // 31c4  3e04      ld      a,#04
+            // 31c6  32bc4e    ld      (#4ebc),a	; Choose sound 4
+            //-------------------------------
+            SND_CH3_EFF_NUM = 4;
+        }
+
+        //-------------------------------
+        // 31c9  78        ld      a,b
+        // 31ca  b1        or      c
+        // 31cb  e604      and     #04		; Check right
+        // 31cd  2805      jr      z,#31d4         ; (5)
+        //-------------------------------
+        if (IN0_RIGHT || IN1_RIGHT)
+        {
+            //-------------------------------
+            // 31cf  3e10      ld      a,#10
+            // 31d1  32bc4e    ld      (#4ebc),a	; Choose sound 16
+            //-------------------------------
+            SND_CH3_EFF_NUM = 0x10;
+        }
+
+        //-------------------------------
+        // 31d4  78        ld      a,b
+        // 31d5  b1        or      c
+        // 31d6  e608      and     #08		; Check down
+        // 31d8  2805      jr      z,#31df         ; (5)
+        //-------------------------------
+        if (IN0_DOWN || IN1_DOWN)
+        {
+            //-------------------------------
+            // 31da  3e20      ld      a,#20
+            // 31dc  32bc4e    ld      (#4ebc),a	; Choose sound 32
+            //-------------------------------
+            SND_CH3_EFF_NUM = 0x20;
+        }
+
+        //-------------------------------
+        // 31df  3a8050    ld      a,(#5080)	; Read dips
+        // 31e2  e603      and     #03		; Mask coin info
+        // 31e4  c625      add     a,#25
+        // 31e6  47        ld      b,a
+        // 31e7  cd5e2c    call    #2c5e		
+        //-------------------------------
+        displayMsg_2c5e (MSG_FREEPLAY + DIP_SWITCH_FREE);
+
+        //-------------------------------
+        // 31ea  3a8050	ld      a,(#5080)	; Read dips
+        // 31ed  0f        rrca    
+        // 31ee  0f        rrca    
+        // 31ef  0f        rrca    
+        // 31f0  0f        rrca    
+        // 31f1  e603      and     #03		; Mask extras
+        // 31f3  fe03      cp      #03
+        // 31f5  2008      jr      nz,#31ff        ; (8)
+        //-------------------------------
+        if (DIP_SWITCH_BONUS == 0x30)
+        {
+            //-------------------------------
+            // 31f7  062a      ld      b,#2a
+            // 31f9  cd5e2c    call    #2c5e
+            // 31fc  c31c32    jp      #321c
+            //-------------------------------
+            displayMsg_2c5e (MSG_BONUS_NONE);
+        }
+        else
+        {
+            // 31ff  07        rlca    
+            // 3200  5f        ld      e,a
+            // 3201  d5        push    de
+            // 3202  062b      ld      b,#2b
+            // 3204  cd5e2c    call    #2c5e
+            displayMsg_2c5e (MSG_BONUS);
+
+            // 3207  062e      ld      b,#2e
+            // 3209  cd5e2c    call    #2c5e
+            displayMsg_2c5e (MSG_000);
+
+            // 320c  d1        pop     de
+            // 320d  1600      ld      d,#00
+            // 320f  21f932    ld      hl,#32f9
+            // 3212  19        add     hl,de
+            // 3213  7e        ld      a,(hl)
+            // 3214  322a42    ld      (#422a),a
+            VIDEO[0x22a] = DATA_32f9[DIP_SWITCH_BONUS>>1];
+            // 3217  23        inc     hl
+            // 3218  7e        ld      a,(hl)
+            // 3219  324a42    ld      (#424a),a
+            VIDEO[0x24a] = DATA_32f9[[DIP_SWITCH_BONUS>>1) + 1];
+        }
+        //-------------------------------
+        // 321c  3a8050    ld      a,(#5080)
+        // 321f  0f        rrca    
+        // 3220  0f        rrca    
+        // 3221  e603      and     #03
+        // 3223  c631      add     a,#31
+        //-------------------------------
+        a = (DIP_SWITCH_TODO >> 2) + 0x31;
+        //-------------------------------
+        // 3225  fe34      cp      #34
+        // 3227  2001      jr      nz,#322a        ; (1)
+        // 3229  3c        inc     a
+        //-------------------------------
+        if (a == 0x34)
+            a++;
+        //-------------------------------
+        // 322a  320c42    ld      (#420c),a
+        //-------------------------------
+        VIDEO[0x20c] = a;
+        //-------------------------------
+        // 322d  0629      ld      b,#29
+        // 322f  cd5e2c    call    #2c5e
+        //-------------------------------
+        displayMsg_2c5e (MSG_PACMAN);
+        //-------------------------------
+        // 3232  3a4050    ld      a,(#5040)
+        // 3235  07        rlca    
+        // 3236  e601      and     #01
+        // 3238  c62c      add     a,#2c
+        // 323a  47        ld      b,a
+        // 323b  cd5e2c    call    #2c5e
+        //-------------------------------
+        displayMsg_2c5e (((IN1_CABINET == 0) ? 1 : 0) + MSG_TABLE);
+        //-------------------------------
+        // 323e  3a4050    ld      a,(#5040)
+        // 3241  e610      and     #10
+        // 3243  ca8831    jp      z,#3188
+        //-------------------------------
     }
-// 321c  3a8050    ld      a,(#5080)
-// 321f  0f        rrca    
-// 3220  0f        rrca    
-// 3221  e603      and     #03
-// 3223  c631      add     a,#31
-// 3225  fe34      cp      #34
-// 3227  2001      jr      nz,#322a        ; (1)
-// 3229  3c        inc     a
-// 322a  320c42    ld      (#420c),a
-    // 322d  0629      ld      b,#29
-    // 322f  cd5e2c    call    #2c5e
-    displayMsg_2c5e (MSG_PACMAN);
-    // 3232  3a4050    ld      a,(#5040)
-    // 3235  07        rlca    
-    // 3236  e601      and     #01
-    // 3238  c62c      add     a,#2c
-    // 323a  47        ld      b,a
-    // 323b  cd5e2c    call    #2c5e
-    displayMsg_2c5e (((IN1_CABINET == 0) ? 1 : 0) + MSG_TABLE);
-// 323e  3a4050    ld      a,(#5040)
-// 3241  e610      and     #10
-// 3243  ca8831    jp      z,#3188
-// 3246  af        xor     a
-// 3247  320050    ld      (#5000),a
-// 324a  f3        di      
-// 324b  210750    ld      hl,#5007
-// 324e  af        xor     a
-// 324f  77        ld      (hl),a
-// 3250  2d        dec     l
-// 3251  20fc      jr      nz,#324f        ; (-4)
-// 3253  31e23a    ld      sp,#3ae2
-// 3256  0603      ld      b,#03
-// 3258  d9        exx     
-// 3259  e1        pop     hl
-// 325a  d1        pop     de
-    // 325b  32c050    ld      (#50c0),a
-    kickWatchdog();
-// 325e  c1        pop     bc
-// 325f  3e3c      ld      a,#3c
-// 3261  77        ld      (hl),a
-// 3262  23        inc     hl
-// 3263  72        ld      (hl),d
-// 3264  23        inc     hl
-// 3265  10f8      djnz    #325f           ; (-8)
-// 3267  3b        dec     sp
-// 3268  3b        dec     sp
-// 3269  c1        pop     bc
-// 326a  71        ld      (hl),c
-// 326b  23        inc     hl
-// 326c  3e3f      ld      a,#3f
-// 326e  77        ld      (hl),a
-// 326f  23        inc     hl
-// 3270  10f8      djnz    #326a           ; (-8)
-// 3272  3b        dec     sp
-// 3273  3b        dec     sp
-// 3274  1d        dec     e
-// 3275  c25b32    jp      nz,#325b
-// 3278  f1        pop     af
-// 3279  d9        exx     
-// 327a  10dc      djnz    #3258           ; (-36)
-// 327c  31c04f    ld      sp,#4fc0
+    while (IN1_SERVICE == 0);
 
     //-------------------------------
+    // 3246  af        xor     a
+    // 3247  320050    ld      (#5000),a
+    // 324a  f3        di      
+    //-------------------------------
+    INTENABLE = 0;
+    interruptDisable ();
+    //-------------------------------
+    // 324b  210750    ld      hl,#5007
+    // 324e  af        xor     a
+    // 324f  77        ld      (hl),a
+    // 3250  2d        dec     l
+    // 3251  20fc      jr      nz,#324f        ; (-4)
+    //-------------------------------
+    INTENABLE=
+    SOUNDENABLE=
+    AUXENABLE=
+    FLIPSCREEN=
+    P1START=
+    P2START=
+    COINLOCKOUT=
+    COINCOUNTER=0;
+
+    //-------------------------------
+    // 3253  31e23a    ld      sp,#3ae2
+    // 3256  0603      ld      b,#03
+    //-------------------------------
+    uint16_t *stackData = DATA_3a2e;
+    for (b = 0; b < 3; b++)
+    {
+        //-------------------------------
+        // 3258  d9        exx     
+        // 3259  e1        pop     hl
+        // 325a  d1        pop     de
+        //-------------------------------
+        uint16_t hl = *stackData++ - 0x4000; // 0x4002 in ROM which is video
+        uint16_t de = *stackData++;
+        stackData += 2;
+        do
+        {
+            //-------------------------------
+            // 325b  32c050    ld      (#50c0),a
+            // 325e  c1        pop     bc
+            //-------------------------------
+            kickWatchdog();
+            bc = *stackData++;
+
+            for (int i = 0; i < 0x10; i++)
+            {
+                //-------------------------------
+                // 325f  3e3c      ld      a,#3c
+                // 3261  77        ld      (hl),a
+                // 3262  23        inc     hl
+                //-------------------------------
+                VIDEO[hl++] = 0x3c;
+                //-------------------------------
+                // 3263  72        ld      (hl),d
+                // 3264  23        inc     hl
+                // 3265  10f8      djnz    #325f           ; (-8)
+                //-------------------------------
+                VIDEO[hl++] = de & 0xff;
+            }
+
+            //-------------------------------
+            // 3267  3b        dec     sp
+            // 3268  3b        dec     sp
+            // 3269  c1        pop     bc
+            //-------------------------------
+            uint16_t bc = *--stackData;
+
+            for (int i = 0; i < 0x10; i++)
+            {
+                //-------------------------------
+                // 326a  71        ld      (hl),c
+                // 326b  23        inc     hl
+                //-------------------------------
+                VIDEO[hl++] = bc & 0xff;
+                //-------------------------------
+                // 326c  3e3f      ld      a,#3f
+                // 326e  77        ld      (hl),a
+                // 326f  23        inc     hl
+                // 3270  10f8      djnz    #326a           ; (-8)
+                //-------------------------------
+                VIDEO[hl++] = 0x3f;
+            }
+
+            //-------------------------------
+            // 3272  3b        dec     sp
+            // 3273  3b        dec     sp
+            // 3274  1d        dec     e
+            // 3275  c25b32    jp      nz,#325b
+            //-------------------------------
+            de -= 0x100;
+        }
+        while (de >= 0x100);
+
+        //-------------------------------
+        // 3278  f1        pop     af
+        // 3279  d9        exx     
+        // 327a  10dc      djnz    #3258           ; (-36)
+        //-------------------------------
+        stackData++;
+    }
+
+    //-------------------------------
+    // 327c  31c04f    ld      sp,#4fc0
     // 327f  0608      ld      b,#08
     //-------------------------------
     for (int b = 0; b < 8; b++)
@@ -14089,65 +14464,141 @@ jump_3031:
         //-------------------------------
         delay_32ed();
     }
-    // 3286  32c050    ld      (#50c0),a	; Kick the dog
-    kickWatchdog();
-// 3289  3a4050    ld      a,(#5040)
-// 328c  e610      and     #10
-// 328e  28f6      jr      z,#3286         ; Wait until test switch is off
-// 	
-// 3290  3a4050    ld      a,(#5040)	; Check P1/P2 start 
-// 3293  e660      and     #60
-// 3295  c24b23    jp      nz,#234b
-// 3298  0608      ld      b,#08
-    // 329a  cded32    call    #32ed
-    delay_32ed();
-// 329d  10fb      djnz    #329a           ; (-5)
-// 329f  3a4050    ld      a,(#5040)
-// 32a2  e610      and     #10
-// 32a4  c24b23    jp      nz,#234b
-// 32a7  1e01      ld      e,#01
-// 32a9  0604      ld      b,#04
-    // 32ab  32c050    ld      (#50c0),a
-    kickWatchdog();
-    // 32ae  cded32    call    #32ed
-    delay_32ed();
-// 32b1  3a0050    ld      a,(#5000)
-// 32b4  a3        and     e
-// 32b5  20f4      jr      nz,#32ab        ; (-12)
-    // 32b7  cded32    call    #32ed
-    delay_32ed();
-    // 32ba  32c050    ld      (#50c0),a
-    kickWatchdog();
-// 32bd  3a0050    ld      a,(#5000)
-// 32c0  eeff      xor     #ff
-// 32c2  20f3      jr      nz,#32b7        ; (-13)
-// 32c4  10e5      djnz    #32ab           ; (-27)
-// 32c6  cb03      rlc     e
-// 32c8  7b        ld      a,e
-// 32c9  fe10      cp      #10
-// 32cb  daa932    jp      c,#32a9
-// 32ce  210040    ld      hl,#4000
-// 32d1  0604      ld      b,#04
-// 32d3  3e40      ld      a,#40
-// 32d5  77        ld      (hl),a
-// 32d6  2c        inc     l
-// 32d7  20fc      jr      nz,#32d5        ; (-4)
-// 32d9  24        inc     h
-// 32da  10f7      djnz    #32d3           ; (-9)
 
+    do
+    {
+        //-------------------------------
+        // 3286  32c050    ld      (#50c0),a	; Kick the dog
+        //-------------------------------
+        kickWatchdog();
+        //-------------------------------
+        // 3289  3a4050    ld      a,(#5040)
+        // 328c  e610      and     #10
+        // 328e  28f6      jr      z,#3286         ; Wait until test switch is off
+        //-------------------------------
+    }
+    while (IN1_SERVICE);
+
+    //-------------------------------
+    // 3290  3a4050    ld      a,(#5040)	; Check P1/P2 start 
+    // 3293  e660      and     #60
+    // 3295  c24b23    jp      nz,#234b
+    //-------------------------------
+    if (P1START || P2START)
+    {
+        func_234b();
+        return;
+    }
+    // 3298  0608      ld      b,#08
+    for (b = 0; b < 8; b++)
+    {
+        // 329a  cded32    call    #32ed
+        // 329d  10fb      djnz    #329a           ; (-5)
+        delay_32ed();
+    }
+    // 329f  3a4050    ld      a,(#5040)
+    // 32a2  e610      and     #10
+    // 32a4  c24b23    jp      nz,#234b
+    if (IN1_SERVICE != 0)
+    {
+        func_234b();
+        return;
+    }
+
+    //-------------------------------
+    // 32a7  1e01      ld      e,#01
+    //-------------------------------
+    uint8_t e = 1;
+    do
+    {
+        //-------------------------------
+        // 32a9  0604      ld      b,#04
+        //-------------------------------
+        for (b = 0; b < 4; b++)
+        {
+            do
+            {
+                //-------------------------------
+                // 32ab  32c050    ld      (#50c0),a
+                // 32ae  cded32    call    #32ed
+                //-------------------------------
+                kickWatchdog();
+                delay_32ed();
+                //-------------------------------
+                // 32b1  3a0050    ld      a,(#5000)
+                // 32b4  a3        and     e
+                // 32b5  20f4      jr      nz,#32ab        ; (-12)
+                //-------------------------------
+            }
+            while ((IO_INPUT0 & e) != 0);
+
+            do
+            {
+                //-------------------------------
+                // 32b7  cded32    call    #32ed
+                // 32ba  32c050    ld      (#50c0),a
+                //-------------------------------
+                delay_32ed();
+                kickWatchdog();
+                //-------------------------------
+                // 32bd  3a0050    ld      a,(#5000)
+                // 32c0  eeff      xor     #ff
+                // 32c2  20f3      jr      nz,#32b7        ; (-13)
+                //-------------------------------
+            }
+            while (IO_INPUT0 == 0);
+            //-------------------------------
+            // 32c4  10e5      djnz    #32ab           ; (-27)
+            //-------------------------------
+        }
+        //-------------------------------
+        // 32c6  cb03      rlc     e
+        // 32c8  7b        ld      a,e
+        // 32c9  fe10      cp      #10
+        // 32cb  daa932    jp      c,#32a9
+        //-------------------------------
+        e <<= 1;
+    }
+    while (e < 0x10);
+
+    //-------------------------------
+    // 32ce  210040    ld      hl,#4000
+    // 32d1  0604      ld      b,#04
+    //-------------------------------
+    for (hl = 0; hl < 0x400; hl++)
+    {
+        //-------------------------------
+        // 32d3  3e40      ld      a,#40
+        // 32d5  77        ld      (hl),a
+        //-------------------------------
+        VIDEO[hl] = 0x40;
+        //-------------------------------
+        // 32d6  2c        inc     l
+        // 32d7  20fc      jr      nz,#32d5        ; (-4)
+        // 32d9  24        inc     h
+        // 32da  10f7      djnz    #32d3           ; (-9)
+        //-------------------------------
+    }
+
+    //-------------------------------
     // 32dc  cdf43a    call    #3af4
+    //-------------------------------
     func_3af4();
 
+    //-------------------------------
     // 32df  32c050    ld      (#50c0),a
     // 32e2  3a4050    ld      a,(#5040)
     // 32e5  e610      and     #10
     // 32e7  cadf32    jp      z,#32df
-    while (IN1_SERVICE)
+    //-------------------------------
+    while (IN1_SERVICE == 0)
     {
         kickWatchdog();
     }
 
+    //-------------------------------
     // 32ea  c34b23    jp      #234b
+    //-------------------------------
     startGame_234b ();
 }
 
@@ -14223,9 +14674,6 @@ void delay_32ed (void)
     // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
     // 3430  0c fe ff ff ff 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2
     // 3440  d4 fc fc fc da 
-
-//     uint8_t data_3445[] = { 0x02 };
-//     uint8_t data_35b5[] = { 0xfc };
 
     // 3440                 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
     // 3450  d8 d2 d2 d2 d2 d4 fc da  09 dc fc fc fc da 02 dc
@@ -14742,19 +15190,20 @@ void delay_32ed (void)
     // 3ab0  01 02 04 02 04 0e 02 04  02 04 02 04 0b 01 01 01 
     // 3ac0  02 04 02 01 01 01 01 02  02 02 0e 02 04 02 04 02 
     // 3ad0  01 02 01 0a 01 01 01 01  03 01 01 01 03 01 01 03 
-    // 3ae0  04 00 02 40 
+    // 3ae0  04 00
 
+    /*  Test stack used in 325d */
+    // 3ae2  02 40 
+    // 3ae4  01 3e
+    // 3ae6  3d 10
+    // 3ae8  40 40
+    // 3aea  0e 3d
+    // 3aec  3e 10
+    // 3aee  c2 43
+    // 3af0  01 3e
+    // 3ad2  3d 10
 
-    // 3ae4  013e3d    ld      bc,#3d3e
-
-    // 3ae7  1040      djnz    #3b29           ; (64)
-    // 3ae9  40        ld      b,b
-    // 3aea  0e3d      ld      c,#3d
-    // 3aec  3e10      ld      a,#10
-    // 3aee  c24301    jp      nz,#0143
-    // 3af1  3e3d      ld      a,#3d
-    // 3af3  10
-
+/*  draw pills?? */
 void func_3af4 (void)
 {
     //-------------------------------
@@ -14795,24 +15244,21 @@ void func_3af4 (void)
     // 3b10  a0 14 a0 14 a4 17 a4 17  a8 09 a8 09 9c 16 9c 16
     // 3b20  ac 16 ac 16 ac 16 ac 16  ac 16 ac 16 ac 16 ac 16
     // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00
-//     uint8_t data_3b30[] = { { 0x73, 0x20 } };
+
     // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00
-//     uint8_t data_3b40[] = { { 0x36, 0x20 } };
+
     // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00
     // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00
     // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00
     // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00
-//     uint8_t data_3b80[] = { 0xd4 };
+
     // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00
     // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00
-//     uint8_t data_3bb0[] = { 0x01 };
-//     uint8_t data_3bb8[] = { 0x01 };
+
     // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b
     // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c
     // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82
-//     uint8_t data_3bc8[] = { 0xd4 };
-//     uint8_t data_3bcc[] = { 0x58 };
-//     uint8_t data_3bd0[] = { 0xde };
+
     // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b
     // 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30
     // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10
