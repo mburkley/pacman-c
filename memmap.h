@@ -52,7 +52,7 @@ extern uint8_t charset[];
 #define ROM memmap.rom
 #define MEM memmap.mem
 #define RAM memmap.ram
-#define VIDEO memmap.video
+#define SCREEN memmap.video
 #define COLOUR memmap.colour
 #define SOUND memmap.regs.write.soundRegs
 #define SPRITEATTRIB memmap.spriteAttrib
@@ -71,18 +71,21 @@ extern uint8_t charset[];
 #define INPUT_LEFT      0x02
 #define INPUT_RIGHT     0x04
 #define INPUT_DOWN      0x08
+#define INPUT_ANYCOIN   0xe0
+#define INPUT_ANYSTART  0x60
 
 #define IO_INPUT0       memmap.regs.read.in0[0]
 #define IO_INPUT1       memmap.regs.read.in1[0]
+#define DIP_INPUT       memmap.regs.read.dipSwitches[0]
 
 #define IN0_UP          (IO_INPUT0 & INPUT_UP)
 #define IN0_LEFT        (IO_INPUT0 & INPUT_LEFT)
 #define IN0_RIGHT       (IO_INPUT0 & INPUT_RIGHT)
 #define IN0_DOWN        (IO_INPUT0 & INPUT_DOWN)
-#define IN0_TEST        (IO_INPUT0 & 0x10)
+#define IN0_RACKADV     (IO_INPUT0 & 0x10)
 #define IN0_COIN1       (IO_INPUT0 & 0x20)
 #define IN0_COIN2       (IO_INPUT0 & 0x40)
-#define IN0_COIN3       (IO_INPUT0 & 0x80)
+#define IN0_CREDIT      (IO_INPUT0 & 0x80)
 
 #define IN1_UP          (IO_INPUT1 & INPUT_UP)
 #define IN1_LEFT        (IO_INPUT1 & INPUT_LEFT)
@@ -93,10 +96,20 @@ extern uint8_t charset[];
 #define IN1_START2      (IO_INPUT1 & 0x40)
 #define IN1_CABINET     (IO_INPUT1 & 0x80)
 
-#define DIP_SWITCH_FREE (memmap.regs.read.in0[0] & 0x03)
-#define DIP_SWITCH_TEST (memmap.regs.read.in0[0] & 0x10)
-#define DIP_SWITCH_BONUS (memmap.regs.read.in0[0] & 0x30)
-#define DIP_SWITCH_TODO  (memmap.regs.read.in0[0] & 0x0c)
+/* 0=free 1=1-coin=1-game 2=1-coin=2-games 3=2-coins=1-game */
+#define DIP_SWITCH_COINS        (memmap.regs.read.in0[0] & 0x03)
+
+/* 0=1-life 1=2-lives 2=3-lives 3=5-lives */
+#define DIP_SWITCH_LIVES        ((memmap.regs.read.in0[0] & 0x0c) >> 2)
+
+/* 0=10000 1=15000 2=20000 3=none */
+#define DIP_SWITCH_BONUS        ((memmap.regs.read.in0[0] & 0x30) >> 4)
+
+/* 0=hard 1=normal */
+#define DIP_SWITCH_DIFFICULTY   ((memmap.regs.read.in0[0] & 0x40) >> 6)
+
+/* 0=alternate 1=normal */
+#define DIP_SWITCH_NAMES        ((memmap.regs.read.in0[0] & 0x80) >> 7)
 
 #define BLINKY_SPRITE memmap.mem[0x4c02]
 #define BLINKY_COLOUR memmap.mem[0x4c03]
@@ -297,7 +310,7 @@ extern uint8_t charset[];
 
 #define PLAYER memmap.mem[0x4e09]
 
-#define P1_CURR_DIFFICULTY               (*(uint16_t*)&memmap.mem[0x4e0a])
+#define P1_CURR_DIFFICULTY              memmap.mem[0x4e0a]
 #define P1_FIRST_FRUIT                  memmap.mem[0x4e0c]
 #define P1_SECOND_FRUIT                 memmap.mem[0x4e0d]
 #define P1_PILLS_EATEN_LEVEL            memmap.mem[0x4e0e]
@@ -313,7 +326,7 @@ extern uint8_t charset[];
 
 // 4e38-4e65 is P2 copy of 4e0a-4e37 (45 bytes)
 
-#define P2_CURR_DIFFICULTY              (*(uint16_t*)&memmap.mem[0x4e38])
+#define P2_CURR_DIFFICULTY              memmap.mem[0x4e38]
 #define P2_FIRST_FRUIT                  memmap.mem[0x4e3a]
 #define P2_SECOND_FRUIT                 memmap.mem[0x4e3b]
 #define P2_PILLS_EATEN_LEVEL            memmap.mem[0x4e3c]

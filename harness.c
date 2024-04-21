@@ -39,9 +39,9 @@ void showScreen (void)
             }
             else
             {
-                char c = VIDEO[start];
+                char c = SCREEN[start];
                 if (c >= 32 && c < 128)
-                    printf ("%c", VIDEO[start]);
+                    printf ("%c", SCREEN[start]);
                 else
                     printf (".");
                 start += inc;
@@ -60,6 +60,11 @@ int main (void)
     memcpy (&ROM[0x1000], rom_pacman_6f, 0x1000);
     memcpy (&ROM[0x2000], rom_pacman_6h, 0x1000);
     memcpy (&ROM[0x3000], rom_pacman_6j, 0x1000);
+
+    /*  Input switches are active low */
+    IO_INPUT0 = 0xff;
+    IO_INPUT1 = 0xff;
+    DIP_INPUT = 0xff;
 void reset_0000 (void);
     videoInit (3);
     kbdOpen (NULL);

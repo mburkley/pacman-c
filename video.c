@@ -45,15 +45,15 @@
 #include "82s123.7f.h"
 #include "82s126.4a.h"
 
-#define VIDEO_XSIZE 256
-#define VIDEO_YSIZE 288
+#define SCREEN_XSIZE 256
+#define SCREEN_YSIZE 288
 
 uint8_t charset[0x2000];
 
-static uint8_t videoScreen[VIDEO_XSIZE][VIDEO_YSIZE];
+// static uint8_t videoScreen[SCREEN_XSIZE][SCREEN_YSIZE];
 static bool videoInitialised = false;
 static bool videoRefreshNeeded = false;
-static bool videoSpritesEnabled = false;
+// static bool videoSpritesEnabled = false;
 
 /*  The framebuffer is a 2D array of pixels with 4 bytes per pixel.  The first 3
  *  bytes of each pixel are r, g, b respectively and the 4th is not
@@ -107,10 +107,10 @@ static void videoPlot (int x, int y, int col)
     col = rom_82s123_7f[col & 0xf];
 
     if (x < 0 || y < 0 || 
-        x >= VIDEO_XSIZE || 
-        y >= VIDEO_YSIZE)
+        x >= SCREEN_XSIZE || 
+        y >= SCREEN_YSIZE)
     {
-        fprintf (stderr,"VIDEO coords out of range\n");
+        fprintf (stderr,"SCREEN coords out of range\n");
         exit(1);
     }
 
@@ -139,7 +139,7 @@ static void videoDrawChar (int cx, int cy, int chr, int chrCol)
         for (x = 0; x < 8; x++)
         {
             int z = chr * 16;
-            z += (4-(y&4)) * 2;
+            z += (4-(y&4)) << 1;
             z += (7-x);
             uint8_t pixelData = charset[z];
             uint8_t col = chrCol << 2;
@@ -158,24 +158,29 @@ static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
     /*  TODO invert and mirror
      *  TODO find PROM layout of chr data
       */
+    return;
     for (y = 0; y < 16; y++)
     {
         for (x = 0; x < 16; x++)
         {
             int z = shape * 64;
-            z += (0xc-(y&0xc)) * 2;
-            z += (15-x);
+            z += (0xc-(y&0xc)) << 1;
+            // z += 15-x; // (7-(x&7));
+            if ((x&8) == 0)
+                z += 8;
+            if ((y&8) == 0)
+                z += 8;
             uint8_t pixelData = charset[z + 0x1000];
             uint8_t col = colour << 2;
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
-            if (px+x >= VIDEO_XSIZE || 
-                py+y >= VIDEO_YSIZE)
+            if (px+x >= SCREEN_XSIZE || 
+                py+y >= SCREEN_YSIZE)
             {
                 // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
             }
-            else
+            else if (col > 0)
                 videoPlot (px + x, py + y, col);
         }
     }
@@ -184,9 +189,6 @@ static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
 
 void videoRefresh (void)
 {
-    int sc;
-
-
     // if (!videoRefreshNeeded || !videoInitialised)
     //     return;
 
@@ -207,7 +209,7 @@ void videoRefresh (void)
         }
         for (x = 0; x < 28; x++)
         {
-            videoDrawChar (x, y, VIDEO[pos], COLOUR[pos]);
+            videoDrawChar (x, y, SCREEN[pos], COLOUR[pos]);
             pos += inc;
         }
     }
@@ -226,9 +228,9 @@ void videoRefresh (void)
 }
 
 static bool videoThreadRunning = false;
-static pthread_t thVideoThread;
+// static pthread_t thVideoThread;
 
-static void *videoThread (void *arg)
+void *videoThread (void *arg)
 {
     while (videoThreadRunning)
     {
@@ -248,8 +250,8 @@ void videoInit (int scale)
     glutInitWindowPosition(10,10);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 
-    frameBufferXSize = VIDEO_XSIZE * scale;
-    frameBufferYSize = VIDEO_YSIZE * scale;
+    frameBufferXSize = SCREEN_XSIZE * scale;
+    frameBufferYSize = SCREEN_YSIZE * scale;
     frameBufferScale = scale;
 
     frameBuffer = calloc (frameBufferXSize * frameBufferYSize,

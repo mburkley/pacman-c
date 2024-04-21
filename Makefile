@@ -23,4 +23,4 @@ pacman.6j
 # 	@xxd -i $< > $@
 
 pacmanc: $(SRCS)
-	$(CC) -ggdb3 $^ -o $@ $(LIBS)
+	$(CC) -ggdb3 -Wall $^ -o $@ $(LIBS)

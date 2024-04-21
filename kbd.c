@@ -78,7 +78,7 @@ static void kbdReopen (void)
 
 static void decodeEvent (struct input_event ev)
 {
-    int i, j;
+    int i;
     bool mapped = false;
 
     if (ev.type == EV_KEY && ev.value < 2)

@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-#ifndef __VIDEO_H
-#define __VIDEO_H
+#ifndef __SCREEN_H
+#define __SCREEN_H
 
 #include <stdint.h>
 

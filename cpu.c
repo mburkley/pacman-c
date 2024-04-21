@@ -22,8 +22,13 @@ void interruptMode (int mode)
 void interruptHalt (void)
 {
     usleep(100000);
-    if (intVector)
+    static bool inInterrupt;
+    if (!inInterrupt && intVector)
+    {
+        inInterrupt = true;
         intVector();
+    }
+    inInterrupt = false;
 // void showScreen (void);
 // showScreen();
     videoRefresh();

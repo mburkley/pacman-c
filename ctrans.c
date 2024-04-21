@@ -35,18 +35,18 @@ void func_039d (void);
 void func_03dc (void);
 void mainState1_03fe (void);
 void func_045f (void);
-void func_0471 (void);
+void introduceBlinky_0471 (void);
 void func_047f (void);
-void func_048b (void);
+void introducePinky_048b (void);
 void func_0499 (void);
 void func_049f (void);
-void func_04a5 (void);
+void introduceInky_04a5 (void);
 void func_04b3 (void);
 void func_04b9 (void);
-void func_04bf (void);
+void introduceClyde_04bf (void);
 void func_04cd (void);
 void func_04d3 (void);
-void func_04d8 (void);
+void introducePoints_04d8 (void);
 void func_04e0 (void);
 void func_051c (void);
 void func_0524 (uint8_t *hl, int b, int a);
@@ -60,9 +60,9 @@ void selectDisplayGhostName_0580(int c);
 void displayGhostName_0585(int c);
 void func_0593(int c);
 XYPOS func_05a5 (void);
-void func_05bf (int hl, int a);
+void drawGhost_05bf (int hl, int a);
 void mainState2_05e5 (void);
-void func_0485 (void);
+void introduceBlinky_0485 (void);
 void func_05f3 (void);
 void func_0674 (void);
 void func_0899 (void);
@@ -184,9 +184,9 @@ void scene3State3_22dd (void);
 void scene3FruitPos_22e4 (void);
 void scene3State4_22f5 (void);
 void scene3State5_22fe (void);
-void start_230b (void);
+void initSelfTest_230b (void);
 void clearScreen_23f3 (void);
-void clearMaze_2400 (void);
+void clearScreenMazeOnly_2400 (void);
 void clearColour_240d (int param);
 void drawMazeTBD_2419 (int param);
 void drawPills_2448(int param);
@@ -204,7 +204,7 @@ uint8_t* getPlayerScorePtr_2b0b (void);
 void drawBlankSquare_2b7e(uint8_t *hl);
 void drawCharSquare_2b80 (uint8_t *hl, int a);
 void drawFruit_2b8f (uint8_t *hl, int a);
-void func_2b6a ();
+void func_2b6a (int unused);
 void displayFruitHistory_2bfd (uint8_t *table, int level);
 void func_2c44(uint8_t a);
 void func_2cc1 (void);
@@ -213,6 +213,7 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t data[]);
 void func_2da5(int a);
 uint8_t func_2df4(uint8_t *ix, uint8_t *iy);
 uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c);
+void func_2ee4 (uint16_t *hl, uint8_t a);
 uint8_t func_2f22 (uint8_t *ix);
 uint8_t func_2f26 (uint8_t *ix);
 uint8_t func_2f2b (uint8_t *ix);
@@ -236,7 +237,7 @@ void advanceStartState_03d4 (void);
 void checkStartButtons (void);
 void displayCredits_2ba1 ();
 void drawPlayerScore_2aaf (uint8_t *score);
-void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks);
+void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks);
 void extraLife_2b33(int de);
 void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
 void incLevelStateSubr_0894 (void);
@@ -283,7 +284,7 @@ void incKilledState_1272 (void);
 void displayReady_0263 (void);
 void incScene1State_212b (void);
 void incScene2State_212b (void);
-bool checkCoinCredit_02df (void);
+void checkCoinCredit_02df (void);
 void incScene3State_22b9 (void);
 void selectFruit_0ead (void);
 void fruitHistoryLevelCheck_2bea (int param);
@@ -320,7 +321,7 @@ uint16_t getColourOffset_2052 (XYPOS pos);
 void func_0506 (void);
 void scene2State5_221e (uint16_t param);
 void scene3State0_22a7 (void);
-void startGame_234b (void);
+void mainTaskLoop_234b (void);
 void func_24d7(int param);
 void initialisePositions_25d3 (int param);
 void scatterOrChaseBlinky_2730 (int param);
@@ -330,7 +331,7 @@ uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy);
 XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation);
 uint16_t calcSquare_2a12(uint8_t a);
 uint16_t scoreTable_2b17[];
-int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks);
+int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks);
 uint16_t displayLives_2b4a (int lives);
 void fruitHistoryLevelHigherThan8_2c2e (int level);
 uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl);
@@ -338,11 +339,12 @@ void func_2dd7 (void);
 uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val);
 uint8_t func_2f4a (uint8_t *ix);
 void isr_3000 (void);
-void func_3031 (uint8_t h);
-void func_3042 (void);
-void func_30b5 (uint8_t e);
-void func_30bd (int e, int b);
-void func_30fb (int e, int h);
+void romChecksumBad_3031 (uint8_t h, uint8_t checksum);
+void ramTest_3042 (void);
+void badRam_30b5 (uint8_t e, uint8_t checksum);
+void badRamOrRom_30bd (int e, uint8_t checksum, int b);
+void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum);
+void serviceModeOrStartGame_3174 (void);
 void delay_32ed (void);
 void func_3af4 (void);
 
@@ -390,7 +392,7 @@ void reset_0000 (void)
     // 0005  c30b23    jp      #230b		; Run startup tests
     //-------------------------------
     interruptDisable ();
-    start_230b();
+    initSelfTest_230b();
 }
 
 /* Fill "hl" to "hl+b" with "a" */
@@ -583,7 +585,7 @@ void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data)
         if (*ptr == 0)
             break;
 
-        ptr+3;
+        ptr += 3;
     }
     //-------------------------------
     // 005a  c9        ret     
@@ -819,7 +821,7 @@ void isr_008d (void)
     // 017c  010c00    ld      bc,#000c
     // 017f  edb0      ldir    
     //-------------------------------
-    // TODO looks backwards, positions and attributed
+    // TODO looks backwards, positions and attributes
     memcpy (SPRITEATTRIB+2, SPRITE_POS, 0xc);
 
     //-------------------------------
@@ -900,9 +902,15 @@ void isr_008d (void)
     // 01da  f1        pop     af
     // 01db  c9        ret     
     //-------------------------------
-    if (MAIN_STATE != 0 && IN0_TEST)
+    #if 0
+    // TODO why is test reading as set
+    if (MAIN_STATE != 0 && IN0_TEST == 0)
+    {
         // reset();
+        printf ("main state != 0 and test DIP sel\n");
         exit(1);
+    }
+    #endif
 
     INTENABLE = 1;
     interruptEnable ();
@@ -1144,13 +1152,13 @@ void checkCoinInput_0267 (void)
     //-------------------------------
     // 0272  3a0050    ld      a,(#5000)            ; read IN0
     // 0275  47        ld      b,a
-    // 0276  cb00      rlc     b                    ; Move MSB (COIN3) to carry flag
+    // 0276  cb00      rlc     b                    ; Move MSB (CREDIT) to carry flag
     // 0278  3a664e    ld      a,(#4e66)
     // 027b  17        rla                          ; Rotate carry flag to LSB
     // 027c  e60f      and     #0f
     // 027e  32664e    ld      (#4e66),a
     //-------------------------------
-    SERVICE1_DEBOUNCE=((SERVICE1_DEBOUNCE<<1) & 0x0f) | (IN0_COIN3?1:0);
+    SERVICE1_DEBOUNCE=((SERVICE1_DEBOUNCE<<1) & 0x0f) | (IN0_CREDIT?1:0);
     //-------------------------------
     // 0281  d60c      sub     #0c
     // 0283  ccdf02    call    z,#02df		; Add Coin
@@ -1264,7 +1272,7 @@ void checkCoinCounterTimeout_02ad (void)
 }
 
 /* Coins -> credits routine */
-bool checkCoinCredit_02df (void)
+void checkCoinCredit_02df (void)
 {
     //-------------------------------
     // 02df  3a6b4e    ld      a,(#4e6b)		; #coins per #credits 
@@ -1275,7 +1283,7 @@ bool checkCoinCredit_02df (void)
     // 02e8  77        ld      (hl),a		; store leftover coins 
     //-------------------------------
     if (++PARTIAL_CREDIT < COINS_PER_CREDIT)
-        return false;
+        return;
 
     PARTIAL_CREDIT -= COINS_PER_CREDIT;
 
@@ -1312,7 +1320,7 @@ void showStartNumPlayers_02fd (void)
     //-------------------------------
     int a = COIN_TIMER++;
 
-    if (a & 0xf == 0)
+    if ((a & 0xf) == 0)
     {
         //-------------------------------
         // 0306  7e        ld      a,(hl)
@@ -1369,8 +1377,8 @@ void showStartNumPlayers_02fd (void)
     // 0330  fe03      cp      #03
     // 0332  ca4403    jp      z,#0344
     //-------------------------------
-    uint8_t *ix = &VIDEO[0x3d8];
-    uint8_t *iy = &VIDEO[0x3c5];
+    uint8_t *ix = &SCREEN[0x3d8];
+    uint8_t *iy = &SCREEN[0x3c5];
     if (MAIN_STATE != 3)
     {
         //-------------------------------
@@ -1646,13 +1654,13 @@ void mainState1_03fe (void)
     // 0450  04 0c 00 1c 05 4b 05 56  05 61 05 6c 05 7c 05 
     //-------------------------------
     void (*func[])() =
-    { func_045f, nothing_000c, func_0471, nothing_000c,
-                         func_047f, nothing_000c, func_0485, nothing_000c,
-                         func_048b, nothing_000c, func_0499, nothing_000c,
-                         func_049f, nothing_000c, func_04a5, nothing_000c,
+    { func_045f, nothing_000c, introduceBlinky_0471, nothing_000c,
+                         func_047f, nothing_000c, introduceBlinky_0485, nothing_000c,
+                         introducePinky_048b, nothing_000c, func_0499, nothing_000c,
+                         func_049f, nothing_000c, introduceInky_04a5, nothing_000c,
                          func_04b3, nothing_000c, func_04b9, nothing_000c,
-                         func_04bf, nothing_000c, func_04cd, nothing_000c,
-                         func_04d3, nothing_000c, func_04d8, nothing_000c,
+                         introduceClyde_04bf, nothing_000c, func_04cd, nothing_000c,
+                         func_04d3, nothing_000c, introducePoints_04d8, nothing_000c,
                          func_04e0, nothing_000c, func_051c, func_054b,
                          func_0556, func_0561, func_056c, func_057c };
     tableCall_0020 (func, MAIN_STATE_SUB1);
@@ -1683,20 +1691,17 @@ void func_045f (void)
     displayGhostName_0585(0xc);
 }
 
-void func_0471 (void)
+void introduceBlinky_0471 (void)
 {
     //-------------------------------
     // 0471  210443    ld      hl,#4304
     // 0474  3e01      ld      a,#01
     // 0476  cdbf05    call    #05bf
-    //-------------------------------
-    func_05bf(0x304, 1);
-
-    //-------------------------------
     // 0479  0e0c      ld      c,#0c
     // 047b  cd8505    call    #0585
     // 047e  c9        ret     
     //-------------------------------
+    drawGhost_05bf(0x304, 1);
     displayGhostName_0585(0xc);
 }
 
@@ -1710,7 +1715,7 @@ void func_047f (void)
     func_0593(0x14);
 }
 
-void func_0485 (void)
+void introduceBlinky_0485 (void)
 {
     //-------------------------------
     // 0485  0e0d      ld      c,#0d
@@ -1720,20 +1725,17 @@ void func_0485 (void)
     displayGhostName_0585(0xd);
 }
 
-void func_048b (void)
+void introducePinky_048b (void)
 {
     //-------------------------------
     // 048b  210743    ld      hl,#4307
     // 048e  3e03      ld      a,#03
     // 0490  cdbf05    call    #05bf
-    //-------------------------------
-    func_05bf(0x307, 3);
-
-    //-------------------------------
     // 0493  0e0c      ld      c,#0c
     // 0495  cd8505    call    #0585
     // 0498  c9        ret     
     //-------------------------------
+    drawGhost_05bf(0x307, 3);
     displayGhostName_0585(0xc);
 }
 
@@ -1757,7 +1759,7 @@ void func_049f (void)
     func_0593(0xf);
 }
 
-void func_04a5 (void)
+void introduceInky_04a5 (void)
 {
     //-------------------------------
     // 04a5  210a43    ld      hl,#430a
@@ -1767,7 +1769,7 @@ void func_04a5 (void)
     // 04af  cd8505    call    #0585
     // 04b2  c9        ret     
     //-------------------------------
-    func_05bf(0x30a,5);
+    drawGhost_05bf(0x30a,5);
     displayGhostName_0585(0xc);
 }
 
@@ -1791,7 +1793,7 @@ void func_04b9 (void)
     func_0593(0x2f);
 }
 
-void func_04bf (void)
+void introduceClyde_04bf (void)
 {
     //-------------------------------
     // 04bf  210d43    ld      hl,#430d
@@ -1801,7 +1803,7 @@ void func_04bf (void)
     // 04c9  cd8505    call    #0585
     // 04cc  c9        ret     
     //-------------------------------
-    func_05bf(0x30d,7);
+    drawGhost_05bf(0x30d,7);
     displayGhostName_0585(0xc);
 }
 
@@ -1824,7 +1826,7 @@ void func_04d3 (void)
     selectDisplayGhostName_0580(0x31);
 }
 
-void func_04d8 (void)
+void introducePoints_04d8 (void)
 {
     //-------------------------------
     // 04d8  ef        rst     #28
@@ -1880,7 +1882,7 @@ void func_04e0 (void)
     // 0501  213243    ld      hl,#4332
     // 0504  3614      ld      (hl),#14
     //-------------------------------
-    VIDEO[0x332]=0x14;
+    SCREEN[0x332]=0x14;
     func_0506();
 }
 
@@ -1901,8 +1903,8 @@ void func_0506 (void)
         // 0517  dd19      add     ix,de
         // 0519  10f6      djnz    #0511           ; (-10)
         //-------------------------------
-        VIDEO[ix+0x11]=0xfc;
-        VIDEO[ix+0x13]=0xfc;
+        SCREEN[ix+0x11]=0xfc;
+        SCREEN[ix+0x13]=0xfc;
         ix+=0x20;
     }
     //-------------------------------
@@ -2124,8 +2126,11 @@ XYPOS func_05a5 (void)
     return vector;
 }
 
-/*  hl = offset into video buffer, a = colour? */
-void func_05bf (int hl, int a)
+/*  Draws the ghosts on the intro screen.  Same characters are used for each
+ *  ghost but the colour varies.
+ *
+ *  hl = offset into video buffer, a = colour */
+void drawGhost_05bf (int hl, int a)
 {
     //-------------------------------
     // 05bf  36b1      ld      (hl),#b1
@@ -2134,9 +2139,9 @@ void func_05bf (int hl, int a)
     // 05c4  2c        inc     l
     // 05c5  36b5      ld      (hl),#b5
     //-------------------------------
-    VIDEO[hl++] = 0xb1;
-    VIDEO[hl++] = 0xb3;
-    VIDEO[hl++] = 0xb5;
+    SCREEN[hl++] = 0xb1;
+    SCREEN[hl++] = 0xb3;
+    SCREEN[hl] = 0xb5;
     //-------------------------------
     // 05c7  011e00    ld      bc,#001e
     // 05ca  09        add     hl,bc
@@ -2149,9 +2154,9 @@ void func_05bf (int hl, int a)
     // 05d0  2c        inc     l
     // 05d1  36b4      ld      (hl),#b4
     //-------------------------------
-    VIDEO[hl++] = 0xb0;
-    VIDEO[hl++] = 0xb2;
-    VIDEO[hl++] = 0xb4;
+    SCREEN[hl++] = 0xb0;
+    SCREEN[hl++] = 0xb2;
+    SCREEN[hl] = 0xb4;
     //-------------------------------
     // 05d3  110004    ld      de,#0400
     // 05d6  19        add     hl,de
@@ -2164,7 +2169,7 @@ void func_05bf (int hl, int a)
     /*  ASM adds 0x400 to move to colour table, we just used it is an array */
     COLOUR[hl--]=a;
     COLOUR[hl--]=a;
-    COLOUR[hl--]=a;
+    COLOUR[hl]=a;
     //-------------------------------
     // 05dc  a7        and     a
     // 05dd  ed42      sbc     hl,bc
@@ -2180,7 +2185,7 @@ void func_05bf (int hl, int a)
     //-------------------------------
     COLOUR[hl--]=a;
     COLOUR[hl--]=a;
-    COLOUR[hl--]=a;
+    COLOUR[hl]=a;
 }
 
 /*  4e00 == 2 */
@@ -2431,7 +2436,7 @@ void func_06a8 (void)
     // 06ac  cd6a2b    call    #2b6a
     //-------------------------------
     P1_DISPLAY_LIVES--;
-    func_2b6a();
+    func_2b6a (0);
 
     //-------------------------------
     // 06af  af        xor     a
@@ -2486,6 +2491,7 @@ void levelStateSubroutineStateMachine_06be (void)
         func_0aa0, nothing_000c,
         func_0aa3
     };
+    tableCall_0020 (func, LEVEL_STATE_SUBR);
 }
 
 void func_070e (int b)
@@ -2805,7 +2811,7 @@ void func_08cd (void)
     // 08d0  cb67      bit     4,a
     // 08d2  c2de08    jp      nz,#08de
     //-------------------------------
-    if (IN0_TEST)
+    if (IN0_RACKADV == 0)
     {
         //-------------------------------
         // 08d5  21044e    ld      hl,#4e04
@@ -3371,8 +3377,8 @@ void func_0aa6 (void)
     // 0aa8  dd210a4e  ld      ix,#4e0a
     // 0aac  fd21384e  ld      iy,#4e38
     //-------------------------------
-    uint16_t ix=P1_CURR_DIFFICULTY;
-    uint16_t iy=P2_CURR_DIFFICULTY;
+    uint8_t *ix=&P1_CURR_DIFFICULTY;
+    uint8_t *iy=&P2_CURR_DIFFICULTY;
     for (int i = 0; i < 0x2e; i++)
     {
         //-------------------------------
@@ -3384,7 +3390,10 @@ void func_0aa6 (void)
         // 0abe  fd23      inc     iy
         // 0ac0  10ee      djnz    #0ab0           ; (-18)
         //-------------------------------
-        // SWAP(*ix++,*iy++);
+        uint8_t d = *ix;
+        uint8_t e = *iy;
+        *iy++ = d;
+        *ix++ = e;
     }
     //-------------------------------
     // 0ac2  c9        ret     
@@ -6087,7 +6096,7 @@ void func_14fe(void)
                         // 1542  cb72      bit     6,d
                         // 1544  2805      jr      z,#154b         ; (5)
                         //-------------------------------
-                        if (PACMAN_SPRITE & 0x40 != 0)
+                        if ((PACMAN_SPRITE & 0x40) != 0)
                         {
                             //-------------------------------
                             // 1546  7a        ld      a,d
@@ -7301,7 +7310,7 @@ void func_18e4 (int b)
     //-------------------------------
     if ((a & 0xc0) != 0xc0)
     {
-        func_1950;
+        func_1950 ();
         return;
     }
 
@@ -7517,7 +7526,7 @@ void func_1985 (XYPOS pos)
     // 19dd  fe14      cp      #14
     // 19df  c0        ret     nz
     //-------------------------------
-    if(VIDEO[addr] !=0x10 && VIDEO[addr] != 0x14)
+    if(SCREEN[addr] !=0x10 && SCREEN[addr] != 0x14)
         return;
 
     //-------------------------------
@@ -7530,13 +7539,13 @@ void func_1985 (XYPOS pos)
     // 19e7  e60f      and     #0f
     // 19e9  cb3f      srl     a
     //-------------------------------
-    int a=(VIDEO[addr] & 0xf)>>1;
+    int a=(SCREEN[addr] & 0xf)>>1;
 
     //-------------------------------
     // 19eb  0640      ld      b,#40
     // 19ed  70        ld      (hl),b
     //-------------------------------
-    VIDEO[addr] = 0x40; // write space to screen
+    SCREEN[addr] = 0x40; // write space to screen
 
     //-------------------------------
     // 19ee  0619      ld      b,#19
@@ -9155,7 +9164,7 @@ uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos)
     // 2016  a7        and     a
     // 2017  c9        ret     
     //-------------------------------
-    return VIDEO[addr];
+    return SCREEN[addr];
 }
 
 XYPOS pixelToTile_2018 (XYPOS pos)
@@ -9220,7 +9229,7 @@ uint16_t getScreenOffset_202d (XYPOS hl)
     // 204b  014040    ld      bc,#4040
     // 204e  09        add     hl,bc
     //-------------------------------
-    /*  0x4040 is video+0x40 so just add 0x40 to get an offset into VIDEO */
+    /*  0x4040 is video+0x40 so just add 0x40 to get an offset into SCREEN */
     int result = ((hl.x << 8) | hl.y) + 0x4040;
     //-------------------------------
     // 204f  c1        pop     bc
@@ -10127,7 +10136,7 @@ void scene3State5_22fe (void)
     LEVEL_STATE_SUBR++;
 }
 
-void start_230b (void)
+void initSelfTest_230b (void)
 {
     //-------------------------------
     // 230b  210050    ld      hl,#5000
@@ -10169,7 +10178,7 @@ void start_230b (void)
         // 2327  10f1      djnz    #231a           ; (-15)
         //-------------------------------
         for (int l = 0; l < 0x100; l++)
-            VIDEO[hl++] = 0x40;
+            SCREEN[hl++] = 0x40;
     }
 
     /* Set 4400-47ff to 0x0f (color ram) */
@@ -10222,51 +10231,68 @@ void start_230b (void)
     //-------------------------------
     interruptEnable();
     interruptHalt();
-    startGame_234b();
+    mainTaskLoop_234b();
 }
 
-void startGame_234b (void)
+void mainTaskLoop_234b (void)
 {
+    //-------------------------------
     // 234b  32c050    ld      (#50c0),a	; Kick the dog
+    //-------------------------------
     kickWatchdog();
+    //-------------------------------
     // 234e  31c04f    ld      sp,#4fc0	; Set stack pointer to 0x4fc0
-    // 
     // 2351  af        xor     a		; a=0
     // 2352  210050    ld      hl,#5000	
     // 2355  010808    ld      bc,#0808
     // 2358  cf        rst     #8
+    //-------------------------------
 
     /*  Clear all write registers */
     memset (&REGSWRITE, 0, 8);
 
     // 	;; Clear ram
+    //-------------------------------
     // 2359  21004c    ld      hl,#4c00
     // 235c  06be      ld      b,#be
     // 235e  cf        rst     #8
     // 235f  cf        rst     #8
     // 2360  cf        rst     #8
     // 2361  cf        rst     #8
+    //-------------------------------
     memset (&MEM[0x4c00], 0, 0x4be);
 
     // 	;; Clear sound registers, sprite positions
+    //-------------------------------
     // 2362  214050    ld      hl,#5040
     // 2365  0640      ld      b,#40
     // 2367  cf        rst     #8
+    //-------------------------------
     memset (&SOUND[0], 0, 0x40);
 
+    //-------------------------------
     // 2368  32c050    ld      (#50c0),a	; Kick the dog
+    //-------------------------------
     kickWatchdog();
 
+    //-------------------------------
     // 236b  cd0d24    call    #240d		; Clear color ram
+    //-------------------------------
     clearColour_240d(0);
 
+    //-------------------------------
     // 236e  32c050    ld      (#50c0),a	; Kick the dog
+    //-------------------------------
     kickWatchdog();
+    //-------------------------------
     // 2371  0600      ld      b,#00
     // 2373  cded23    call    #23ed
+    //-------------------------------
     jumpClearScreen_23ed (0);
 
+    //-------------------------------
     // 2376  32c050    ld      (#50c0),a	; Kick the dog 
+    //-------------------------------
     kickWatchdog();
 
     //-------------------------------
@@ -10405,7 +10431,7 @@ void jumpClearScreen_23ed(int param)
     // 23ef  f323
     // 23f1  0024
     //-------------------------------
-    void (*func[])() = { clearScreen_23f3, clearMaze_2400 };
+    void (*func[])() = { clearScreen_23f3, clearScreenMazeOnly_2400 };
     tableCall_0020 (func, param);
 }
 
@@ -10420,11 +10446,11 @@ void clearScreen_23f3 (void)
     // 23fd  20fc      jr      nz,#23fb        ; (-4)
     // 23ff  c9        ret     
     //-------------------------------
-    memset (VIDEO, 0x40, 0x400);
+    memset (SCREEN, 0x40, 0x400);
     printf ("%s\n", __func__);
 }
 
-void clearMaze_2400 (void)
+void clearScreenMazeOnly_2400 (void)
 {
     //-------------------------------
     // 2400  3e40      ld      a,#40
@@ -10438,7 +10464,7 @@ void clearMaze_2400 (void)
 
     /*  Only clear the maze part of the screen.  Leave the 2 lines at the top
      *  and at the bottom intact */
-    memset (VIDEO+0x40, 0x40, 0x380);
+    memset (SCREEN+0x40, 0x40, 0x380);
     printf ("%s\n", __func__);
 }
 
@@ -10466,7 +10492,7 @@ void drawMazeTBD_2419 (int param)
     //-------------------------------
 
     printf ("%s\n", __func__);
-    uint8_t *hl = VIDEO;
+    uint8_t *hl = SCREEN;
     uint8_t *bc = DATA_3445;
 
     while (1)
@@ -10529,7 +10555,7 @@ void drawPills_2448 (int param)
     // 244b  dd21164e  ld      ix,#4e16
     // 244f  fd21b535  ld      iy,#35b5
     //-------------------------------
-    uint8_t *hl = VIDEO;
+    uint8_t *hl = SCREEN;
     uint8_t *ix = P1_PILL_ARRAY;
     uint8_t *iy = DATA_35b5;
     //-------------------------------
@@ -10585,10 +10611,10 @@ void drawPills_2448 (int param)
     // 2484  eda0      ldi     
     // 2486  c9        ret    
     //-------------------------------
-    VIDEO[0x64] = P1_POWERUP_ARRAY[0];
-    VIDEO[0x78] = P1_POWERUP_ARRAY[1];
-    VIDEO[0x384] = P1_POWERUP_ARRAY[2];
-    VIDEO[0x398] = P1_POWERUP_ARRAY[3];
+    SCREEN[0x64] = P1_POWERUP_ARRAY[0];
+    SCREEN[0x78] = P1_POWERUP_ARRAY[1];
+    SCREEN[0x384] = P1_POWERUP_ARRAY[2];
+    SCREEN[0x398] = P1_POWERUP_ARRAY[3];
 }
 
 /*  Build bytes in pill array 0x4e16-0x4e34 1 bit at a time by reading screen offsets from a ROM
@@ -10627,7 +10653,7 @@ void updatePillsFromScreen_2487 (int param)
             hl+=*iy;
             *ix<<=1;
 
-            if (VIDEO[hl] == 0x10)
+            if (SCREEN[hl] == 0x10)
                 *ix |= 1;
 
             //-------------------------------
@@ -10658,10 +10684,10 @@ void updatePillsFromScreen_2487 (int param)
     // 24c6  eda0      ldi     
     // 24c8  c9        ret     
     //-------------------------------
-    P1_POWERUP_ARRAY[0] = VIDEO[0x64];
-    P1_POWERUP_ARRAY[1] = VIDEO[0x78];
-    P1_POWERUP_ARRAY[2] = VIDEO[0x384];
-    P1_POWERUP_ARRAY[3] = VIDEO[0x398];
+    P1_POWERUP_ARRAY[0] = SCREEN[0x64];
+    P1_POWERUP_ARRAY[1] = SCREEN[0x78];
+    P1_POWERUP_ARRAY[2] = SCREEN[0x384];
+    P1_POWERUP_ARRAY[3] = SCREEN[0x398];
 }
 
 void clearPillArrays_24c9 ()
@@ -11132,7 +11158,7 @@ void showBonusLifeScore_26b2 ()
     // 26bd  dd7700    ld      (ix+#00),a
     //-------------------------------
     int digit = BONUS_LIFE;
-    VIDEO[0x136] = (digit & 0xf) + 0x30;
+    SCREEN[0x136] = (digit & 0xf) + 0x30;
     //-------------------------------
     // 26c0  3a714e    ld      a,(#4e71)
     // 26c3  0f        rrca    
@@ -11143,7 +11169,7 @@ void showBonusLifeScore_26b2 ()
     // 26c9  c8        ret     z
     //-------------------------------
     digit >>= 4;
-    if (digit & 0xf == 0)
+    if ((digit & 0xf) == 0)
         return;
 
     //-------------------------------
@@ -11151,7 +11177,7 @@ void showBonusLifeScore_26b2 ()
     // 26cc  dd7720    ld      (ix+#20),a
     // 26cf  c9        ret     
     //-------------------------------
-    VIDEO[0x156] = digit + 0x30;
+    SCREEN[0x156] = digit + 0x30;
 }
 
 void setConfig_26d0 ()
@@ -11162,7 +11188,7 @@ void setConfig_26d0 ()
     // 26d4  e603      and     #03
     // 26d6  c2de26    jp      nz,#26de
     //-------------------------------
-    int a = DIP_SWITCH_TEST;
+    int a = DIP_SWITCH_COINS;
     if (a == 0)
     {
         // 26d9  216e4e    ld      hl,#4e6e
@@ -11206,15 +11232,11 @@ void setConfig_26d0 ()
     // 26fc  0f        rrca    
     // 26fd  0f        rrca    
     // 26fe  e603      and     #03
-    //-------------------------------
-    a=DIP_SWITCH_BONUS>>4;
-
-    //-------------------------------
     // 2700  212827    ld      hl,#2728
     // 2703  d7        rst     #10
     // 2704  32714e    ld      (#4e71),a
     //-------------------------------
-    BONUS_LIFE= BONUS_LIFE_DATA[a];
+    BONUS_LIFE= BONUS_LIFE_DATA[DIP_SWITCH_BONUS];
     //-------------------------------
     // 2707  78        ld      a,b
     // 2708  07        rlca    
@@ -11222,7 +11244,7 @@ void setConfig_26d0 ()
     // 270a  e601      and     #01
     // 270c  32754e    ld      (#4e75),a
     //-------------------------------
-    GHOST_NAMES_MODE=1;
+    GHOST_NAMES_MODE = DIP_SWITCH_NAMES;
     //-------------------------------
     // 270f  78        ld      a,b
     // 2710  07        rlca    
@@ -11234,7 +11256,7 @@ void setConfig_26d0 ()
     // 2719  df        rst     #18
     // 271a  22734e    ld      (#4e73),hl
     //-------------------------------
-    DIFFICULTY_PTR = DIFFICULTY_DATA[a];
+    DIFFICULTY_PTR = DIFFICULTY_DATA[DIP_SWITCH_DIFFICULTY];
     //-------------------------------
     // 271d  3a4050    ld      a,(#5040)
     // 2720  07        rlca    
@@ -11748,7 +11770,7 @@ XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, uint8_t *a)
             // 299b  d6c0      sub     #c0
             // 299d  2827      jr      z,#29c6         ; (39)
             //-------------------------------
-            if ((VIDEO[offset]&0xc0)!= 0xc0)
+            if ((SCREEN[offset]&0xc0)!= 0xc0)
             {
                 //-------------------------------
                 // 299f  dde5      push    ix
@@ -11958,7 +11980,7 @@ void clearPillsScreen_2a35 ()
         // 2a4a  fe14      cp      #14
         // 2a4c  ca532a    jp      z,#2a53
         //-------------------------------
-        int a=VIDEO[de];
+        int a=SCREEN[de];
         if (a!=0x10 && a!=0x12 && a!=0x14)
         {
             //-------------------------------
@@ -11975,7 +11997,7 @@ void clearPillsScreen_2a35 ()
             // 2a56  13        inc     de
             // 2a57  c3382a    jp      #2a38
             //-------------------------------
-            VIDEO[de++]=0x40;
+            SCREEN[de++]=0x40;
         }
     }
 }
@@ -11998,117 +12020,154 @@ void addToScore_2a5a(int b)
     // uint16_t add = tableLookup_0018 (scoreTable_2b17, b);
     uint16_t add = scoreTable_2b17[b];
 
+    //-------------------------------
     // 2a64  eb        ex      de,hl
     // 2a65  cd0b2b    call    #2b0b
+    //-------------------------------
     /*  Fetch a pointer to the player's score (P1 or P2) */
     uint8_t *score = getPlayerScorePtr_2b0b();
+    //-------------------------------
     // 2a68  7b        ld      a,e
     // 2a69  86        add     a,(hl)
     // 2a6a  27        daa     
     // 2a6b  77        ld      (hl),a
     // 2a6c  23        inc     hl
+    //-------------------------------
     /*  Add the LSB of the addition to the LSB of the score and adjust for BCD
      */
     score[0] += add & 0xff;
     int carry = bcdAdjust (&score[0]);
+    //-------------------------------
     // 2a6d  7a        ld      a,d
     // 2a6e  8e        adc     a,(hl)
     // 2a6f  27        daa     
     // 2a70  77        ld      (hl),a
     // 2a71  5f        ld      e,a
     // 2a72  23        inc     hl
+    //-------------------------------
     /*  Add the 2nd byte of the addition and adjust for BCD */
     score[1] += (add>>8) + carry;
     carry = bcdAdjust (&score[1]);
+    //-------------------------------
     // 2a73  3e00      ld      a,#00
     // 2a75  8e        adc     a,(hl)
     // 2a76  27        daa     
     // 2a77  77        ld      (hl),a
+    //-------------------------------
     /*  Add any BCD carry to the 3rd byte of the score */
     score[2] += carry;
     carry = bcdAdjust (&score[2]);
+    //-------------------------------
     // 2a78  57        ld      d,a
     // 2a79  eb        ex      de,hl
-    uint16_t hl=score[2] << 8 + score[1];
+    //-------------------------------
+    uint16_t hl = (score[2] << 8) + score[1];
+    //-------------------------------
     // 2a7a  29        add     hl,hl
     // 2a7b  29        add     hl,hl
     // 2a7c  29        add     hl,hl
     // 2a7d  29        add     hl,hl
+    //-------------------------------
     hl*=16;
+    //-------------------------------
     // 2a7e  3a714e    ld      a,(#4e71)
     // 2a81  3d        dec     a
     // 2a82  bc        cp      h
     // 2a83  dc332b    call    c,#2b33
+    //-------------------------------
     if (hl>>8 > BONUS_LIFE-1)
         extraLife_2b33(hl); // TODO should be de
 
+    //-------------------------------
     // 2a86  cdaf2a    call    #2aaf
     // 2a89  13        inc     de
     // 2a8a  13        inc     de
     // 2a8b  13        inc     de
+    //-------------------------------
     drawPlayerScore_2aaf(score);
     score+=3;
 
+    //-------------------------------
     // 2a8c  218a4e    ld      hl,#4e8a
+    //-------------------------------
 
     /*  Get Ptr to LSD of high score */
     uint8_t *highScore = &HIGH_SCORE[2];
 
+    //-------------------------------
     // 2a8f  0603      ld      b,#03
+    //-------------------------------
     for (b = 0; b < 3; b++)
     {
+        //-------------------------------
         // 2a91  1a        ld      a,(de)
         // 2a92  be        cp      (hl)
         // 2a93  d8        ret     c
+        //-------------------------------
         if (*score < *highScore)
             return;
 
+        //-------------------------------
         // 2a94  2005      jr      nz,#2a9b        ; (5)
+        //-------------------------------
         if (*score != 0)
             break;
 
+        //-------------------------------
         // 2a96  1b        dec     de
         // 2a97  2b        dec     hl
         // 2a98  10f7      djnz    #2a91           ; (-9)
+        //-------------------------------
         score--;
         highScore--;
     }
+    //-------------------------------
     // 2a9a  c9        ret     
+    //-------------------------------
     if (b == 3)
         return;
 
+    //-------------------------------
     // 2a9b  cd0b2b    call    #2b0b
+    //-------------------------------
     score = getPlayerScorePtr_2b0b();
 
+    //-------------------------------
     // 2a9e  11884e    ld      de,#4e88
+    //-------------------------------
     highScore = HIGH_SCORE;
 
+    //-------------------------------
     // 2aa1  010300    ld      bc,#0003
     // 2aa4  edb0      ldir    
+    //-------------------------------
     memcpy (highScore, score, 3);
 
+    //-------------------------------
     // 2aa6  1b        dec     de
     // 2aa7  010403    ld      bc,#0304
     // 2aaa  21f243    ld      hl,#43f2
     // 2aad  180f      jr      #2abe           ; (15)
+    //-------------------------------
     highScore--;
-    uint8_t *screenLoc = &VIDEO[0x3f2];
-    drawScore_2abe (screenLoc, highScore, 4);
+    drawScore_2abe (0x3f2, highScore, 4);
 }
 
 void drawPlayerScore_2aaf (uint8_t *score)
 {
+    //-------------------------------
     // 2aaf  3a094e    ld      a,(#4e09)
     // 2ab2  010403    ld      bc,#0304
     // 2ab5  21fc43    ld      hl,#43fc
     // 2ab8  a7        and     a
     // 2ab9  2803      jr      z,#2abe         ; (3)
     // 2abb  21e943    ld      hl,#43e9
-    uint8_t *screenLoc;
+    //-------------------------------
+    uint16_t screenLoc;
     if (PLAYER == 0)
-        screenLoc = &VIDEO[0x3fc];
+        screenLoc = 0x3fc;
     else
-        screenLoc = &VIDEO[0x3e9];
+        screenLoc = 0x3e9;
 
     drawScore_2abe (screenLoc, score, 4);
 }
@@ -12116,56 +12175,73 @@ void drawPlayerScore_2aaf (uint8_t *score)
 /*  Draw score on screen while maintaining a flag to indicate leading blanks.
  *  As soon as a non zero digit is encountered, clear the leading blanks flag.
  *  Reg de is pointer to score, hl is screen ptr */
-void drawScore_2abe (uint8_t *screenLoc, uint8_t *score, int blanks)
+void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks)
 {
     for (int b = 0; b < 3; b++)
     {
+        //-------------------------------
         // 2abe  1a        ld      a,(de)
         // 2abf  0f        rrca    
         // 2ac0  0f        rrca    
         // 2ac1  0f        rrca    
         // 2ac2  0f        rrca    
         // 2ac3  cdce2a    call    #2ace
+        //-------------------------------
         blanks = drawDigit_2ace(&screenLoc, *score >> 4, blanks);
+        //-------------------------------
         // 2ac6  1a        ld      a,(de)
         // 2ac7  cdce2a    call    #2ace
+        //-------------------------------
         blanks = drawDigit_2ace(&screenLoc, *score, blanks);
+        //-------------------------------
         // 2aca  1b        dec     de
         // 2acb  10f1      djnz    #2abe           ; (-15)
+        //-------------------------------
         score--;
     }
+    //-------------------------------
     // 2acd  c9        ret     
+    //-------------------------------
 }
 
 /*  Draw digit (discard leading 0's) */
-int drawDigit_2ace(uint8_t **screenLoc, int digit, int blanks)
+int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks)
 {
+    //-------------------------------
     // 2ace  e60f      and     #0f
     // 2ad0  2804      jr      z,#2ad6         ; a=0?
+    //-------------------------------
     if ((digit & 0xf) != 0)
     {
+        //-------------------------------
         // 2ad2  0e00      ld      c,#00
         // 2ad4  1807      jr      #2add  
+        //-------------------------------
         blanks=0;
     }
     else
     {
+        //-------------------------------
         // 2ad6  79        ld      a,c
         // 2ad7  a7        and     a
         // 2ad8  2803      jr      z,#2add         ; (3)
+        //-------------------------------
         if (blanks!=0)
         {
+            //-------------------------------
             // 2ada  3e40      ld      a,#40
             // 2adc  0d        dec     c
+            //-------------------------------
             digit=0x40;
             blanks--;
         }
     }
+    //-------------------------------
     // 2add  77        ld      (hl),a
     // 2ade  2b        dec     hl
     // 2adf  c9        ret     
-    **screenLoc = digit;
-    *screenLoc--;
+    //-------------------------------
+    SCREEN[*screenLoc--] = digit;
     return blanks;
 }
 
@@ -12192,7 +12268,7 @@ void clearScores_2ae0 ()
     // 2af2  21fc43    ld      hl,#43fc	; location 
     // 2af5  cdbe2a    call    #2abe
     //-------------------------------
-    drawScore_2abe(&VIDEO[0x3fc], &P1_SCORE[2], 4);
+    drawScore_2abe(0x3fc, &P1_SCORE[2], 4);
 
     //-------------------------------
     // 2af8  010403    ld      bc,#0304	; Draw Score P2
@@ -12208,7 +12284,7 @@ void clearScores_2ae0 ()
         blanks = 6;
 
     // 2b09  18b3      jr      #2abe           ; draw blanks
-    drawScore_2abe(&VIDEO[0x3e9], &P2_SCORE[2], blanks);
+    drawScore_2abe(0x3e9, &P2_SCORE[2], blanks);
 }
 
 /*  Returns a pointer to the 4-byte array containing a player's score */
@@ -12264,7 +12340,7 @@ void extraLife_2b33(int de)
     // 2b37  cb46      bit     0,(hl)
     // 2b39  c0        ret     nz
     //-------------------------------
-    if (MEM[de+1]&1 != 0)
+    if ((MEM[de+1] & 1) != 0)
         return;
 
     //-------------------------------
@@ -12311,7 +12387,7 @@ uint16_t displayLives_2b4a (int lives)
                 // 2b57  3e20      ld      a,#20
                 // 2b59  cd8f2b    call    #2b8f
                 //-------------------------------
-                drawFruit_2b8f (&VIDEO[hl], 0x20);
+                drawFruit_2b8f (&SCREEN[hl], 0x20);
                 //-------------------------------
                 // 2b5c  2b        dec     hl
                 // 2b5d  2b        dec     hl
@@ -12336,14 +12412,14 @@ uint16_t displayLives_2b4a (int lives)
         // 2b67  2b        dec     hl
         // 2b68  18f7      jr      #2b61           ; (-9)
         //-------------------------------
-        drawBlankSquare_2b7e(&VIDEO[hl]);
+        drawBlankSquare_2b7e(&SCREEN[hl]);
         hl-=2;
     }
 
     return hl;
 }
 
-void func_2b6a ()
+void func_2b6a (int unused)
 {
     //-------------------------------
     // 2b6a  3a004e    ld      a,(#4e00)
@@ -12364,7 +12440,7 @@ void func_2b6a ()
     // 2b7b  46        ld      b,(hl)
     // 2b7c  18cc      jr      #2b4a           ; (-52)
     //-------------------------------
-    uint16_t hl = displayLives_2b4a(P1_DISPLAY_LIVES);
+    displayLives_2b4a(P1_DISPLAY_LIVES);
 }
 
 void drawBlankSquare_2b7e(uint8_t *hl)
@@ -12417,6 +12493,7 @@ void drawFruit_2b8f (uint8_t *hl, int a)
     // 2b9f  e1        pop     hl
     // 2ba0  c9        ret     
     //-------------------------------
+    printf ("%s hl=%lx\n", __func__, hl-SCREEN);
     hl[0] = a++;
     hl[1] = a++;
     hl[0x20] = a++;
@@ -12459,7 +12536,7 @@ void displayCredits_2ba1 ()
         // 2bbd  c630      add     a,#30
         // 2bbf  323440    ld      (#4034),a
         //-------------------------------
-        VIDEO[0x34] = (digit >> 4) + 0x30;
+        SCREEN[0x34] = (digit >> 4) + 0x30;
     }
 
     //-------------------------------
@@ -12470,7 +12547,7 @@ void displayCredits_2ba1 ()
     // 2bcc  c9        ret     
     //-------------------------------
     digit = CREDITS & 0x0f;
-    VIDEO[0x33] = digit + 0x30;
+    SCREEN[0x33] = digit + 0x30;
 }
 
 void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
@@ -12579,7 +12656,7 @@ void displayFruitHistory_2bfd (uint8_t *table, int level)
         // 2c02  1a        ld      a,(de)		;  
         // 2c03  cd8f2b    call    #2b8f		; Draw fruit 
         //-------------------------------
-        drawFruit_2b8f (&VIDEO[hl], table[0]);
+        drawFruit_2b8f (&SCREEN[hl], table[0]);
 
         //-------------------------------
         // 2c06  3e04      ld      a,#04		; v
@@ -12617,7 +12694,7 @@ void displayFruitHistory_2bfd (uint8_t *table, int level)
         //-------------------------------
         // 2c1b  cd7e2b    call    #2b7e
         //-------------------------------
-        drawBlankSquare_2b7e(&VIDEO[hl]);
+        drawBlankSquare_2b7e(&SCREEN[hl]);
 
         //-------------------------------
         // 2c1e  3e04      ld      a,#04
@@ -12715,7 +12792,7 @@ void displayMsg_2c5e (int b)
     uint16_t hl = tableLookup_0018 (DATA_MSG_TABLE, b);
     int16_t de = *(int16_t*)(&ROM[hl]);
     uint8_t *chr = &ROM[hl+1];
-    printf ("%s %d -> %x -> %x \n", __func__, b, hl, de);
+    printf ("%s msg=%02x -> %x -> %x \n", __func__, b, hl, de);
 
     /* TODO if the msg starts with 0x4d, 0x83, then what prevents the video
      * address from being c74d ???? */
@@ -12728,8 +12805,11 @@ void displayMsg_2c5e (int b)
     // 2c6d  1100fc    ld      de,#fc00	
     // 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
     // 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
-    uint8_t *video = &VIDEO[de];
+    uint8_t *video = &SCREEN[de];
     de=-1;
+    printf ("video pos %lx\n", video-SCREEN);
+    printf ("colour pos %lx\n", colour-COLOUR);
+    printf ("first byte %02x\n", *chr);
     // 2c75  cb7e      bit     7,(hl)  
     // 2c77  2003      jr      nz,#2c7c     ; (3) 
     if ((*chr & 0x80) == 0)
@@ -12750,6 +12830,7 @@ void displayMsg_2c5e (int b)
         // 2c84  7e        ld      a,(hl)		; Read next char 
         // 2c85  fe2f      cp      #2f		; #2f = end of text
         // 2c87  2809      jr      z,#2c92         ; Done with VRAM
+        printf ("1st byte < 0x80\n");
         while(*chr != 0x2f)
         {
             // 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
@@ -12811,15 +12892,19 @@ jump_2c93:
         // 2cac  7e        ld      a,(hl)		; Read next char
         // 2cad  fe2f      cp      #2f
         // 2caf  280a      jr      z,#2cbb         ; Done with VRAM
+        int TODO_count = 0;
         while (*chr != 0x2f)
         {
             // 2cb1  dd360040  ld      (ix+#00),#40	; Write 40 to VRAM? 
             // 2cb5  23        inc     hl		; Next char 
             // 2cb6  dd19      add     ix,de		; Next screen pos
             // 2cb8  04        inc     b		; Inc char count  
-            *video++ = 0x40;
+            printf ("space to %lx\n", video-SCREEN);
+            *video = 0x40;
+            chr++;
             video += de;
             bc++;
+            if (++TODO_count > 20) exit(1);
             // 2cb9  18f1      jr      #2cac           ; Loop
         }
 
@@ -12936,7 +13021,7 @@ void func_2d0c (void)
     CH1_FREQ4 = 0;
 }
 
-uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
+uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
 {
     //-------------------------------
     // 2d44  dd7e00    ld      a,(ix+#00)
@@ -12945,8 +13030,7 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
     //-------------------------------
     if (ix[0] == 0)
     {
-        func_2df4 (ix, iy);
-        return 0;
+        return func_2df4 (ix, iy);
     }
 
     //-------------------------------
@@ -12954,8 +13038,9 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
     // 2d4c  0608      ld      b,#08
     // 2d4e  1e80      ld      e,#80
     //-------------------------------
-    int e=0x80;
-    for (int b = 0; b < 8; b++)
+    uint8_t e = 0x80;
+    int b;
+    for (b = 0; b < 8; b++)
     {
         //-------------------------------
         // 2d50  7b        ld      a,e
@@ -12968,13 +13053,12 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
         if ((ix[0] & e) != 0)
             break;
 
-        e>>=1;
+        e >>= 1;
     }
 
     // 2d58  c9        ret     
-    int b=1;
     if (b == 8)
-        return e<<1;
+        return 0;
 
     // 2d59  dd7e02    ld      a,(ix+#02)
     // 2d5c  a3        and     e
@@ -13023,11 +13107,20 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
         // 2d90  00 0c 00 0c 00 0c 00 0c  00 0c 00 0c 00 0c 00 0c
         // 2da0  00 0c 00 ad 2f                                 
         uint8_t (*func[])(uint8_t *, uint8_t *) = 
-            {
-                func_2f55, func_2f65, func_2f77, func_2f89, func_2f9b, nothingReturnParam_000c,
-                nothingReturnParam_000c, nothingReturnParam_000c, nothingReturnParam_000c, nothingReturnParam_000c, nothingReturnParam_000c, 
-                nothingReturnParam_000c, nothingReturnParam_000c, nothingReturnParam_000c, nothingReturnParam_000c, func_2fad
-            };
+        {
+            func_2f55,
+            func_2f65,
+            func_2f77,
+            func_2f89,
+            func_2f9b,
+            nothingReturnParam_000c,
+            nothingReturnParam_000c,
+            nothingReturnParam_000c, nothingReturnParam_000c,
+            nothingReturnParam_000c, nothingReturnParam_000c, 
+            nothingReturnParam_000c, nothingReturnParam_000c,
+            nothingReturnParam_000c, nothingReturnParam_000c,
+            func_2fad
+        };
         a = func[a] (ix, iy);
     }
 
@@ -13075,7 +13168,7 @@ uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t *hl)
 jump_2dd7:
     // 2dd7  dd6e0e    ld      l,(ix+#0e)
     // 2dda  2600      ld      h,#00
-    int val = ix[0xe];
+    uint16_t val = ix[0xe];
     // 2ddc  dd7e0d    ld      a,(ix+#0d)
     // 2ddf  e610      and     #10
     // 2de1  2802      jr      z,#2de5         ; (2)
@@ -13095,7 +13188,8 @@ jump_2dd7:
     }
 
     // 2deb  c3e42e    jp      #2ee4
-    // TODO func_2ee4; (void)
+    func_2ee4 (&val, a);
+    return a;
 }
 
 uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl)
@@ -13165,7 +13259,7 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e26  10f8      djnz    #2e20           ; (-8)
         // 2e28  c9        ret     
         //-------------------------------
-        if (c & e != 0)
+        if ((c & e) != 0)
             break;
 
         e>>=1;
@@ -13340,25 +13434,32 @@ jump_2ecd:
     // 2ede  2808      jr      z,#2ee8         ; (8)
     //-------------------------------
     uint16_t val = ix[0xe];
-    if ((ix[3] & 0x70) != 0)
-    {
-        //-------------------------------
-        // 2ee0  0f        rrca    
-        // 2ee1  0f        rrca    
-        // 2ee2  0f        rrca    
-        // 2ee3  0f        rrca    
-        // 2ee4  47        ld      b,a
-        //-------------------------------
-        b = (ix[3] >> 4) & 7;
-        //-------------------------------
-        // 2ee5  29        add     hl,hl
-        // 2ee6  10fd      djnz    #2ee5           ; (-3)
-        //-------------------------------
-        while (b--)
-            val *= 2;
-    }
+    uint8_t a = ix[3];
 
-    return func_2ee8 (ix, iy, val);
+    if ((a & 0x70) == 0)
+        return func_2ee8 (ix, iy, val);
+
+    //-------------------------------
+    // 2ee0  0f        rrca    
+    // 2ee1  0f        rrca    
+    // 2ee2  0f        rrca    
+    // 2ee3  0f        rrca    
+    //-------------------------------
+
+    a >>= 4;
+    func_2ee4 (&val, a);
+    return a;
+}
+
+void func_2ee4 (uint16_t *hl, uint8_t a)
+{
+    //-------------------------------
+    // 2ee4  47        ld      b,a
+    // 2ee5  29        add     hl,hl
+    // 2ee6  10fd      djnz    #2ee5           ; (-3)
+    //-------------------------------
+    while (a--)
+        *hl *= 2;
 }
 
 uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val)
@@ -13472,7 +13573,7 @@ uint8_t func_2f3c (uint8_t *ix)
     // 2f3f  e603      and     #03
     // 2f41  18ed      jr      #2f30           ; (-19)
     //-------------------------------
-    func_2f30 (ix, *SOUND_COUNTER & 3);
+    return func_2f30 (ix, *SOUND_COUNTER & 3);
 }
 
 uint8_t func_2f43 (uint8_t *ix)
@@ -13482,7 +13583,7 @@ uint8_t func_2f43 (uint8_t *ix)
     // 2f46  e607      and     #07
     // 2f48  18e6      jr      #2f30           ; (-26)
     //-------------------------------
-    func_2f30 (ix, *SOUND_COUNTER & 7);
+    return func_2f30 (ix, *SOUND_COUNTER & 7);
 }
 
 uint8_t func_2f4a (uint8_t *ix)
@@ -13519,6 +13620,7 @@ uint8_t func_2f55 (uint8_t *ix, uint8_t *iy)
     uint16_t addr = (ix[7] << 8) | ix[6];
     ix[6] = MEM[addr];
     ix[7] = MEM[addr+1];
+    return ix[7];
 }
 
 uint8_t func_2f65 (uint8_t *ix, uint8_t *iy)
@@ -13674,7 +13776,7 @@ void isr_3000 (void)
             //-------------------------------
             if (c != 0)
             {
-                func_3031 (h);
+                romChecksumBad_3031 (h, c);
                 return;
             }
 
@@ -13708,11 +13810,11 @@ void isr_3000 (void)
     //-------------------------------
     // 302e  c34230    jp      #3042
     //-------------------------------
-    func_3042 ();
+    ramTest_3042 ();
 }
 
 /* Bad rom checksum (?) */
-void func_3031 (uint8_t h)
+void romChecksumBad_3031 (uint8_t h, uint8_t checksum)
 {
     //-------------------------------
     // 3031  25        dec     h
@@ -13731,28 +13833,31 @@ void func_3031 (uint8_t h)
     // 303d  0600      ld      b,#00
     // 303f  c3bd30    jp      #30bd
     //-------------------------------
-    func_30bd (h>>4, 0);
+    printf ("ROM checksum fail\n");
+    badRamOrRom_30bd (h>>4, checksum, 0);
 }
 
 /* RAM test (4c00) */
-void func_3042 (void)
+void ramTest_3042 (void)
 {
     // 3042  315431    ld      sp,#3154
     uint16_t *stackData = DATA_3154;
     uint8_t a;
     uint16_t de;
+    uint8_t testValue = 0;
 
     do
     {
         // 3045  06ff      ld      b,#ff
-        for (uint8_t b = 0xff; b > 0; b -= 0x11)
+        for (uint8_t b = 0xff; b > 0; b--)
         {
             // 3047  e1        pop     hl		; 4c00 (first time)
             // 3048  d1        pop     de		; 040f (first time)
             // 3049  48        ld      c,b		; 0xff -> c
             uint16_t hl = *stackData++;
             de = *stackData++;
-            uint8_t c = b;
+            testValue = b;
+            // printf ("round %d, hl=%04x de=%04x\n", b, hl, de);
 
             do
             {
@@ -13766,11 +13871,13 @@ void func_3042 (void)
                         // 304d  79        ld      a,c		; 0xff -> a
                         // 304e  a3        and     e		; e -> a
                         // 304f  77        ld      (hl),a
-                        MEM[hl] = c & de;
+                        testValue &= de;
+                        MEM[hl] = testValue;
+                        // printf ("%04X=%02x=%02x ", hl, testValue, MEM[hl]);
                         // 3050  c633      add     a,#33
                         // 3052  4f        ld      c,a
                         // 3053  2c        inc     l
-                        c = MEM[hl] + 0x33;
+                        testValue += 0x33;
                         hl++;
 
                         // 3054  7d        ld      a,l
@@ -13778,6 +13885,7 @@ void func_3042 (void)
                         // 3057  c24d30    jp      nz,#304d
                     }
                     while ((hl & 0x0f) != 0);
+                    // printf ("\n");
 
                     // 305a  79        ld      a,c
                     // 305b  87        add     a,a
@@ -13785,7 +13893,7 @@ void func_3042 (void)
                     // 305d  81        add     a,c
                     // 305e  c631      add     a,#31
                     // 3060  4f        ld      c,a
-                    c = c * 3 + 0x31;
+                    testValue = testValue * 3 + 0x31;
                     // 3061  7d        ld      a,l
                     // 3062  a7        and     a		
                     // 3063  c24d30    jp      nz,#304d
@@ -13810,7 +13918,8 @@ void func_3042 (void)
             stackData -= 2;
             hl = *stackData++;
             de = *stackData++;
-            c=b;
+            testValue = b;
+            // printf ("round %d, hl=%04x de=%04x\n", b, hl, de);
 
             // 	;; Check crap in ram
             do
@@ -13824,26 +13933,33 @@ void func_3042 (void)
                         // 3075  79        ld      a,c
                         // 3076  a3        and     e
                         // 3077  4f        ld      c,a
-                        c &= de;
+                        // printf ("%02x&%04x=%02x ", testValue, de, testValue&de);
+                        testValue &= de;
                         // 3078  7e        ld      a,(hl)
                         // 3079  a3        and     e
                         // 307a  b9        cp      c
                         // 307b  c2b530    jp      nz,#30b5	; Ram test failed
-                        if (c != (MEM[hl] & de))
+                        // printf ("%04X=%02x=%02x ", hl, testValue, MEM[hl]);
+                        if (testValue != (MEM[hl] & de))
                         {
-                            func_30b5 (de & 0xff);
+                            // printf ("test=%02X, MEM[%04x]=%02x\n",
+                            //         testValue, hl, MEM[hl]);
+                            printf ("RAM fail\n");
+                            badRam_30b5 (de & 0xff, testValue);
                             return;
                         }
 
                         // 307e  c633      add     a,#33
                         // 3080  4f        ld      c,a
-                        c += 0x33;
+                        // printf ("%02x+0x33=%02x ", testValue, testValue+0x33);
+                        testValue += 0x33;
                         // 3081  2c        inc     l
                         // 3082  7d        ld      a,l
                         // 3083  e60f      and     #0f
                         // 3085  c27530    jp      nz,#3075
                     }
-                    while ((++hl) & 0x0f == 0);
+                    while ((++hl & 0x0f) != 0);
+                    // printf ("\nnext row : ");
 
                     // 3088  79        ld      a,c
                     // 3089  87        add     a,a
@@ -13851,7 +13967,7 @@ void func_3042 (void)
                     // 308b  81        add     a,c
                     // 308c  c631      add     a,#31
                     // 308e  4f        ld      c,a
-                    c = c * 3 + 0x31;
+                    testValue = testValue * 3 + 0x31;
                     // 308f  7d        ld      a,l
                     // 3090  a7        and     a
                     // 3091  c27530    jp      nz,#3075
@@ -13890,23 +14006,26 @@ void func_3042 (void)
     while ((a != 0x44) || ((de & 0xff) ^ 0xf0) != 0);
     // 30b0  0601      ld      b,#01
     // 30b2  c3bd30    jp      #30bd
-    func_30bd ((de & 0xff), 1);
+    printf ("RAM test fail\n");
+    badRamOrRom_30bd ((de & 0xff), testValue, 1);
 }
 
 /* Display bad ram (?) */
-void func_30b5 (uint8_t e)
+void badRam_30b5 (uint8_t e, uint8_t c)
 {
+    printf ("BADRAM!\n");
     // 30b5  7b        ld      a,e
     // 30b6  e601      and     #01
     // 30b8  ee01      xor     #01
     // 30ba  5f        ld      e,a
     // 30bb  0600      ld      b,#00
-    func_30bd ((e&1)^1, 0);
+    badRamOrRom_30bd ((e&1)^1, c, 0);
 }
 
 /* Display bad rom (?) */
-void func_30bd (int e, int b)
+void badRamOrRom_30bd (int e, uint8_t checksum, int errors)
 {
+    printf ("BADROMORAM!\n");
     // 30bd  31c04f    ld      sp,#4fc0
     // 30c0  d9        exx			; Swap register pairs 
     // 
@@ -13943,7 +14062,7 @@ void func_30bd (int e, int b)
         // 30d9  3e40      ld      a,#40
         // 30db  77        ld      (hl),a
         //-------------------------------
-        VIDEO[i] = 0x40;
+        SCREEN[i] = 0x40;
         //-------------------------------
         // 30dc  2c        inc     l
         // 30dd  20fc      jr      nz,#30db        ; (-4)
@@ -13975,9 +14094,9 @@ void func_30bd (int e, int b)
     // 30f0  d9        exx			; Reswap register pairs 
     // 30f1  1008      djnz    #30fb           ; b=1 -> no errors
     //-------------------------------
-    if (--b != 0)
+    if (errors == 0)
     {
-        func_30fb(e, 4);
+        badRomOrRamMessage_30fb(e, 4, checksum);
         return;
     }
 
@@ -13987,17 +14106,17 @@ void func_30bd (int e, int b)
     // 30f8  c37431    jp      #3174		; Run code ?!?!?
     //-------------------------------
     displayMsg_2c5e (MSG_FREEPLAY);
-    func_3174();
+    serviceModeOrStartGame_3174();
 }
 
-void func_30fb (int e, int h)
+void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum)
 {
     //-------------------------------
     // 30fb  7b        ld      a,e		; Bad rom # -> a 
     // 30fc  c630      add     a,#30 
     // 30fe  328441    ld      (#4184),a	; Write to screen  [31] [30]
     //-------------------------------
-    VIDEO[0x184] = e + 0x30;
+    SCREEN[0x184] = e + 0x30;
     //-------------------------------
     // 3101  c5        push    bc		; [ff0f] 
     // 3102  e5        push    hl		; [4c00] 
@@ -14045,8 +14164,8 @@ void func_30fb (int e, int h)
     // 3126  7c        ld      a,h
     // 3127  326442    ld      (#4264),a
     //-------------------------------
-    VIDEO[0x204] = hl[0];
-    VIDEO[0x264] = hl[1];
+    SCREEN[0x204] = hl[0];
+    SCREEN[0x264] = hl[1];
 
     //-------------------------------
     // 312a  3a0050    ld      a,(#5000)
@@ -14070,8 +14189,8 @@ void func_30fb (int e, int h)
         // 3141  0f        rrca    
         // 3142  4f        ld      c,a
         // 3143  ed438541  ld      (#4185),bc
-        VIDEO[0x185] = c & 0xf;
-        VIDEO[0x186] = c >> 4;
+        SCREEN[0x185] = checksum & 0xf;
+        SCREEN[0x186] = checksum >> 4;
     }
 
     do
@@ -14085,7 +14204,8 @@ void func_30fb (int e, int h)
     while (IN1_SERVICE == 0);
 
     // 3151  c30b23    jp      #230b
-    func_230b ();
+    initSelfTest_230b ();
+}
 
     /* Stack stuff used in ram test */
 
@@ -14108,7 +14228,7 @@ void func_30fb (int e, int h)
     // 3170  4156				; A V -> BAD V RAM 
     // 3172  4143				; A C -> BAD C RAM 
 /* Start the game ?!?!? */
-void func_3174 (void)
+void serviceModeOrStartGame_3174 (void)
 {
     //-------------------------------
     // 3174  210650    ld      hl,#5006
@@ -14133,7 +14253,7 @@ void func_3174 (void)
     // 3181  d604      sub     #04		; 0xfc->a
     // 3183  d300      out     (#00),a		; set vector
     //-------------------------------
-    interruptVector (func_008d);
+    interruptVector (isr_008d);
     //-------------------------------
     // 3185  31c04f    ld      sp,#4fc0
     //-------------------------------
@@ -14169,7 +14289,7 @@ void func_3174 (void)
         // 319c  e6e0      and     #e0		; Check coin/credit inputs
         // 319e  2805      jr      z,#31a5         ; (5)
         //-------------------------------
-        if ((IN0_COIN1 | IN0_COIN2 | IN0_COIN3) != 0)
+        if ((~IO_INPUT0 & INPUT_ANYCOIN) != 0)
         {
             //-------------------------------
             // 31a0  3e02      ld      a,#02
@@ -14185,7 +14305,7 @@ void func_3174 (void)
         // 31aa  e660      and     #60		; Check p1/p2 start 
         // 31ac  2805      jr      z,#31b3         ; (5)
         //-------------------------------
-        if ((IN1_START1 | IN1_START2) != 0)
+        if ((~IO_INPUT1 & INPUT_ANYSTART) != 0)
         {
             //-------------------------------
             // 31ae  3e01      ld      a,#01
@@ -14200,7 +14320,7 @@ void func_3174 (void)
         // 31b5  e601      and     #01		; Check up
         // 31b7  2805      jr      z,#31be         ; (5)
         //-------------------------------
-        if (IN0_UP || IN1_UP)
+        if (IN0_UP == 0 || IN1_UP == 0)
         {
             //-------------------------------
             // 31b9  3e08      ld      a,#08
@@ -14215,7 +14335,7 @@ void func_3174 (void)
         // 31c0  e602      and     #02		; Check left
         // 31c2  2805      jr      z,#31c9         ; (5)
         //-------------------------------
-        if (IN0_LEFT || IN1_LEFT)
+        if (IN0_LEFT == 0 || IN1_LEFT == 0)
         {
             //-------------------------------
             // 31c4  3e04      ld      a,#04
@@ -14230,7 +14350,7 @@ void func_3174 (void)
         // 31cb  e604      and     #04		; Check right
         // 31cd  2805      jr      z,#31d4         ; (5)
         //-------------------------------
-        if (IN0_RIGHT || IN1_RIGHT)
+        if (IN0_RIGHT == 0 || IN1_RIGHT == 0)
         {
             //-------------------------------
             // 31cf  3e10      ld      a,#10
@@ -14245,7 +14365,7 @@ void func_3174 (void)
         // 31d6  e608      and     #08		; Check down
         // 31d8  2805      jr      z,#31df         ; (5)
         //-------------------------------
-        if (IN0_DOWN || IN1_DOWN)
+        if (IN0_DOWN == 0 || IN1_DOWN == 0)
         {
             //-------------------------------
             // 31da  3e20      ld      a,#20
@@ -14261,7 +14381,7 @@ void func_3174 (void)
         // 31e6  47        ld      b,a
         // 31e7  cd5e2c    call    #2c5e		
         //-------------------------------
-        displayMsg_2c5e (MSG_FREEPLAY + DIP_SWITCH_FREE);
+        displayMsg_2c5e (MSG_FREEPLAY + DIP_SWITCH_COINS);
 
         //-------------------------------
         // 31ea  3a8050	ld      a,(#5080)	; Read dips
@@ -14273,7 +14393,7 @@ void func_3174 (void)
         // 31f3  fe03      cp      #03
         // 31f5  2008      jr      nz,#31ff        ; (8)
         //-------------------------------
-        if (DIP_SWITCH_BONUS == 0x30)
+        if (DIP_SWITCH_BONUS == 3)
         {
             //-------------------------------
             // 31f7  062a      ld      b,#2a
@@ -14301,11 +14421,11 @@ void func_3174 (void)
             // 3212  19        add     hl,de
             // 3213  7e        ld      a,(hl)
             // 3214  322a42    ld      (#422a),a
-            VIDEO[0x22a] = DATA_32f9[DIP_SWITCH_BONUS>>1];
+            SCREEN[0x22a] = DATA_32f9[DIP_SWITCH_BONUS];
             // 3217  23        inc     hl
             // 3218  7e        ld      a,(hl)
             // 3219  324a42    ld      (#424a),a
-            VIDEO[0x24a] = DATA_32f9[[DIP_SWITCH_BONUS>>1) + 1];
+            SCREEN[0x24a] = DATA_32f9[DIP_SWITCH_BONUS + 1];
         }
         //-------------------------------
         // 321c  3a8050    ld      a,(#5080)
@@ -14314,18 +14434,21 @@ void func_3174 (void)
         // 3221  e603      and     #03
         // 3223  c631      add     a,#31
         //-------------------------------
-        a = (DIP_SWITCH_TODO >> 2) + 0x31;
+        uint8_t a = (DIP_SWITCH_LIVES) + 0x31;
         //-------------------------------
         // 3225  fe34      cp      #34
         // 3227  2001      jr      nz,#322a        ; (1)
         // 3229  3c        inc     a
         //-------------------------------
+
+        /* DIP switches=3 means 5-lives so add 1 */
+
         if (a == 0x34)
             a++;
         //-------------------------------
         // 322a  320c42    ld      (#420c),a
         //-------------------------------
-        VIDEO[0x20c] = a;
+        SCREEN[0x20c] = a;
         //-------------------------------
         // 322d  0629      ld      b,#29
         // 322f  cd5e2c    call    #2c5e
@@ -14340,6 +14463,7 @@ void func_3174 (void)
         // 323b  cd5e2c    call    #2c5e
         //-------------------------------
         displayMsg_2c5e (((IN1_CABINET == 0) ? 1 : 0) + MSG_TABLE);
+        printf ("ret from dsp msg TABLE\n");
         //-------------------------------
         // 323e  3a4050    ld      a,(#5040)
         // 3241  e610      and     #10
@@ -14347,6 +14471,7 @@ void func_3174 (void)
         //-------------------------------
     }
     while (IN1_SERVICE == 0);
+    printf ("service loop done\n");
 
     //-------------------------------
     // 3246  af        xor     a
@@ -14375,8 +14500,8 @@ void func_3174 (void)
     // 3253  31e23a    ld      sp,#3ae2
     // 3256  0603      ld      b,#03
     //-------------------------------
-    uint16_t *stackData = DATA_3a2e;
-    for (b = 0; b < 3; b++)
+    uint16_t *stackData = DATA_3ae2;
+    for (uint8_t b = 0; b < 3; b++)
     {
         //-------------------------------
         // 3258  d9        exx     
@@ -14385,7 +14510,7 @@ void func_3174 (void)
         //-------------------------------
         uint16_t hl = *stackData++ - 0x4000; // 0x4002 in ROM which is video
         uint16_t de = *stackData++;
-        stackData += 2;
+        printf ("hl=%4x de=%04x\n", hl, de);
         do
         {
             //-------------------------------
@@ -14393,22 +14518,22 @@ void func_3174 (void)
             // 325e  c1        pop     bc
             //-------------------------------
             kickWatchdog();
-            bc = *stackData++;
+            uint16_t bc = *stackData++;
 
-            for (int i = 0; i < 0x10; i++)
+            for (int i = 0; i < (bc >> 8); i++)
             {
                 //-------------------------------
                 // 325f  3e3c      ld      a,#3c
                 // 3261  77        ld      (hl),a
                 // 3262  23        inc     hl
                 //-------------------------------
-                VIDEO[hl++] = 0x3c;
+                SCREEN[hl++] = 0x3c;
                 //-------------------------------
                 // 3263  72        ld      (hl),d
                 // 3264  23        inc     hl
                 // 3265  10f8      djnz    #325f           ; (-8)
                 //-------------------------------
-                VIDEO[hl++] = de & 0xff;
+                SCREEN[hl++] = de & 0xff;
             }
 
             //-------------------------------
@@ -14416,7 +14541,7 @@ void func_3174 (void)
             // 3268  3b        dec     sp
             // 3269  c1        pop     bc
             //-------------------------------
-            uint16_t bc = *--stackData;
+            bc = *--stackData;
 
             for (int i = 0; i < 0x10; i++)
             {
@@ -14424,14 +14549,14 @@ void func_3174 (void)
                 // 326a  71        ld      (hl),c
                 // 326b  23        inc     hl
                 //-------------------------------
-                VIDEO[hl++] = bc & 0xff;
+                SCREEN[hl++] = bc & 0xff;
                 //-------------------------------
                 // 326c  3e3f      ld      a,#3f
                 // 326e  77        ld      (hl),a
                 // 326f  23        inc     hl
                 // 3270  10f8      djnz    #326a           ; (-8)
                 //-------------------------------
-                VIDEO[hl++] = 0x3f;
+                SCREEN[hl++] = 0x3f;
             }
 
             //-------------------------------
@@ -14456,7 +14581,7 @@ void func_3174 (void)
     // 327c  31c04f    ld      sp,#4fc0
     // 327f  0608      ld      b,#08
     //-------------------------------
-    for (int b = 0; b < 8; b++)
+    for (uint8_t b = 0; b < 8; b++)
     {
         //-------------------------------
         // 3281  cded32    call    #32ed
@@ -14477,7 +14602,7 @@ void func_3174 (void)
         // 328e  28f6      jr      z,#3286         ; Wait until test switch is off
         //-------------------------------
     }
-    while (IN1_SERVICE);
+    while (!IN1_SERVICE);
 
     //-------------------------------
     // 3290  3a4050    ld      a,(#5040)	; Check P1/P2 start 
@@ -14486,11 +14611,11 @@ void func_3174 (void)
     //-------------------------------
     if (P1START || P2START)
     {
-        func_234b();
+        mainTaskLoop_234b();
         return;
     }
     // 3298  0608      ld      b,#08
-    for (b = 0; b < 8; b++)
+    for (uint8_t b = 0; b < 8; b++)
     {
         // 329a  cded32    call    #32ed
         // 329d  10fb      djnz    #329a           ; (-5)
@@ -14501,7 +14626,7 @@ void func_3174 (void)
     // 32a4  c24b23    jp      nz,#234b
     if (IN1_SERVICE != 0)
     {
-        func_234b();
+        mainTaskLoop_234b();
         return;
     }
 
@@ -14514,7 +14639,7 @@ void func_3174 (void)
         //-------------------------------
         // 32a9  0604      ld      b,#04
         //-------------------------------
-        for (b = 0; b < 4; b++)
+        for (uint8_t b = 0; b < 4; b++)
         {
             do
             {
@@ -14565,13 +14690,13 @@ void func_3174 (void)
     // 32ce  210040    ld      hl,#4000
     // 32d1  0604      ld      b,#04
     //-------------------------------
-    for (hl = 0; hl < 0x400; hl++)
+    for (uint16_t hl = 0; hl < 0x400; hl++)
     {
         //-------------------------------
         // 32d3  3e40      ld      a,#40
         // 32d5  77        ld      (hl),a
         //-------------------------------
-        VIDEO[hl] = 0x40;
+        SCREEN[hl] = 0x40;
         //-------------------------------
         // 32d6  2c        inc     l
         // 32d7  20fc      jr      nz,#32d5        ; (-4)
@@ -14599,7 +14724,7 @@ void func_3174 (void)
     //-------------------------------
     // 32ea  c34b23    jp      #234b
     //-------------------------------
-    startGame_234b ();
+    mainTaskLoop_234b ();
 }
 
 void delay_32ed (void)
@@ -14619,9 +14744,11 @@ void delay_32ed (void)
     for (int hl = 0x2800; hl > 0; hl--)
         ;
 }
+    /*  Bonus life points, 10, 15 or 20 (thousand) */
     // 32f9  30 31 35 31 30 32
-//     uint8_t data_32f9[] = { '0','1','5','1','0','2' };
 
+    /*  Table of vectors is repeated to allow a loop to count forwards 4 times
+     *  from any starting orientation */
     // 32ff  00ff    // RIGHT dy=0, dx=-1
     // 3301  0100    // DOWN  dy=1, dx=0
     // 3303  0001    // LEFT  dy=0, dx=1
@@ -14630,28 +14757,6 @@ void delay_32ed (void)
     // 3309  0100    // DOWN
     // 330b  0001    // LEFT
     // 330d  ff00    // UP
-
-    /*  Table of vectors is repeated to allow a loop to count forwards 4 times
-     *  from any starting orientation */
-    #if 0
-    XYPOS MOVE_VECTOR_DATA[] =
-    {
-        { 0x00, 0xff },
-        { 0x01, 0x00 },
-        { 0x00, 0x01 },
-        { 0xff, 0x00 },
-        { 0x00, 0xff },
-        { 0x01, 0x00 },
-        { 0x00, 0x01 },
-        { 0xff, 0x00 }
-    };
-    XYPOS *MOVE_VECTOR_RIGHT = &MOVE_VECTOR_DATA[0];
-    XYPOS *MOVE_VECTOR_DOWN =  &MOVE_VECTOR_DATA[1];
-    XYPOS *MOVE_VECTOR_LEFT =  &MOVE_VECTOR_DATA[2];
-    XYPOS *MOVE_VECTOR_UP =    &MOVE_VECTOR_DATA[3];
-
-    uint8_t moveData_330f[] = { 0x55 };
-    #endif
 
     // 330f                                                55
     // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25
@@ -15210,7 +15315,7 @@ void func_3af4 (void)
     // 3af4  21a240    ld      hl,#40a2
     // 3af7  114f3a    ld      de,#3a4f
     //-------------------------------
-    uint8_t *hl = &VIDEO[0xa2];
+    uint8_t *hl = &SCREEN[0xa2];
     uint8_t *de = &ROM[0x3a4f];
 
     while (1)
