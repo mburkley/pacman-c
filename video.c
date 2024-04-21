@@ -45,7 +45,7 @@
 #include "82s123.7f.h"
 #include "82s126.4a.h"
 
-#define SCREEN_XSIZE 256
+#define SCREEN_XSIZE 224
 #define SCREEN_YSIZE 288
 
 uint8_t charset[0x2000];
@@ -156,20 +156,16 @@ static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
     int x, y;
 
     /*  TODO invert and mirror
-     *  TODO find PROM layout of chr data
       */
-    return;
     for (y = 0; y < 16; y++)
     {
         for (x = 0; x < 16; x++)
         {
             int z = shape * 64;
-            z += (0xc-(y&0xc)) << 1;
-            // z += 15-x; // (7-(x&7));
+            z += ((y+4)&0xc) << 1;
+            z += (7-(x&7));
             if ((x&8) == 0)
-                z += 8;
-            if ((y&8) == 0)
-                z += 8;
+                z += 32;
             uint8_t pixelData = charset[z + 0x1000];
             uint8_t col = colour << 2;
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
@@ -205,7 +201,7 @@ void videoRefresh (void)
             case 1: pos=0x3fd; inc=-1; break;
             case 34: pos=0x01d; inc=-1; break;
             case 35: pos=0x03d; inc=-1; break;
-            default: pos=0x3a0+(y-2); inc=-32; break;
+            default: pos=0x3a0+y-2; inc=-32; break;
         }
         for (x = 0; x < 28; x++)
         {

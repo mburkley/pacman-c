@@ -1,8 +1,11 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 
 #include "video.h"
 #include "kbd.h"
+#include "memmap.h"
 
 static void (*intVector) (void);
 
@@ -21,7 +24,7 @@ void interruptMode (int mode)
 /*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
-    usleep(100000);
+    usleep(10000);
     static bool inInterrupt;
     if (!inInterrupt && intVector)
     {
@@ -33,6 +36,14 @@ void interruptHalt (void)
 // showScreen();
     videoRefresh();
     kbdPoll();
+
+    printf ("sprite-at: ");
+    for (int i = 0; i < 16; i++)
+        printf ("%02x ", SPRITEATTRIB[i]);
+    printf ("\nsprite-co: ");
+    for (int i = 0; i < 16; i++)
+        printf ("%02x ", SPRITECOORDS[i]);
+    printf ("\n\n=====\n");
 }
 
 void interruptVector (void (*func) (void))

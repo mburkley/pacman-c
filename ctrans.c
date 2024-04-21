@@ -887,7 +887,9 @@ void isr_008d (void)
     // 01c5  c1        pop     bc
     //-------------------------------
     func_2d0c();
+        printf ("2doc done\n");
     func_2cc1();
+        printf ("2cc1 done\n");
 
     //-------------------------------
     // 01c6  3a004e    ld      a,(#4e00)
@@ -902,15 +904,16 @@ void isr_008d (void)
     // 01da  f1        pop     af
     // 01db  c9        ret     
     //-------------------------------
-    #if 0
-    // TODO why is test reading as set
-    if (MAIN_STATE != 0 && IN0_TEST == 0)
+
+    printf ("IN0=%02x ", IO_INPUT0);
+    printf ("IN1=%02x ", IO_INPUT1);
+    printf ("DIP=%02x\n", DIP_INPUT);
+    if (MAIN_STATE != 0 && IN0_RACKADV == 0)
     {
         // reset();
         printf ("main state != 0 and test DIP sel\n");
         exit(1);
     }
-    #endif
 
     INTENABLE = 1;
     interruptEnable ();
@@ -1163,7 +1166,7 @@ void checkCoinInput_0267 (void)
     // 0281  d60c      sub     #0c
     // 0283  ccdf02    call    z,#02df		; Add Coin
     //-------------------------------
-    if (COIN2_DEBOUNCE==12)
+    if (SERVICE1_DEBOUNCE==12)
         checkCoinCredit_02df();
     //-------------------------------
     // 0286  cb00      rlc     b                    ; Move MSB (COIN2) to carry flag
@@ -1188,7 +1191,7 @@ void checkCoinInput_0267 (void)
     // 029f  17        rla     
     // 02a0  e60f      and     #0f
     //-------------------------------
-    COIN1_DEBOUNCE=((COIN1_DEBOUNCE>>1)&0x0f) | (IN0_COIN1?1:0);
+    COIN1_DEBOUNCE=((COIN1_DEBOUNCE<<1)&0x0f) | (IN0_COIN1?1:0);
     //-------------------------------
     // 02a2  32684e    ld      (#4e68),a
     // 02a5  d60c      sub     #0c
@@ -1201,6 +1204,7 @@ void checkCoinInput_0267 (void)
     // 02ab  34        inc     (hl)
     // 02ac  c9        ret     
     //-------------------------------
+    printf ("** coin added\n");
     COIN_COUNTER++;
 }
 
@@ -2286,14 +2290,14 @@ void checkStartButtons (void)
     // 063c  32704e    ld      (#4e70),a
     // 063f  c34906    jp      #0649
     //-------------------------------
-    if (CREDITS!=1 && IN1_START2)
+    if (CREDITS!=1 && !IN1_START2)
         TWO_PLAYERS=1;
 
     //-------------------------------
     // 0642  cb6f      bit     5,a
     // 0644  c0        ret     nz
     //-------------------------------
-    else if (!IN1_START1)
+    else if (IN1_START1)
         return;
  
     //-------------------------------
@@ -9230,7 +9234,7 @@ uint16_t getScreenOffset_202d (XYPOS hl)
     // 204e  09        add     hl,bc
     //-------------------------------
     /*  0x4040 is video+0x40 so just add 0x40 to get an offset into SCREEN */
-    int result = ((hl.x << 8) | hl.y) + 0x4040;
+    int result = ((hl.x << 8) | hl.y) + 0x40;
     //-------------------------------
     // 204f  c1        pop     bc
     // 2050  f1        pop     af
@@ -10492,7 +10496,7 @@ void drawMazeTBD_2419 (int param)
     //-------------------------------
 
     printf ("%s\n", __func__);
-    uint8_t *hl = SCREEN;
+    uint16_t hl = 0;
     uint8_t *bc = DATA_3445;
 
     while (1)
@@ -10504,24 +10508,36 @@ void drawMazeTBD_2419 (int param)
         //-------------------------------
         uint8_t a = *bc;
         if (a == 0)
-            return;
+    // exit(1); TOFDO
+           return;
 
+        printf ("ROM[%04x] -> %02X ", (int)(bc-ROM),a);
+        //-------------------------------
         // 2422  fa2c24    jp      m,#242c
-        if (a >= 0)
+        //-------------------------------
+        if (a < 0x80)
         {
+            //-------------------------------
             // 2425  5f        ld      e,a
             // 2426  1600      ld      d,#00
             // 2428  19        add     hl,de
             // 2429  2b        dec     hl
             // 242a  03        inc     bc
             // 242b  0a        ld      a,(bc)
+            //-------------------------------
             hl += a - 1;
             a = *++bc;
+            printf ("M:%02x ", a);
         }
+        //-------------------------------
         // 242c  23        inc     hl
         // 242d  77        ld      (hl),a
+        //-------------------------------
         hl++;
-        *hl=a;
+        SCREEN[hl]=a;
+        printf ("v[%04x]=%02x ", hl, a);
+
+        //-------------------------------
         // 242e  f5        push    af
         // 242f  e5        push    hl
         // 2430  11e083    ld      de,#83e0
@@ -10531,16 +10547,34 @@ void drawMazeTBD_2419 (int param)
         // 2437  2600      ld      h,#00
         // 2439  6f        ld      l,a
         // 243a  19        add     hl,de
+
+
+        // 401f=1f
+        // hl=1f*2+83e0 = 841e
+
+        // de = (hl&0x1f)*2 + 0x3e0;
         // hl=(hl&0x1f)*2 + 0x83e0;
         // TODO 83e0 subtract is like inverting screen addr or something
         // 243b  d1        pop     de
+
+        // de=4001
+
         // 243c  a7        and     a
         // 243d  ed52      sbc     hl,de
-        // hl-=de;
+        // hl -= de;
+
+        // hl = 841e - 401f = 43ff
+
+        // hl = 3e0 + 2 x hl - hl
+
+        uint16_t tmp = 0x3e0 + (hl & 0x1f) * 2 - hl;
+        printf ("%04x -> %04x\n", hl, tmp);
+
         // 243f  f1        pop     af
         // 2440  ee01      xor     #01
         // 2442  77        ld      (hl),a
-        *hl^=1;
+        // SCREEN[hl] = a ^ 1;
+        SCREEN[tmp] = a ^ 1;
         // 2443  eb        ex      de,hl
         // 2444  03        inc     bc
         // 2445  c31f24    jp      #241f
@@ -12830,14 +12864,14 @@ void displayMsg_2c5e (int b)
         // 2c84  7e        ld      a,(hl)		; Read next char 
         // 2c85  fe2f      cp      #2f		; #2f = end of text
         // 2c87  2809      jr      z,#2c92         ; Done with VRAM
-        printf ("1st byte < 0x80\n");
+        // printf ("1st byte < 0x80\n");
         while(*chr != 0x2f)
         {
             // 2c89  dd7700    ld      (ix+#00),a	; Write char to screen 
             // 2c8c  23        inc     hl		; Next char
             // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
             // 2c8f  04        inc     b		; Inc char count
-            printf ("out %c, move %d\n", *chr, de);
+            // printf ("out %c, move %d\n", *chr, de);
             *video = *chr++;
             video += de;
             bc++;
@@ -12860,7 +12894,7 @@ jump_2c93:
                 // 2c9b  dd7700    ld      (ix+#00),a	; Drop in CRAM
                 // 2c9e  23        inc     hl		; Next color 
                 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
-                printf ("col %02x\n", *chr);
+                // printf ("col %02x\n", *chr);
                 *colour = *chr++;
                 colour += de;
                 // 2ca1  10f7      djnz    #2c9a           ; Loop until b=0
@@ -12876,7 +12910,7 @@ jump_2c93:
             {
                 // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
                 // 2ca7  dd19      add     ix,de		; Calc next CRAM pos
-                printf ("col %02x\n", *chr);
+                // printf ("col %02x\n", *chr);
                 *colour = *chr;
                 colour += de;
                 // 2ca9  10f9      djnz    #2ca4           ; Loop until b=0
@@ -12899,7 +12933,7 @@ jump_2c93:
             // 2cb5  23        inc     hl		; Next char 
             // 2cb6  dd19      add     ix,de		; Next screen pos
             // 2cb8  04        inc     b		; Inc char count  
-            printf ("space to %lx\n", video-SCREEN);
+            // printf ("space to %lx\n", video-SCREEN);
             *video = 0x40;
             chr++;
             video += de;
@@ -14510,7 +14544,7 @@ void serviceModeOrStartGame_3174 (void)
         //-------------------------------
         uint16_t hl = *stackData++ - 0x4000; // 0x4002 in ROM which is video
         uint16_t de = *stackData++;
-        printf ("hl=%4x de=%04x\n", hl, de);
+        printf ("%s hl=%4x de=%04x\n", __func__, hl, de);
         do
         {
             //-------------------------------
@@ -14541,7 +14575,8 @@ void serviceModeOrStartGame_3174 (void)
             // 3268  3b        dec     sp
             // 3269  c1        pop     bc
             //-------------------------------
-            bc = *--stackData;
+            stackData--;
+            bc = *stackData++;
 
             for (int i = 0; i < 0x10; i++)
             {
@@ -14565,9 +14600,10 @@ void serviceModeOrStartGame_3174 (void)
             // 3274  1d        dec     e
             // 3275  c25b32    jp      nz,#325b
             //-------------------------------
-            de -= 0x100;
+            stackData--;
+            de--;
         }
-        while (de >= 0x100);
+        while ((de & 0xff) > 0);
 
         //-------------------------------
         // 3278  f1        pop     af
@@ -14614,16 +14650,22 @@ void serviceModeOrStartGame_3174 (void)
         mainTaskLoop_234b();
         return;
     }
+    //-------------------------------
     // 3298  0608      ld      b,#08
+    //-------------------------------
     for (uint8_t b = 0; b < 8; b++)
     {
+        //-------------------------------
         // 329a  cded32    call    #32ed
         // 329d  10fb      djnz    #329a           ; (-5)
+        //-------------------------------
         delay_32ed();
     }
+    //-------------------------------
     // 329f  3a4050    ld      a,(#5040)
     // 32a2  e610      and     #10
     // 32a4  c24b23    jp      nz,#234b
+    //-------------------------------
     if (IN1_SERVICE != 0)
     {
         mainTaskLoop_234b();
@@ -14780,7 +14822,7 @@ void delay_32ed (void)
     // 3430  0c fe ff ff ff 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2
     // 3440  d4 fc fc fc da 
 
-    // 3440                 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
+    // 3445                 02 dc fc  fc fc d0 d2 d2 d2 d2 d6
     // 3450  d8 d2 d2 d2 d2 d4 fc da  09 dc fc fc fc da 02 dc
     // 3460  fc fc fc da 05 de e4 05  dc fc da 02 e6 e8 ea 02
     // 3470  e6 ea 02 dc fc fc fc da  02 dc fc fc fc da 02 e6
@@ -14803,7 +14845,9 @@ void delay_32ed (void)
     // 3580  06 de e4 05 f0 fc fc fc  da 02 de e4 05 de e4 05
     // 3590  dc fc fa e8 e8 e8 ea 02  de f2 e8 e8 ea 02 ce fc
     // 35a0  fc fc da 02 de f2 e8 e8  ea 02 de f2 e8 e8 ea 02
-    // 35b0  dc 00 00 00 00 62 01 02  01 01 01 01 0c 01 01 04
+    // 35b0  dc 00 
+
+    // 35b2  00 00 00 62 01 02  01 01 01 01 0c 01 01 04
     // 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01
     // 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04
     // 35e0  01 01 01 01 01 01 01 01  01 01 01 01 01 01 01 01

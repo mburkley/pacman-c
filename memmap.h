@@ -48,6 +48,9 @@ CPU_MEMMAP;
 
 extern CPU_MEMMAP memmap;
 extern uint8_t charset[];
+extern uint8_t input0;
+extern uint8_t input1;
+extern uint8_t dipSwitches;
 
 #define ROM memmap.rom
 #define MEM memmap.mem
@@ -74,9 +77,17 @@ extern uint8_t charset[];
 #define INPUT_ANYCOIN   0xe0
 #define INPUT_ANYSTART  0x60
 
-#define IO_INPUT0       memmap.regs.read.in0[0]
-#define IO_INPUT1       memmap.regs.read.in1[0]
-#define DIP_INPUT       memmap.regs.read.dipSwitches[0]
+/*  Inputs and outputs share the same memory space but as we implement them with
+ *  RAM for now, map the inputs to unused outputs.  Fix this sometime TODO */
+#if 0
+#define IO_INPUT0       memmap.regs.read.in0[0x30]
+#define IO_INPUT1       memmap.regs.read.in1[0x30]
+#define DIP_INPUT       memmap.regs.read.dipSwitches[0x30]
+#else
+#define IO_INPUT0       input0
+#define IO_INPUT1       input1
+#define DIP_INPUT       dipSwitches
+#endif
 
 #define IN0_UP          (IO_INPUT0 & INPUT_UP)
 #define IN0_LEFT        (IO_INPUT0 & INPUT_LEFT)

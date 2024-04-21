@@ -15,6 +15,9 @@
 #include "p6j.h"
 
 CPU_MEMMAP memmap;
+uint8_t input0;
+uint8_t input1;
+uint8_t dipSwitches;
 
 void showScreen (void)
 {
@@ -65,6 +68,8 @@ int main (void)
     IO_INPUT0 = 0xff;
     IO_INPUT1 = 0xff;
     DIP_INPUT = 0xff;
+    printf ("IN0=%02x\n", IO_INPUT0);
+
 void reset_0000 (void);
     videoInit (3);
     kbdOpen (NULL);

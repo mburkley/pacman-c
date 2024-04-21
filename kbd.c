@@ -95,9 +95,9 @@ static void decodeEvent (struct input_event ev)
                 uint8_t *input = keyCode[i].input ? &IO_INPUT1 : &IO_INPUT0;
 
                 if (ev.value)
-                    *input |= keyCode[i].bit;
-                else
                     *input &= ~keyCode[i].bit;
+                else
+                    *input |= keyCode[i].bit;
                 mapped = true;
             }
 
