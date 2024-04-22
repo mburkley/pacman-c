@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "memmap.h"
 #include "video.h"
@@ -18,41 +19,6 @@ CPU_MEMMAP memmap;
 uint8_t input0;
 uint8_t input1;
 uint8_t dipSwitches;
-
-void showScreen (void)
-{
-    int x, y;
-    for (y = 0; y < 36; y++)
-    {
-        int start;
-        int inc;
-        switch (y)
-        {
-            case 0: start=0x3df; inc=-1; break;
-            case 1: start=0x3ff; inc=-1; break;
-            case 34: start=0x01f; inc=-1; break;
-            case 35: start=0x03f; inc=-1; break;
-            default: start=0x3a0+(y-2); inc=-32; break;
-        }
-        for (x = 0; x < 32; x++)
-        {
-            if ((y < 2 || y > 33) && (x < 2 || x > 29))
-            {
-                printf (" ");
-            }
-            else
-            {
-                char c = SCREEN[start];
-                if (c >= 32 && c < 128)
-                    printf ("%c", SCREEN[start]);
-                else
-                    printf (".");
-                start += inc;
-            }
-        }
-        printf("\n");
-    }
-}
 
 int main (void)
 {
@@ -73,6 +39,16 @@ int main (void)
 void reset_0000 (void);
     videoInit (3);
     kbdOpen (NULL);
+
+    #if 1
     reset_0000 ();
+    #else
+    for (int i = 0; i < 0x400; i++)
+        COLOUR[i]=1;
+    for (int i = 0; i < 0x400; i++)
+        SCREEN[i]=i;
+    videoRefresh();
+    usleep (100000000);
+    #endif
 }
 

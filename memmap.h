@@ -212,10 +212,10 @@ extern uint8_t dipSwitches;
 #define DEST_TILE_POS (*(XYPOS*)(&memmap.mem[0x4d40]))
 #define TMP_RESULT_POS (*(XYPOS*)(&memmap.mem[0x4d42]))
 #define MIN_DISTANCE_FOUND              (*(uint16_t*)&memmap.mem[0x4d44])
-#define PACMAN_MOVE_PAT_NORMAL1         memmap.mem[0x4d46]
-#define PACMAN_MOVE_PAT_NORMAL2         memmap.mem[0x4d48]
-#define PACMAN_MOVE_PAT_POWERUP1        memmap.mem[0x4d4a]
-#define PACMAN_MOVE_PAT_POWERUP2        memmap.mem[0x4d4c]
+#define PACMAN_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d46])
+#define PACMAN_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d48])
+#define PACMAN_MOVE_PAT_POWERUP1        (*(uint16_t*)&memmap.mem[0x4d4a])
+#define PACMAN_MOVE_PAT_POWERUP2        (*(uint16_t*)&memmap.mem[0x4d4c])
 #define PACMAN_MOVE_PAT_DIFF2_1         (*(uint16_t*)&memmap.mem[0x4d4e])
 #define PACMAN_MOVE_PAT_DIFF2_2         (*(uint16_t*)&memmap.mem[0x4d50])
 #define PACMAN_MOVE_PAT_DIFF1_1         memmap.mem[0x4d52]
@@ -264,7 +264,7 @@ extern uint8_t dipSwitches;
 
 #define KILLED_GHOST_INDEX              memmap.mem[0x4da4]
 #define PAC_DEAD_ANIM_STATE             memmap.mem[0x4da5]
-#define PILL_EFFECT                     memmap.mem[0x4da6]
+#define PACMAN_POWEREDUP                memmap.mem[0x4da6]
 #define BLINKY_EDIBLE                   memmap.mem[0x4da7]
 #define PINKY_EDIBLE                    memmap.mem[0x4da8]
 #define INKY_EDIBLE                     memmap.mem[0x4da9]
@@ -321,7 +321,7 @@ extern uint8_t dipSwitches;
 
 #define PLAYER memmap.mem[0x4e09]
 
-#define P1_CURR_DIFFICULTY              memmap.mem[0x4e0a]
+#define P1_CURR_DIFFICULTY              (*(uint16_t*)&memmap.mem[0x4e0a])
 #define P1_FIRST_FRUIT                  memmap.mem[0x4e0c]
 #define P1_SECOND_FRUIT                 memmap.mem[0x4e0d]
 #define P1_PILLS_EATEN_LEVEL            memmap.mem[0x4e0e]
@@ -337,7 +337,7 @@ extern uint8_t dipSwitches;
 
 // 4e38-4e65 is P2 copy of 4e0a-4e37 (45 bytes)
 
-#define P2_CURR_DIFFICULTY              memmap.mem[0x4e38]
+#define P2_CURR_DIFFICULTY              (*(uint16_t*)&memmap.mem[0x4e38])
 #define P2_FIRST_FRUIT                  memmap.mem[0x4e3a]
 #define P2_SECOND_FRUIT                 memmap.mem[0x4e3b]
 #define P2_PILLS_EATEN_LEVEL            memmap.mem[0x4e3c]
@@ -405,11 +405,6 @@ extern uint8_t dipSwitches;
 #define SND_CH3_WAV_NUM                 memmap.mem[0x4eec]
 #define SND_CH3_WAV_CUR                 memmap.mem[0x4eee]
 #define SND_CH3_WAV_SEL                 memmap.mem[0x4eef]
-
-#define ORIENT_RIGHT    0
-#define ORIENT_DOWN     1
-#define ORIENT_LEFT     2
-#define ORIENT_UP       3
 
 static inline void swap16 (uint8_t *a, uint8_t *b)
 {

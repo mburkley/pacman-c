@@ -24,6 +24,7 @@
 #define TASK_HOME_RANDOM_PINKY 0x0d
 #define TASK_HOME_RANDOM_INKY 0x0e
 #define TASK_HOME_RANDOM_CLYDE 0x0f
+#define TASK_SETUP_GHOST_TIMERS 0x10
 #define TASK_CLEAR_GHOST_STATE 0x11
 #define TASK_CLEAR_PILLS 0x12
 #define TASK_CLEAR_PILLS_SCREEN 0x13
@@ -47,6 +48,11 @@
 #define MSG_TABLE        0x2c
 #define MSG_000          0x2e
 
+#define CHAR_PILL       0x10
+#define CHAR_POWERUP    0x14
+#define CHAR_SPACE      0x40
+#define CHAR_MAZE_MASK  0xc0  // Maze characters are 0xc0-0xff
+
 #define GHOST_ALIVE     0
 #define GHOST_DEAD      1
 
@@ -54,4 +60,9 @@
 #define GHOST_PINKY    2
 #define GHOST_INKY    3
 #define GHOST_CLYDE    4
+
+#define ORIENT_RIGHT    0
+#define ORIENT_DOWN     1
+#define ORIENT_LEFT     2
+#define ORIENT_UP       3
 
