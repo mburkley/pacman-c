@@ -28,7 +28,11 @@
 #define TASK_CLEAR_GHOST_STATE 0x11
 #define TASK_CLEAR_PILLS 0x12
 #define TASK_CLEAR_PILLS_SCREEN 0x13
+#define TASK_CONFIGURE_GAME     0x14
 #define TASK_UPDATE_PILLS 0x15
+#define TASK_PACMAN_DEMO_ORIENT         0x17
+#define TASK_CLEAR_SCORES               0x18
+#define TASK_FRUIT_HISTORY              0x1b
 #define TASK_DISPLAY_MSG 0x1c
 #define TASK_DISPLAY_CREDITS 0x1d
 #define TASK_RESET_POSITIONS 0x1e
@@ -57,9 +61,9 @@
 #define GHOST_DEAD      1
 
 #define GHOST_BLINKY    1
-#define GHOST_PINKY    2
-#define GHOST_INKY    3
-#define GHOST_CLYDE    4
+#define GHOST_PINKY     2
+#define GHOST_INKY      3
+#define GHOST_CLYDE     4
 
 #define ORIENT_RIGHT    0
 #define ORIENT_DOWN     1

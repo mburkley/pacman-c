@@ -96,7 +96,7 @@ void videoPlotRaw (int x, int y, int col)
 }
 
 /*  Scaling plot, scales up x and y and draws a square of pixels */
-static void videoPlot (int x, int y, int col)
+static void videoPlot (unsigned x, unsigned y, int col)
 {
     int i, j;
 
@@ -106,7 +106,7 @@ static void videoPlot (int x, int y, int col)
     /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */
     col = rom_82s123_7f[col & 0xf];
 
-    if (x < 0 || y < 0 || 
+    if (// x < 0 || y < 0 || 
         x >= SCREEN_XSIZE || 
         y >= SCREEN_YSIZE)
     {
@@ -130,9 +130,9 @@ static void videoPlot (int x, int y, int col)
  *
  *  and colour info here: https://aarongiles.com/old/mamemem/part3.html
  */
-static void videoDrawChar (int cx, int cy, int chr, int chrCol)
+static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
 {
-    int x, y;
+    unsigned x, y;
 
     for (y = 0; y < 8; y++)
     {
@@ -151,12 +151,20 @@ static void videoDrawChar (int cx, int cy, int chr, int chrCol)
     }
 }
 
-static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
+static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int colour)
 {
-    int x, y;
+    unsigned x, y;
+    bool mirror;
+    bool invert;
 
-    /*  TODO invert and mirror
-      */
+    mirror = shape & 0x80;
+    invert = shape & 0x40;
+    shape &= 0x3f;
+
+    /*  x==0 is RHS of screen, screen is over-sized 256 pixels */
+    px = 256 - px;
+
+    /*  TODO invert and mirror */
     for (y = 0; y < 16; y++)
     {
         for (x = 0; x < 16; x++)
@@ -177,7 +185,18 @@ static void videoDrawSprite (int px, int py, int shape, int mode, int colour)
                 // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
             }
             else if (col > 0)
-                videoPlot (px + x, py + y, col);
+            {
+                int dx = x;
+                int dy = y;
+
+                if (mirror)
+                    dx = 15-dx;
+
+                if (invert)
+                    dy = 15-dy;
+
+                videoPlot (px + dx, py + dy, col);
+            }
         }
     }
 }

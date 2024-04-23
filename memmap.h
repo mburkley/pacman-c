@@ -157,23 +157,16 @@ extern uint8_t dipSwitches;
 #define NONISR_TASKS (&memmap.mem[0x4cc0])
 
 #define BLINKY_POS      (*(XYPOS*)(&memmap.mem[0x4d00]))
-// #define BLINKY_Y memmap.mem[0x4d00]
-// #define BLINKY_X memmap.mem[0x4d01]
 #define PINKY_POS       (*(XYPOS*)(&memmap.mem[0x4d02]))
-// #define PINKY_Y  memmap.mem[0x4d02]
-// #define PINKY_X  memmap.mem[0x4d03]
 #define INKY_POS        (*(XYPOS*)(&memmap.mem[0x4d04]))
 #define CLYDE_POS       (*(XYPOS*)(&memmap.mem[0x4d06]))
 #define PACMAN_POS      (*(XYPOS*)(&memmap.mem[0x4d08]))
-// #define PACMAN_Y memmap.mem[0x4d08]
-// #define PACMAN_X memmap.mem[0x4d09]
 
 #define BLINKY_TILE     (*(XYPOS*)(&memmap.mem[0x4d0a]))
 #define PINKY_TILE      (*(XYPOS*)(&memmap.mem[0x4d0c]))
 #define INKY_TILE       (*(XYPOS*)(&memmap.mem[0x4d0e]))
 #define CLYDE_TILE      (*(XYPOS*)(&memmap.mem[0x4d10]))
 #define PACMAN_DEMO_TILE     (*(XYPOS*)(&memmap.mem[0x4d12]))
-// #define PACMAN_X_TILE memmap.mem[0x4d13]
 
 #define BLINKY_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d14]))
 #define PINKY_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d16]))
@@ -218,32 +211,32 @@ extern uint8_t dipSwitches;
 #define PACMAN_MOVE_PAT_POWERUP2        (*(uint16_t*)&memmap.mem[0x4d4c])
 #define PACMAN_MOVE_PAT_DIFF2_1         (*(uint16_t*)&memmap.mem[0x4d4e])
 #define PACMAN_MOVE_PAT_DIFF2_2         (*(uint16_t*)&memmap.mem[0x4d50])
-#define PACMAN_MOVE_PAT_DIFF1_1         memmap.mem[0x4d52]
-#define PACMAN_MOVE_PAT_DIFF1_2         memmap.mem[0x4d54]
-#define BLINKY_MOVE_PAT_NORMAL1         memmap.mem[0x4d56]
-#define BLINKY_MOVE_PAT_NORMAL2         memmap.mem[0x4d58]
-#define BLINKY_MOVE_PAT_EDIBLE1         memmap.mem[0x4d5a]
-#define BLINKY_MOVE_PAT_EDIBLE2         memmap.mem[0x4d5c]
-#define BLINKY_MOVE_PAT_TUNNEL1         memmap.mem[0x4d5e]
-#define BLINKY_MOVE_PAT_TUNNEL2         memmap.mem[0x4d60]
-#define PINKY_MOVE_PAT_NORMAL1         memmap.mem[0x4d62]
-#define PINKY_MOVE_PAT_NORMAL2         memmap.mem[0x4d64]
-#define PINKY_MOVE_PAT_EDIBLE1         memmap.mem[0x4d66]
-#define PINKY_MOVE_PAT_EDIBLE2         memmap.mem[0x4d68]
-#define PINKY_MOVE_PAT_TUNNEL1         memmap.mem[0x4d6a]
-#define PINKY_MOVE_PAT_TUNNEL2         memmap.mem[0x4d6c]
-#define INKY_MOVE_PAT_NORMAL1         memmap.mem[0x4d6e]
-#define INKY_MOVE_PAT_NORMAL2         memmap.mem[0x4d70]
-#define INKY_MOVE_PAT_EDIBLE1         memmap.mem[0x4d72]
-#define INKY_MOVE_PAT_EDIBLE2         memmap.mem[0x4d74]
-#define INKY_MOVE_PAT_TUNNEL1         memmap.mem[0x4d76]
-#define INKY_MOVE_PAT_TUNNEL2         memmap.mem[0x4d78]
-#define CLYDE_MOVE_PAT_NORMAL1         memmap.mem[0x4d7a]
-#define CLYDE_MOVE_PAT_NORMAL2         memmap.mem[0x4d7c]
-#define CLYDE_MOVE_PAT_EDIBLE1         memmap.mem[0x4d7e]
-#define CLYDE_MOVE_PAT_EDIBLE2         memmap.mem[0x4d80]
-#define CLYDE_MOVE_PAT_TUNNEL1         memmap.mem[0x4d82]
-#define CLYDE_MOVE_PAT_TUNNEL2         memmap.mem[0x4d84]
+#define PACMAN_MOVE_PAT_DIFF1_1         (*(uint16_t*)&memmap.mem[0x4d52])
+#define PACMAN_MOVE_PAT_DIFF1_2         (*(uint16_t*)&memmap.mem[0x4d54])
+#define BLINKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d56])
+#define BLINKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d58])
+#define BLINKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d5a])
+#define BLINKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d5c])
+#define BLINKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d5e])
+#define BLINKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d60])
+#define PINKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d62])
+#define PINKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d64])
+#define PINKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d66])
+#define PINKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d68])
+#define PINKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d6a])
+#define PINKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d6c])
+#define INKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d6e])
+#define INKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d70])
+#define INKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d72])
+#define INKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d74])
+#define INKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d76])
+#define INKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d78])
+#define CLYDE_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d7a])
+#define CLYDE_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d7c])
+#define CLYDE_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d7e])
+#define CLYDE_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d80])
+#define CLYDE_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d82])
+#define CLYDE_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d84])
 #define DIFFICULTY_TABLE                ((uint16_t*)&memmap.mem[0x4d86])
 
 #define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94]

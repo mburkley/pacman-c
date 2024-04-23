@@ -6,6 +6,7 @@
 #include "video.h"
 #include "kbd.h"
 #include "memmap.h"
+#include "structs.h"
 
 static void (*intVector) (void);
 
@@ -55,6 +56,16 @@ void interruptHalt (void)
             PINKY_STATE,
             INKY_STATE,
             CLYDE_STATE);
+    printf ("ghost sub-states: %d %d %d %d\n",
+            BLINKY_SUBSTATE,
+            PINKY_SUBSTATE,
+            INKY_SUBSTATE,
+            CLYDE_SUBSTATE);
+    printf ("pacman-tile %d,%d blinky-tile %d,%d\n",
+            PACMAN_DEMO_TILE2.x,
+            PACMAN_DEMO_TILE2.y,
+            BLINKY_TILE2.x,
+            BLINKY_TILE2.y);
     printf ("\n\n=====\n");
 }
 
