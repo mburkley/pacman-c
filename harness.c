@@ -20,7 +20,7 @@ uint8_t input0;
 uint8_t input1;
 uint8_t dipSwitches;
 
-int main (void)
+int main (int argc, char *argv[])
 {
     memcpy (&charset[0x0000], rom_pacman_5e, 0x1000);
     memcpy (&charset[0x1000], rom_pacman_5f, 0x1000);
@@ -35,6 +35,8 @@ int main (void)
     IO_INPUT1 = 0xff;
     DIP_INPUT = 0xff;
     printf ("IN0=%02x\n", IO_INPUT0);
+    if (argc > 1)
+        DIP_INPUT = atoi (argv[1]);
 
 void reset_0000 (void);
     videoInit (3);

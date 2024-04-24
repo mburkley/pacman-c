@@ -25,7 +25,7 @@ void interruptMode (int mode)
 /*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
-    usleep(10000);
+    usleep(20000);
     static bool inInterrupt;
     if (!inInterrupt && intVector)
     {
@@ -33,9 +33,6 @@ void interruptHalt (void)
         intVector();
     }
     inInterrupt = false;
-// void showScreen (void);
-// showScreen();
-    videoRefresh();
     kbdPoll();
 
     printf ("sprite-at: ");

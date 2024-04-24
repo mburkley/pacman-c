@@ -108,19 +108,19 @@ extern uint8_t dipSwitches;
 #define IN1_CABINET     (IO_INPUT1 & 0x80)
 
 /* 0=free 1=1-coin=1-game 2=1-coin=2-games 3=2-coins=1-game */
-#define DIP_SWITCH_COINS        (memmap.regs.read.in0[0] & 0x03)
+#define DIP_SWITCH_COINS        (DIP_INPUT & 0x03)
 
 /* 0=1-life 1=2-lives 2=3-lives 3=5-lives */
-#define DIP_SWITCH_LIVES        ((memmap.regs.read.in0[0] & 0x0c) >> 2)
+#define DIP_SWITCH_LIVES        ((DIP_INPUT & 0x0c) >> 2)
 
 /* 0=10000 1=15000 2=20000 3=none */
-#define DIP_SWITCH_BONUS        ((memmap.regs.read.in0[0] & 0x30) >> 4)
+#define DIP_SWITCH_BONUS        ((DIP_INPUT & 0x30) >> 4)
 
 /* 0=hard 1=normal */
-#define DIP_SWITCH_DIFFICULTY   ((memmap.regs.read.in0[0] & 0x40) >> 6)
+#define DIP_SWITCH_DIFFICULTY   ((DIP_INPUT & 0x40) >> 6)
 
 /* 0=alternate 1=normal */
-#define DIP_SWITCH_NAMES        ((memmap.regs.read.in0[0] & 0x80) >> 7)
+#define DIP_SWITCH_NAMES        ((DIP_INPUT & 0x80) >> 7)
 
 #define BLINKY_SPRITE           memmap.mem[0x4c02]
 #define BLINKY_COLOUR           memmap.mem[0x4c03]
@@ -396,6 +396,7 @@ static inline void swap16 (uint8_t *a, uint8_t *b)
  *  0xa0 and return true to indicate carry to next byte */
 static inline int bcdAdjust (uint8_t *value)
 {
+    printf ("BCD adjust %x.%x\n", *value>>4,*value&0xf);
     if ((*value & 0xf) > 9)
         *value += 6;
 

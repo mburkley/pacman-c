@@ -23,12 +23,6 @@
 #ifndef __SCREEN_H
 #define __SCREEN_H
 
-#include <stdint.h>
-
-uint16_t videoRead (uint8_t *ptr, uint16_t addr, int size);
-void videoWrite (uint8_t *ptr, uint16_t addr, uint16_t data, int size);
-void videoRefresh (void);
-void videoPlotRaw (int x, int y, int colour);
 void videoInit (int scale);
 
 #endif

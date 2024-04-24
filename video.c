@@ -50,11 +50,6 @@
 
 uint8_t charset[0x2000];
 
-// static uint8_t videoScreen[SCREEN_XSIZE][SCREEN_YSIZE];
-static bool videoInitialised = false;
-static bool videoRefreshNeeded = false;
-// static bool videoSpritesEnabled = false;
-
 /*  The framebuffer is a 2D array of pixels with 4 bytes per pixel.  The first 3
  *  bytes of each pixel are r, g, b respectively and the 4th is not
  *  used.  The framebuffer is increased in size by the pixel magnification
@@ -79,14 +74,14 @@ static inline struct _frameBuffer* pixel (int x, int y)
     return &frameBuffer[y*frameBufferXSize+x];
 }
 
-static void videoScreenUpdate (void)
+static void videoRefresh (void)
 {
     glDrawPixels (frameBufferXSize, frameBufferYSize, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer);
     glutSwapBuffers();
 }
 
 /*  Raw plot, doesn't do any scaling, expects absolute coords */
-void videoPlotRaw (int x, int y, int col)
+static void videoPlotRaw (int x, int y, int col)
 {
     y = frameBufferYSize - y - 1;
 
@@ -106,12 +101,11 @@ static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
     /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */
     col = rom_82s123_7f[col & 0xf];
 
-    if (// x < 0 || y < 0 || 
-        x >= SCREEN_XSIZE || 
+    if (x >= SCREEN_XSIZE || 
         y >= SCREEN_YSIZE)
     {
-        fprintf (stderr,"SCREEN coords out of range\n");
-        exit(1);
+        // fprintf (stderr,"!! SCREEN coords %d,%d out of range\n", x, y);
+        // exit(1);
     }
 
     if (col == 0 && noBlack)
@@ -164,15 +158,16 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
     /*  sprite coords are upside down */
     py = SCREEN_YSIZE - py;
 
-    /*  Origin of sprite is bottom right */
+    /*  Origin of sprite is bottom right.  Found these values by trial and error */
     px -= 0x12;
     py -= 0xf;
 
-    /*  TODO invert and mirror */
     for (y = 0; y < 16; y++)
     {
         for (x = 0; x < 16; x++)
         {
+            /*  Found how to deal with x&8 and y&8 pretty much by trial and
+             *  error but seems to yield correct results */
             int z = shape * 64;
             z += ((y+4)&0xc) << 1;
             z += (7-(x&7));
@@ -207,11 +202,8 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
     }
 }
                      
-
-void videoRefresh (void)
+static void videoRedraw (void)
 {
-    videoRefreshNeeded = false;
-
     int x, y;
     for (y = 0; y < 36; y++)
     {
@@ -238,29 +230,12 @@ void videoRefresh (void)
                          SPRITEATTRIB[sprite * 2] >> 2, SPRITEATTRIB[sprite * 2] & 3,
                          SPRITEATTRIB[sprite * 2 + 1]);
     }
-
-    // if (videoSpritesEnabled)
-    //     videoDrawSprites ();
-
-    videoScreenUpdate();
 }
 
 static bool videoThreadRunning = false;
-// static pthread_t thVideoThread;
+static pthread_t thVideoThread;
 
-void *videoThread (void *arg)
-{
-    while (videoThreadRunning)
-    {
-        usleep (16667);
-        printf ("vid refr\n");
-        videoRefresh ();
-    }
-
-    return NULL;
-}
-
-void videoInit (int scale)
+static void *videoThread (void *arg)
 {
     int argc=1;
     char *argv[] = { "foo" };
@@ -268,6 +243,23 @@ void videoInit (int scale)
     glutInitWindowPosition(10,10);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 
+    glutInitWindowSize(frameBufferXSize, frameBufferYSize);
+    #define VERSION "0.7"
+    glutCreateWindow("Pacman-c v" VERSION);
+
+    while (videoThreadRunning)
+    {
+        usleep (16667);
+        // printf ("vid refr\n");
+        videoRedraw ();
+        videoRefresh();
+    }
+
+    return NULL;
+}
+
+void videoInit (int scale)
+{
     frameBufferXSize = SCREEN_XSIZE * scale;
     frameBufferYSize = SCREEN_YSIZE * scale;
     frameBufferScale = scale;
@@ -277,23 +269,18 @@ void videoInit (int scale)
 
     if (frameBuffer == NULL)
     {
-        fprintf (stderr, "allocated frame buffer");
+        fprintf (stderr, "!! allocated frame buffer");
         exit (1);
     }
 
     printf ("FB size is %d x %d\n", frameBufferXSize, frameBufferYSize);
-    glutInitWindowSize(frameBufferXSize, frameBufferYSize);
-    #define VERSION "0.7"
-    glutCreateWindow("Pacman-c v" VERSION);
 
-    videoInitialised = true;
-
-    #if 0
+    #if 1
     videoThreadRunning = true;
     if (pthread_create (&thVideoThread, NULL, videoThread, NULL) != 0)
     {
         // halt ("create video thread");
-        fprintf (stderr, "thread\n");
+        fprintf (stderr, "!! thread\n");
         exit (1);
     }
     #endif

@@ -240,7 +240,7 @@ void checkStartButtons (void);
 void displayCredits_2ba1 ();
 void drawPlayerScore_2aaf (uint8_t *score);
 void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks);
-void extraLife_2b33(int de);
+void extraLife_2b33 (uint8_t *score);
 void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
 void incLevelStateSubr_0894 (void);
 void incMainSub2_06a3 (void);
@@ -624,16 +624,18 @@ uint16_t getScreenOffset_0065(XYPOS pos)
     return getScreenOffset_202d(pos);
 }
 
-    /*  Difficulty data.  Max difficulty is 0x14 */
+    /*  Difficulty data.  Two sets, easy or hard.  Hard ramps up more quickly.
+     *  Each level is more difficult until max difficulty which is 0x14 */
 
     //-------------------------------
     // 0068                           00 01 02 03 04 05 06 07
     // 0070  08 09 0a 0b 0c 0d 0e 0f  10 11 12 13 14 
+    //-------------------------------
+    //-------------------------------
     // 007d                                          01 03 04
     // 0080  06 07 08 09 0a 0b 0c 0d  0e 0f 10 11 14         
     //-------------------------------
 
-// uint8_t data_0068[] = { 0 };
 
 void isr_008d (void)
 {
@@ -744,6 +746,12 @@ void isr_008d (void)
     // 0110  07        rlca    
     // 0111  dd770c    ld      (ix+#0c),a
     //-------------------------------
+
+    /*  Move the least significant 2 bits (mirror and invert) to the most
+     *  significant posititions.  Why didn't they just put them in the MSB to
+     *  begin with?  Maybe easier to work with sprite shape numbers that are not
+     *  times 4 */
+
     rotate8 (&SPRITE_POS[0], 2);
     rotate8 (&SPRITE_POS[2], 2);
     rotate8 (&SPRITE_POS[4], 2);
@@ -780,6 +788,11 @@ void isr_008d (void)
         // 014d  dd7310    ld      (ix+#10),e
         // 0150  dd7211    ld      (ix+#11),d
         //-------------------------------
+
+        /*  If a ghost has been eaten, then make that sprite the highest
+         *  priority by swapping it with blinky.  I presume this is to ensure
+         *  "eyes" sprites don't go behind any other ghost sprites */
+
         swap16 (&SPRITE_POS[2], &SPRITE_POS[KILLED_GHOST_INDEX*2]);
         swap16 (&SPRITE_DATA[2], &SPRITE_POS[KILLED_GHOST_INDEX*2 + 0x10]);
     }
@@ -801,6 +814,10 @@ void isr_008d (void)
         // 016e  ed432a4c  ld      (#4c2a),bc
         // 0172  ed533a4c  ld      (#4c3a),de
         //-------------------------------
+
+        /*  If pacman is powered up then the pacman sprite appears on top of all
+         *  other sprites so swap the position with blinky's position */
+
         swap16 (SPRITE_POS, &SPRITE_POS[8]);
         swap16 (SPRITE_DATA, &SPRITE_DATA[8]);
     }
@@ -902,7 +919,7 @@ void isr_008d (void)
     if (MAIN_STATE != 0 && IN0_RACKADV == 0)
     {
         // reset();
-        printf ("main state != 0 and test DIP sel\n");
+        printf ("!! main state != 0 and test DIP sel\n");
         exit(1);
     }
 
@@ -1942,14 +1959,14 @@ void introAdvanceState_0524 (uint8_t *hl, int b, int a)
     // 0527  3601      ld      (hl),#01
     // 0529  c38e05    jp      #058e
     //-------------------------------
-    printf ("%s a = %d b=%d\n", __func__, a, b);
+    // printf ("%s a = %d b=%d\n", __func__, a, b);
     if (a != b)
     {
         introMain_052c();
         return;
     }
 
-    printf ("%s %04lx = 1\n", __func__, hl-MEM);
+    // printf ("%s %04lx = 1\n", __func__, hl-MEM);
     *hl = 1;
     incMainStateIntro_058e();
     return;
@@ -2547,7 +2564,6 @@ void setupGhostTimers_070e (int b)
     //-------------------------------
     // 0724  dd7e00    ld      a,(ix+#00)
     //-------------------------------
-    int a = ix[0];
     //-------------------------------
     // 0727  87        add     a,a
     // 0728  47        ld      b,a
@@ -2567,16 +2583,17 @@ void setupGhostTimers_070e (int b)
     // 0731  1600      ld      d,#00
     // 0733  210f33    ld      hl,#330f
     // 0736  19        add     hl,de
+    // 0737  cd1408    call    #0814
     //-------------------------------
-    uint8_t *hl = MOVE_DATA + 0x42 * a;
+    uint8_t a = ix[0] * 42;
+    uint8_t *hl = MOVE_DATA + a;
     printf ("%s movedata %d = %lx\n", __func__, a, hl-ROM);
+    setupMovePat_0814(hl);
 
     //-------------------------------
-    // 0737  cd1408    call    #0814
     // 073a  dd7e01    ld      a,(ix+#01)
     // 073d  32b04d    ld      (#4db0),a
     //-------------------------------
-    setupMovePat_0814(hl);
     REL_DIFF = ix[1];
     printf ("%s REL_DIFF=%d\n", __func__, REL_DIFF);
 
@@ -2656,18 +2673,36 @@ void setupGhostTimers_070e (int b)
 }
 
     /* Table of values used to initialise ghost timers.  Groups of 6 bytes.  21
-     * entries */
+     * entries.  Index is difficulty of current level (0 thru 20) */
 
     //-------------------------------
-    // 0796                    03 01  01 00 02 00 04 01 02 01
-    // 07a0  03 00 04 01 03 02 04 01  04 02 03 02 05 01 05 00
-    // 07b0  03 02 06 02 05 01 03 03  03 02 05 02 03 03 06 02
-    // 07c0  05 02 03 03 06 02 05 00  03 04 07 02 05 01 03 04
-    // 07d0  03 02 05 02 03 04 06 02  05 02 03 05 07 02 05 00
-    // 07e0  03 05 07 02 05 02 03 05  05 02 05 01 03 06 07 02
-    // 07f0  05 02 03 06 07 02 05 02  03 06 08 02 05 02 03 06
-    // 0800  07 02 05 02 03 07 08 02  05 02 03 07 08 02 06 02
-    // 0810  03 07 08 02                                    
+    // 0796                    03 01  01 00 02 00
+    // 079c                                       04 01 02 01
+    // 07a0  03 00
+    // 07a2        04 01 03 02 04 01
+    // 07a8                           04 02 03 02 05 01
+    // 07ae                                             05 00
+    // 07b0  03 02 06 02
+    // 07b4              05 01 03 03  03 02
+    // 07ba                                 05 02 03 03 06 02
+    // 07c0  05 02 03 03 06 02
+    // 07c6                    05 00  03 04 07 02
+    // 07cc                                       05 01 03 04
+    // 07d0  03 02
+    // 07d2        05 02 03 04 06 02
+    // 07d8                           05 02 03 05 07 02
+    // 07de                                             05 00
+    // 07e0  03 05 07 02
+    // 07e4              05 02 03 05  05 02
+    // 07ea                                 05 01 03 06 07 02
+    // 07f0  05 02 03 06 07 02
+    // 07f6                    05 02  03 06 08 02
+    // 07fc                                       05 02 03 06
+    // 0800  07 02
+    // 0802        05 02 03 07 08 02
+    // 0808                           05 02 03 07 08 02
+    // 080e                                             06 02
+    // 0810  03 07 08 02
     //-------------------------------
 
 void setupMovePat_0814(uint8_t *hl)
@@ -3905,7 +3940,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c45  a7        and     a
     // 0c46  c0        ret     nz
     //-------------------------------
-    printf ("%s killed = %d\n", __func__, KILLED_GHOST_INDEX);
+    // printf ("%s killed = %d\n", __func__, KILLED_GHOST_INDEX);
     if (KILLED_GHOST_INDEX != 0)
         return;
 
@@ -3915,7 +3950,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c4b  32944d    ld      (#4d94),a
     // 0c4e  d0        ret     nc
     //-------------------------------
-    printf ("%s count = %02x\n", __func__, GHOST_HOUSE_MOVE_COUNT);
+    // printf ("%s count = %02x\n", __func__, GHOST_HOUSE_MOVE_COUNT);
     rotate8 (&GHOST_HOUSE_MOVE_COUNT, 1);
 
     if ((GHOST_HOUSE_MOVE_COUNT & 0x01) == 0)
@@ -3926,7 +3961,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c52  a7        and     a
     // 0c53  c2900c    jp      nz,#0c90
     //-------------------------------
-    printf ("%s blinky-sub = %d\n", __func__, BLINKY_SUBSTATE);
+    // printf ("%s blinky-sub = %d\n", __func__, BLINKY_SUBSTATE);
     if (BLINKY_SUBSTATE == 0)
     {
         //-------------------------------
@@ -3986,10 +4021,10 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c93  fe01      cp      #01
     // 0c95  cafb0c    jp      z,#0cfb
     //-------------------------------
-    printf ("%s pinky-sub = %d\n", __func__, PINKY_SUBSTATE);
+    // printf ("%s pinky-sub = %d\n", __func__, PINKY_SUBSTATE);
     if (PINKY_SUBSTATE != 1)
     {
-        printf ("pinky-y=%02x\n",PINKY_POS.y);
+        // printf ("pinky-y=%02x\n",PINKY_POS.y);
         //-------------------------------
         // 0c98  fe00      cp      #00
         // 0c9a  c2c10c    jp      nz,#0cc1
@@ -4081,10 +4116,10 @@ void ghostsLeaveHouse_0c42 (void)
     // 0cfe  fe01      cp      #01
     // 0d00  ca930d    jp      z,#0d93
     //-------------------------------
-    printf ("%s inky-sub = %d\n", __func__, INKY_SUBSTATE);
+    // printf ("%s inky-sub = %d\n", __func__, INKY_SUBSTATE);
     if (INKY_SUBSTATE != 1)
     {
-        printf ("%s inky-y=%02x\n", __func__, INKY_POS.y);
+        // printf ("%s inky-y=%02x\n", __func__, INKY_POS.y);
         //-------------------------------
         // 0d03  fe00      cp      #00
         // 0d05  c22c0d    jp      nz,#0d2c
@@ -4113,8 +4148,8 @@ void ghostsLeaveHouse_0c42 (void)
             // 0d23  cd0020    call    #2000
             // 0d26  22044d    ld      (#4d04),hl
             //-------------------------------
-            printf ("%s inky tile-ch=%d,%d\n", __func__,
-            INKY_TILE_CHANGE2.x,INKY_TILE_CHANGE2.y);
+            // printf ("%s inky tile-ch=%d,%d\n", __func__,
+            // INKY_TILE_CHANGE2.x,INKY_TILE_CHANGE2.y);
 
             INKY_POS = addXYOffset_2000 (INKY_TILE_CHANGE2, INKY_POS);
             //-------------------------------
@@ -11249,8 +11284,10 @@ void configureGame_26d0 (int unused)
     int a = DIP_SWITCH_COINS;
     if (a == 0)
     {
+        //-------------------------------
         // 26d9  216e4e    ld      hl,#4e6e
         // 26dc  36ff      ld      (hl),#ff
+        //-------------------------------
         CREDITS = 0xff;
     }
     //-------------------------------
@@ -11259,13 +11296,18 @@ void configureGame_26d0 (int unused)
     // 26e0  ce00      adc     a,#00
     // 26e2  326b4e    ld      (#4e6b),a
     //-------------------------------
-    COINS_PER_CREDIT = 1; // TODO
+
+    /*  1 or 2 = 1 coin; 3 = 2 coin */
+    COINS_PER_CREDIT = (a & 1) + (a >> 1);
+
     //-------------------------------
     // 26e5  e602      and     #02
     // 26e7  a9        xor     c
     // 26e8  326d4e    ld      (#4e6d),a
     //-------------------------------
-    CREDITS_PER_COIN = 1; // TODO
+
+    /*  0 = 0; 1 = 1; 2 = 2; 3 = 1 */
+    CREDITS_PER_COIN = (COINS_PER_CREDIT & 2) ^ a;
     //-------------------------------
     // 26eb  78        ld      a,b
     // 26ec  0f        rrca    
@@ -11275,14 +11317,13 @@ void configureGame_26d0 (int unused)
     // 26f1  fe04      cp      #04
     // 26f3  2001      jr      nz,#26f6        ; (1)
     // 26f5  3c        inc     a
-    //-------------------------------
-    if ((((a>>2)&3)+1) == 4)
-        a++;
-
-    //-------------------------------
     // 26f6  326f4e    ld      (#4e6f),a
     //-------------------------------
-    LIVES_PER_GAME = a;
+    LIVES_PER_GAME = DIP_SWITCH_LIVES + 1;
+
+    if (LIVES_PER_GAME == 4) 
+        LIVES_PER_GAME++;
+
     //-------------------------------
     // 26f9  78        ld      a,b
     // 26fa  0f        rrca    
@@ -11295,6 +11336,7 @@ void configureGame_26d0 (int unused)
     // 2704  32714e    ld      (#4e71),a
     //-------------------------------
     BONUS_LIFE = BONUS_LIFE_DATA[DIP_SWITCH_BONUS];
+
     //-------------------------------
     // 2707  78        ld      a,b
     // 2708  07        rlca    
@@ -11302,7 +11344,9 @@ void configureGame_26d0 (int unused)
     // 270a  e601      and     #01
     // 270c  32754e    ld      (#4e75),a
     //-------------------------------
-    GHOST_NAMES_MODE = DIP_SWITCH_NAMES;
+    GHOST_NAMES_MODE = DIP_SWITCH_NAMES ^ 1;
+    printf ("%s names=%d\n", __func__, GHOST_NAMES_MODE);
+
     //-------------------------------
     // 270f  78        ld      a,b
     // 2710  07        rlca    
@@ -11314,7 +11358,8 @@ void configureGame_26d0 (int unused)
     // 2719  df        rst     #18
     // 271a  22734e    ld      (#4e73),hl
     //-------------------------------
-    DIFFICULTY_PTR = DIFFICULTY_DATA[DIP_SWITCH_DIFFICULTY];
+    DIFFICULTY_PTR = DIFFICULTY_DATA[DIP_SWITCH_DIFFICULTY ^ 1];
+
     //-------------------------------
     // 271d  3a4050    ld      a,(#5040)
     // 2720  07        rlca    
@@ -11326,13 +11371,12 @@ void configureGame_26d0 (int unused)
     COCKTAIL_MODE = IN1_CABINET ? 0 : 1;
 }
 
-    /*  Bonus life data */
-    /*  Difficulty data */
+    /*  Bonus life data (in BCD: 10,000, 15,000, 20,000 or none */
+    /*  Difficulty data ptr 0x0068 or 0x007d */
+
     //-------------------------------
     // 2728  10 15 20 ff 68 00 7d 00
     //-------------------------------
-    // uint8_t bonusLifeData[] = { 0x10, 0x15, 0x20, 0xff };
-    // uint8_t difficultyData[] = { 0x68, 0x00, 0x7d, 0x00 };
 
 void scatterOrChaseBlinky_2730 (int param)
 {
@@ -12084,15 +12128,15 @@ void addToScore_2a5a (int b)
     // 2a5d  fe01      cp      #01
     // 2a5f  c8        ret     z
     //-------------------------------
-    if (MAIN_STATE ==1)
+    if (MAIN_STATE == 1)
         return;
 
     //-------------------------------
     // 2a60  21172b    ld      hl,#2b17
     // 2a63  df        rst     #18
     //-------------------------------
+
     /*  Retrieve the 2-byte value to be added to the 4-byte score */
-    // uint16_t add = tableLookup_0018 (scoreTable_2b17, b);
     uint16_t add = scoreTable_2b17[b];
     printf ("%s score = %d\n", __func__, add);
 
@@ -12100,8 +12144,10 @@ void addToScore_2a5a (int b)
     // 2a64  eb        ex      de,hl
     // 2a65  cd0b2b    call    #2b0b
     //-------------------------------
+
     /*  Fetch a pointer to the player's score (P1 or P2) */
     uint8_t *score = getPlayerScorePtr_2b0b();
+
     //-------------------------------
     // 2a68  7b        ld      a,e
     // 2a69  86        add     a,(hl)
@@ -12109,10 +12155,11 @@ void addToScore_2a5a (int b)
     // 2a6b  77        ld      (hl),a
     // 2a6c  23        inc     hl
     //-------------------------------
-    /*  Add the LSB of the addition to the LSB of the score and adjust for BCD
-     */
+
+    /*  Add the LSB of the addition to the LSB of the score and adjust for BCD */
     score[0] += add & 0xff;
     int carry = bcdAdjust (&score[0]);
+
     //-------------------------------
     // 2a6d  7a        ld      a,d
     // 2a6e  8e        adc     a,(hl)
@@ -12121,23 +12168,28 @@ void addToScore_2a5a (int b)
     // 2a71  5f        ld      e,a
     // 2a72  23        inc     hl
     //-------------------------------
+
     /*  Add the 2nd byte of the addition and adjust for BCD */
     score[1] += (add >> 8) + carry;
     carry = bcdAdjust (&score[1]);
+
     //-------------------------------
     // 2a73  3e00      ld      a,#00
     // 2a75  8e        adc     a,(hl)
     // 2a76  27        daa     
     // 2a77  77        ld      (hl),a
     //-------------------------------
+
     /*  Add any BCD carry to the 3rd byte of the score */
     score[2] += carry;
     carry = bcdAdjust (&score[2]);
+
     //-------------------------------
     // 2a78  57        ld      d,a
     // 2a79  eb        ex      de,hl
     //-------------------------------
     uint16_t hl = (score[2] << 8) + score[1];
+
     //-------------------------------
     // 2a7a  29        add     hl,hl
     // 2a7b  29        add     hl,hl
@@ -12145,6 +12197,7 @@ void addToScore_2a5a (int b)
     // 2a7d  29        add     hl,hl
     //-------------------------------
     hl *= 16;
+
     //-------------------------------
     // 2a7e  3a714e    ld      a,(#4e71)
     // 2a81  3d        dec     a
@@ -12152,7 +12205,7 @@ void addToScore_2a5a (int b)
     // 2a83  dc332b    call    c,#2b33
     //-------------------------------
     if (hl>>8 > BONUS_LIFE-1)
-        extraLife_2b33(hl); // TODO should be de
+        extraLife_2b33 (&score[2]);
 
     //-------------------------------
     // 2a86  cdaf2a    call    #2aaf
@@ -12160,8 +12213,7 @@ void addToScore_2a5a (int b)
     // 2a8a  13        inc     de
     // 2a8b  13        inc     de
     //-------------------------------
-    drawPlayerScore_2aaf(score);
-    score+= 3;
+    drawPlayerScore_2aaf (&score[2]);
 
     //-------------------------------
     // 2a8c  218a4e    ld      hl,#4e8a
@@ -12255,6 +12307,7 @@ void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks)
 {
     for (int b = 0; b < 3; b++)
     {
+        printf ("%s drawing %02x\n", __func__, *score);
         //-------------------------------
         // 2abe  1a        ld      a,(de)
         // 2abf  0f        rrca    
@@ -12263,12 +12316,12 @@ void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks)
         // 2ac2  0f        rrca    
         // 2ac3  cdce2a    call    #2ace
         //-------------------------------
-        blanks = drawDigit_2ace(&screenLoc, *score >> 4, blanks);
+        blanks = drawDigit_2ace (&screenLoc, *score >> 4, blanks);
         //-------------------------------
         // 2ac6  1a        ld      a,(de)
         // 2ac7  cdce2a    call    #2ace
         //-------------------------------
-        blanks = drawDigit_2ace(&screenLoc, *score, blanks);
+        blanks = drawDigit_2ace (&screenLoc, *score, blanks);
         //-------------------------------
         // 2aca  1b        dec     de
         // 2acb  10f1      djnz    #2abe           ; (-15)
@@ -12287,7 +12340,9 @@ int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks)
     // 2ace  e60f      and     #0f
     // 2ad0  2804      jr      z,#2ad6         ; a = 0?
     //-------------------------------
-    if ((digit & 0xf) != 0)
+    digit &= 0xf;
+    printf ("%s dig=%x bl=%d ", __func__, digit, blanks);
+    if (digit != 0)
     {
         //-------------------------------
         // 2ad2  0e00      ld      c,#00
@@ -12317,7 +12372,8 @@ int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks)
     // 2ade  2b        dec     hl
     // 2adf  c9        ret     
     //-------------------------------
-    SCREEN[*screenLoc--] = digit;
+    printf (" store [%04x]=%02x\n", *screenLoc, digit);
+    SCREEN[(*screenLoc)--] = digit;
     return blanks;
 }
 
@@ -12344,7 +12400,7 @@ void clearScores_2ae0 ()
     // 2af2  21fc43    ld      hl,#43fc	; location 
     // 2af5  cdbe2a    call    #2abe
     //-------------------------------
-    drawScore_2abe(0x3fc, &P1_SCORE[2], 4);
+    drawScore_2abe (0x3fc, &P1_SCORE[2], 4);
 
     //-------------------------------
     // 2af8  010403    ld      bc,#0304	; Draw Score P2
@@ -12360,7 +12416,7 @@ void clearScores_2ae0 ()
         blanks = 6;
 
     // 2b09  18b3      jr      #2abe           ; draw blanks
-    drawScore_2abe(0x3e9, &P2_SCORE[2], blanks);
+    drawScore_2abe (0x3e9, &P2_SCORE[2], blanks);
 }
 
 /*  Returns a pointer to the 4-byte array containing a player's score */
@@ -12406,7 +12462,7 @@ uint16_t scoreTable_2b17[] =
     0x5000		        // fruit
 };
 
-void extraLife_2b33(int de)
+void extraLife_2b33 (uint8_t *score)
 {
     //-------------------------------
     // 2b33  13        inc     de
@@ -12416,7 +12472,7 @@ void extraLife_2b33(int de)
     // 2b37  cb46      bit     0,(hl)
     // 2b39  c0        ret     nz
     //-------------------------------
-    if ((MEM[de+1] & 1) != 0)
+    if ((score[1] & 1) != 0)
         return;
 
     //-------------------------------
@@ -12424,17 +12480,18 @@ void extraLife_2b33(int de)
     // 2b3c  219c4e    ld      hl,#4e9c
     // 2b3f  cbc6      set     0,(hl)
     //-------------------------------
-    MEM[de+1] |= 1;
+    score[1] |= 1;
     SND_CH1_EFF_NUM|= 1;
+
     //-------------------------------
     // 2b41  21144e    ld      hl,#4e14
     // 2b44  34        inc     (hl)
     // 2b45  21154e    ld      hl,#4e15
     // 2b48  34        inc     (hl)
+    // 2b49  46        ld      b,(hl)
     //-------------------------------
     P1_REAL_LIVES++;
     P1_DISPLAY_LIVES++;
-    // 2b49  46        ld      b,(hl)
     displayLives_2b4a (P1_DISPLAY_LIVES);
 }
 
@@ -12980,7 +13037,11 @@ jump_2c93:
             chr++;
             video += de;
             bc++;
-            if (++TODO_count > 20) exit(1);
+            if (++TODO_count > 20)
+            {
+                printf ("!! %s taking too long\n", __func__);
+                exit(1);
+            }
             // 2cb9  18f1      jr      #2cac           ; Loop
         }
 
@@ -14842,29 +14903,34 @@ void delay_32ed (void)
     // 330b  0001    // LEFT
     // 330d  ff00    // UP
 
-    /*  TODO Table of move data.  Not sure yet how it works.  Looks like 14 entries
-     *  with 21 x 2-byte data in each.  Last one is incomplete though? */
+    /*  TODO Table of move data.  Not sure yet how it works.  Looks like 6 entries
+     *  with 2a bytes in each?  Last one is incomplete though? */
 
     // 330f                                                55
     // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25
     // 3320  25 25 25 22 22 22 22 01  01 01 01 58 02 08 07 60
-    // 3330  09 10 0e 68 10 70 17 14  19 52 4a a5 94 aa 2a 55
+    // 3330  09 10 0e 68 10 70 17 14  19
+
+    // 3339                              52 4a a5 94 aa 2a 55
     // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22
-    // 3350  91 
-    // 3351     01 01 01 01 00 00 00  00 00 00 00 00 00 00 00
-    // 3360  00 00 00 55 2a 55 2a 55  55 55 55 aa 2a 55 55 55
+    // 3350  91 01 01 01 01 00 00 00  00 00 00 00 00 00 00 00
+    // 3360  00 00 00 
+    // 3363           55 2a 55 2a 55  55 55 55 aa 2a 55 55 55
     // 3370  2a 55 2a 52 4a a5 94 48  24 22 91 21 44 44 08 58
-    // 3380  02 34 08 d8 09 b4 0f 58  11 08 16 34 17 55 55 55
-    // 3390  55 d5 6a 
-    // 3393           d5 6a aa 6a 55  d5 55 55 55 55 aa 2a 55
+    // 3380  02 34 08 d8 09 b4 0f 58  11 08 16 34 17
+    // 338d                                          55 55 55
+    // 3390  55 d5 6a d5 6a aa 6a 55  d5 55 55 55 55 aa 2a 55
     // 33a0  55 92 24 92 24 22 22 22  22 a4 01 54 06 f8 07 a8
-    // 33b0  0c d4 0d 84 12 b0 13 d5  6a d5 6a d6 5a ad b5 d6
+    // 33b0  0c d4 0d 84 12 b0 13
+    // 33b7                       d5  6a d5 6a d6 5a ad b5 d6
     // 33c0  5a ad b5 d5 6a d5 6a aa  6a 55 d5 92 24 25 49 48
-    // 33d0  24 22 91 a4 01 
-    // 33d5                 54 06 f8  07 a8 0c d4 0d fe ff ff
-    // 33e0  ff 6d 6d 6d 6d 6d 6d 6d  6d b6 6d 6d db 6d 6d 6d
+    // 33d0  24 22 91 a4 01 54 06 f8  07 a8 0c d4 0d fe ff ff
+    // 33e0  ff
+    // 33e1     6d 6d 6d 6d 6d 6d 6d  6d b6 6d 6d db 6d 6d 6d
     // 33f0  6d d6 5a ad b5 25 25 25  25 92 24 92 24 2c 01 dc
-    // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff d5 6a d5 6a d5
+    // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff
+
+    // 340b                                    d5 6a d5 6a d5
     // 3410  6a d5 6a b6 6d 6d db 
     // 3417                       6d  6d 6d 6d d6 5a ad b5 48
     // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4

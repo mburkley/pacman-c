@@ -71,7 +71,7 @@ static void kbdReopen (void)
     {
         printf ("%s failed to open device %s error %s\n", __func__,
               kbdDevice, strerror (errno));
-        fprintf (stderr, "check keyboard input device");
+        fprintf (stderr, "!! check keyboard input device");
         exit(1);
     }
 }
@@ -121,7 +121,7 @@ void kbdFindInputDevice (void)
 
     if ((fp = fopen ("/proc/bus/input/devices", "r")) == NULL)
     {
-        fprintf (stderr, "Open /proc/bus/input/devices");
+        fprintf (stderr, "!! Open /proc/bus/input/devices");
         exit(1);
     }
 
@@ -145,7 +145,7 @@ void kbdFindInputDevice (void)
 
     if (!events)
     {
-        fprintf (stderr, "no events");
+        fprintf (stderr, "!! no events");
         exit(1);
     }
 
@@ -167,7 +167,7 @@ void kbdFindInputDevice (void)
 
     if (!found)
     {
-        fprintf (stderr, "Can't find keyboard");
+        fprintf (stderr, "!! Can't find keyboard");
         exit(1);
     }
 }
