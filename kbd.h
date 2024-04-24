@@ -23,9 +23,6 @@
 #ifndef __KBD_H
 #define __KBD_H
 
-#define KBD_ROW 8
-#define KBD_COL 8
-
 void kbdPoll (void);
 void kbdClose (void);
 void kbdOpen (const char *device);

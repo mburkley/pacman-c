@@ -1,7 +1,7 @@
-all: pacmanc
+all: pacman
 
 SRCS=\
-ctrans.c \
+pacman.c \
 cpu.c \
 harness.c \
 video.c \
@@ -22,5 +22,5 @@ pacman.6j
 # $(ROMS): %.h: %
 # 	@xxd -i $< > $@
 
-pacmanc: $(SRCS)
+pacman: $(SRCS)
 	$(CC) -ggdb3 -Wall $^ -o $@ $(LIBS)

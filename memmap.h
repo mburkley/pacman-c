@@ -1,7 +1,32 @@
-/* Memory map table.  Starts at flat map but replace with specific locations as
- * they are discovered */
-
-// Video : https://www.walkofmind.com/programming/pie/video_memory.htm
+/*
+ * Copyright (c) 2024 Mark Burkley.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Memory map table.  Starts at flat map but replace with specific locations as
+ * they are discovered
+ *
+ * Video : https://www.walkofmind.com/programming/pie/video_memory.htm
+ *
+ *  NOTE not all 16 and 32 bit values are properly aligned.  It is assumed the
+ *  compiler and host architecture doesn't have a problem with that.
+ */
 
 #include <stdint.h>
 #include <stdbool.h>
