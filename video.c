@@ -96,7 +96,7 @@ void videoPlotRaw (int x, int y, int col)
 }
 
 /*  Scaling plot, scales up x and y and draws a square of pixels */
-static void videoPlot (unsigned x, unsigned y, int col)
+static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
 {
     int i, j;
 
@@ -113,6 +113,9 @@ static void videoPlot (unsigned x, unsigned y, int col)
         fprintf (stderr,"SCREEN coords out of range\n");
         exit(1);
     }
+
+    if (col == 0 && noBlack)
+        return;
 
     /*  Draw a square block of pixels of size (scale x scale) */
     for (i = 0; i < frameBufferScale; i++)
@@ -146,7 +149,7 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
-            videoPlot ((cx << 3) + x, (cy << 3) + y, col);
+            videoPlot ((cx << 3) + x, (cy << 3) + y, col, false);
         }
     }
 }
@@ -154,15 +157,16 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
 static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int colour)
 {
     unsigned x, y;
-    bool mirror;
-    bool invert;
-
-    mirror = shape & 0x80;
-    invert = shape & 0x40;
-    shape &= 0x3f;
 
     /*  x==0 is RHS of screen, screen is over-sized 256 pixels */
     px = 256 - px;
+
+    /*  sprite coords are upside down */
+    py = SCREEN_YSIZE - py;
+
+    /*  Origin of sprite is bottom right */
+    px -= 0x12;
+    py -= 0xf;
 
     /*  TODO invert and mirror */
     for (y = 0; y < 16; y++)
@@ -189,13 +193,15 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
                 int dx = x;
                 int dy = y;
 
-                if (mirror)
+                /* Mirror */
+                if (mode & 2)
                     dx = 15-dx;
 
-                if (invert)
+                /* Invert */
+                if (mode & 1)
                     dy = 15-dy;
 
-                videoPlot (px + dx, py + dy, col);
+                videoPlot (px + dx, py + dy, col, true);
             }
         }
     }
@@ -204,9 +210,6 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
 
 void videoRefresh (void)
 {
-    // if (!videoRefreshNeeded || !videoInitialised)
-    //     return;
-
     videoRefreshNeeded = false;
 
     int x, y;

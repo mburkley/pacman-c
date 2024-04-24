@@ -9,7 +9,7 @@
 #define ISRTASK_INC_SCENE3_STATE         9
 
 #define TASK_CLEAR_SCREEN       0x00
-#define TASK_FLASH_MAZE         0x01  // ???? TODO
+#define TASK_MAZE_COLOURS       0x01
 #define TASK_DRAW_MAZE         0x02
 #define TASK_DRAW_PILLS         0x03
 #define TASK_INIT_POSITIONS         0x04
@@ -24,14 +24,15 @@
 #define TASK_HOME_RANDOM_PINKY 0x0d
 #define TASK_HOME_RANDOM_INKY 0x0e
 #define TASK_HOME_RANDOM_CLYDE 0x0f
-#define TASK_SETUP_GHOST_TIMERS 0x10
-#define TASK_CLEAR_GHOST_STATE 0x11
-#define TASK_CLEAR_PILLS 0x12
-#define TASK_CLEAR_PILLS_SCREEN 0x13
-#define TASK_CONFIGURE_GAME     0x14
-#define TASK_UPDATE_PILLS 0x15
+#define TASK_SETUP_GHOST_TIMERS         0x10
+#define TASK_CLEAR_GHOST_STATE          0x11
+#define TASK_CLEAR_PILLS                0x12
+#define TASK_CLEAR_PILLS_SCREEN         0x13
+#define TASK_CONFIGURE_GAME             0x14
+#define TASK_UPDATE_PILLS               0x15
 #define TASK_PACMAN_DEMO_ORIENT         0x17
 #define TASK_CLEAR_SCORES               0x18
+#define TASK_ADD_TO_SCORE               0x19
 #define TASK_FRUIT_HISTORY              0x1b
 #define TASK_DISPLAY_MSG 0x1c
 #define TASK_DISPLAY_CREDITS 0x1d
@@ -70,3 +71,8 @@
 #define ORIENT_LEFT     2
 #define ORIENT_UP       3
 
+#define IMG_MIRROR 0x80
+#define IMG_INVERT 0x40
+
+#define STATE_AT_HOME           0
+#define STATE_LEAVING_HOME      2

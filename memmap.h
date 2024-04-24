@@ -122,24 +122,24 @@ extern uint8_t dipSwitches;
 /* 0=alternate 1=normal */
 #define DIP_SWITCH_NAMES        ((memmap.regs.read.in0[0] & 0x80) >> 7)
 
-#define BLINKY_SPRITE memmap.mem[0x4c02]
-#define BLINKY_COLOUR memmap.mem[0x4c03]
-#define PINKY_SPRITE memmap.mem[0x4c04]
-#define PINKY_COLOUR memmap.mem[0x4c05]
-#define INKY_SPRITE memmap.mem[0x4c06]
-#define INKY_COLOUR memmap.mem[0x4c07]
-#define CLYDE_SPRITE memmap.mem[0x4c08]
-#define CLYDE_COLOUR memmap.mem[0x4c09]
-#define PACMAN_SPRITE memmap.mem[0x4c0a]
-#define PACMAN_COLOUR memmap.mem[0x4c0b]
-#define FRUIT_SPRITE memmap.mem[0x4c0c]
-#define FRUIT_COLOUR memmap.mem[0x4c0d]
+#define BLINKY_SPRITE           memmap.mem[0x4c02]
+#define BLINKY_COLOUR           memmap.mem[0x4c03]
+#define PINKY_SPRITE            memmap.mem[0x4c04]
+#define PINKY_COLOUR            memmap.mem[0x4c05]
+#define INKY_SPRITE             memmap.mem[0x4c06]
+#define INKY_COLOUR             memmap.mem[0x4c07]
+#define CLYDE_SPRITE            memmap.mem[0x4c08]
+#define CLYDE_COLOUR            memmap.mem[0x4c09]
+#define PACMAN_SPRITE           memmap.mem[0x4c0a]
+#define PACMAN_COLOUR           memmap.mem[0x4c0b]
+#define FRUIT_SPRITE            memmap.mem[0x4c0c]
+#define FRUIT_COLOUR            memmap.mem[0x4c0d]
 
-#define SPRITE_POS ((uint8_t *)&memmap.mem[0x4c22])
-#define SPRITE_DATA ((uint8_t *)&memmap.mem[0x4c32])
+#define SPRITE_POS              ((uint8_t *)&memmap.mem[0x4c22])
+#define SPRITE_DATA             ((uint8_t *)&memmap.mem[0x4c32])
 
-#define TASK_LIST_END (*(uint16_t*)&memmap.mem[0x4c80])
-#define TASK_LIST_BEGIN (*(uint16_t*)&memmap.mem[0x4c82])
+#define TASK_LIST_END           (*(uint16_t*)&memmap.mem[0x4c80])
+#define TASK_LIST_BEGIN         (*(uint16_t*)&memmap.mem[0x4c82])
 
 #define SOUND_COUNTER                   &memmap.mem[0x4c84]
 #define TIMER_HUNDREDTHS                memmap.mem[0x4c86]
@@ -151,7 +151,7 @@ extern uint8_t dipSwitches;
 #define RND_NUM_GEN2                    memmap.mem[0x4c8c]
 
 /*  ISR tasks are 3 bytes each and there are 16 entries */
-#define ISR_TASKS (&memmap.mem[0x4c90])
+#define ISR_TASKS               (&memmap.mem[0x4c90])
 
 /*  non-ISR tasks are 2 bytes each and there are 16 entries */
 #define NONISR_TASKS (&memmap.mem[0x4cc0])
@@ -205,47 +205,31 @@ extern uint8_t dipSwitches;
 #define DEST_TILE_POS (*(XYPOS*)(&memmap.mem[0x4d40]))
 #define TMP_RESULT_POS (*(XYPOS*)(&memmap.mem[0x4d42]))
 #define MIN_DISTANCE_FOUND              (*(uint16_t*)&memmap.mem[0x4d44])
-#define PACMAN_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d46])
-#define PACMAN_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d48])
-#define PACMAN_MOVE_PAT_POWERUP1        (*(uint16_t*)&memmap.mem[0x4d4a])
-#define PACMAN_MOVE_PAT_POWERUP2        (*(uint16_t*)&memmap.mem[0x4d4c])
-#define PACMAN_MOVE_PAT_DIFF2_1         (*(uint16_t*)&memmap.mem[0x4d4e])
-#define PACMAN_MOVE_PAT_DIFF2_2         (*(uint16_t*)&memmap.mem[0x4d50])
-#define PACMAN_MOVE_PAT_DIFF1_1         (*(uint16_t*)&memmap.mem[0x4d52])
-#define PACMAN_MOVE_PAT_DIFF1_2         (*(uint16_t*)&memmap.mem[0x4d54])
-#define BLINKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d56])
-#define BLINKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d58])
-#define BLINKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d5a])
-#define BLINKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d5c])
-#define BLINKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d5e])
-#define BLINKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d60])
-#define PINKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d62])
-#define PINKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d64])
-#define PINKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d66])
-#define PINKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d68])
-#define PINKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d6a])
-#define PINKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d6c])
-#define INKY_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d6e])
-#define INKY_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d70])
-#define INKY_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d72])
-#define INKY_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d74])
-#define INKY_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d76])
-#define INKY_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d78])
-#define CLYDE_MOVE_PAT_NORMAL1         (*(uint16_t*)&memmap.mem[0x4d7a])
-#define CLYDE_MOVE_PAT_NORMAL2         (*(uint16_t*)&memmap.mem[0x4d7c])
-#define CLYDE_MOVE_PAT_EDIBLE1         (*(uint16_t*)&memmap.mem[0x4d7e])
-#define CLYDE_MOVE_PAT_EDIBLE2         (*(uint16_t*)&memmap.mem[0x4d80])
-#define CLYDE_MOVE_PAT_TUNNEL1         (*(uint16_t*)&memmap.mem[0x4d82])
-#define CLYDE_MOVE_PAT_TUNNEL2         (*(uint16_t*)&memmap.mem[0x4d84])
+#define PACMAN_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d46])
+#define PACMAN_MOVE_PAT_POWERUP         (*(uint32_t*)&memmap.mem[0x4d4a])
+#define PACMAN_MOVE_PAT_DIFF2           (*(uint32_t*)&memmap.mem[0x4d4e])
+#define PACMAN_MOVE_PAT_DIFF1           (*(uint32_t*)&memmap.mem[0x4d52])
+#define BLINKY_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d56])
+#define BLINKY_MOVE_PAT_EDIBLE          (*(uint32_t*)&memmap.mem[0x4d5a])
+#define BLINKY_MOVE_PAT_TUNNEL          (*(uint32_t*)&memmap.mem[0x4d5e])
+#define PINKY_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d62])
+#define PINKY_MOVE_PAT_EDIBLE          (*(uint32_t*)&memmap.mem[0x4d66])
+#define PINKY_MOVE_PAT_TUNNEL          (*(uint32_t*)&memmap.mem[0x4d6a])
+#define INKY_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d6e])
+#define INKY_MOVE_PAT_EDIBLE          (*(uint32_t*)&memmap.mem[0x4d72])
+#define INKY_MOVE_PAT_TUNNEL          (*(uint32_t*)&memmap.mem[0x4d76])
+#define CLYDE_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d7a])
+#define CLYDE_MOVE_PAT_EDIBLE          (*(uint32_t*)&memmap.mem[0x4d7e])
+#define CLYDE_MOVE_PAT_TUNNEL          (*(uint32_t*)&memmap.mem[0x4d82])
 #define DIFFICULTY_TABLE                ((uint16_t*)&memmap.mem[0x4d86])
 
 #define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94]
 #define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
 #define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
 #define BLINKY_AUX_POS                  memmap.mem[0x4d99]
-#define PINKY_AUX_POS                  memmap.mem[0x4d9a]
-#define INKY_AUX_POS                  memmap.mem[0x4d9b]
-#define CLYDE_AUX_POS                  memmap.mem[0x4d9c]
+#define PINKY_AUX_POS                   memmap.mem[0x4d9a]
+#define INKY_AUX_POS                    memmap.mem[0x4d9b]
+#define CLYDE_AUX_POS                   memmap.mem[0x4d9c]
 #define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d]
 #define EATEN_SINCE_MOVE                memmap.mem[0x4d9e]
 #define EATEN_PILLS_COUNT               memmap.mem[0x4d9f]
@@ -422,6 +406,16 @@ static inline int bcdAdjust (uint8_t *value)
     }
 
     return 0;
+}
+
+static inline void rotate8 (uint8_t *value, int count)
+{
+    *value = (*value << count) | (*value >> (8-count));
+}
+
+static inline void rotate32 (uint32_t *value, int count)
+{
+    *value = (*value << count) | (*value >> (32-count));
 }
 
 static inline void assert (bool cond, char *file, int line)

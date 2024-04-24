@@ -1,0 +1,12 @@
+FIX no animation
+FIX pinky's colour is wrong
+FIX inky goes through walls
+FIX ghosts leave house immediately
+FIX pacman mirroring and inverting doesn't work
+FIX ghosts move through walls
+FIX can't eat edible ghosts
+FIX ghosts don't revert sprite when no longer edible
+
+score doesn't update
+clyde goes too fast on powerup
+pacman gets stuck when finished dying

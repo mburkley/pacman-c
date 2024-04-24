@@ -44,14 +44,14 @@ void interruptHalt (void)
     printf ("\nsprite-co: ");
     for (int i = 0; i < 16; i++)
         printf ("%02x ", SPRITECOORDS[i]);
-    printf ("\nstates: %d %d %d %d %d %d %d %d\n",
+    printf ("\nstates: m=%d 0=%d 1=%d 2=%d l=%d s1=%d s2=%d s3=%d\n",
             MAIN_STATE, MAIN_STATE_SUB0, 
             MAIN_STATE_SUB1, MAIN_STATE_SUB2, 
             LEVEL_STATE_SUBR,
             SCENE1_STATE,
             SCENE2_STATE,
             SCENE3_STATE);
-    printf ("ghost states: %d %d %d %d\n",
+    printf ("ghost states: b=%d p=%d i=%d c=%d\n",
             BLINKY_STATE,
             PINKY_STATE,
             INKY_STATE,
