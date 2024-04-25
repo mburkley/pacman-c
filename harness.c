@@ -69,11 +69,13 @@ void reset_0000 (void);
     #if 1
     reset_0000 ();
     #else
+
+    /*  Test code to display all chars (or all sprites) on screen */
     for (int i = 0; i < 0x400; i++)
         COLOUR[i]=1;
     for (int i = 0; i < 0x400; i++)
         SCREEN[i]=i;
-    videoRefresh();
+    memcpy (&charset[0x0000], rom_pacman_5f, 0x1000);
     usleep (100000000);
     #endif
 }

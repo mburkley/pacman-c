@@ -138,6 +138,7 @@ void powerupOver_1376 (void);
 void spriteAnimationUpright_141f (void);
 void spriteAnimationCocktail_1490 (void);
 void spriteAnimation_14fe (void);
+void func_15b4 (void);
 void scene1Animation_15e6 (void);
 void scene2Animation_162d (void);
 void pacmanCheckGhostCoincidence_171d (void);
@@ -366,7 +367,7 @@ void madeByNamco_3af4 (void);
 #define MOVE_VECTOR_DOWN ((XYPOS*)(&ROM[0x3301]))
 #define MOVE_VECTOR_LEFT ((XYPOS*)(&ROM[0x3303]))
 #define MOVE_VECTOR_UP ((XYPOS*)(&ROM[0x3305]))
-#define MOVE_DATA (&ROM[0x330f])
+#define MOVE_DATA_330f (&ROM[0x330f])
 #define DATA_3435 &ROM[0x3435]
 #define DATA_35b5 (&ROM[0x35b5])
 #define DATA_3b80 (&ROM[0x3b80])
@@ -793,7 +794,8 @@ void isr_008d (void)
 
         /*  If a ghost has been eaten, then make that sprite the highest
          *  priority by swapping it with blinky.  I presume this is to ensure
-         *  "eyes" sprites don't go behind any other ghost sprites */
+         *  the points aren't hidden behind any other ghost
+         *  sprites.*/
 
         swap16 (&SPRITE_POS[2], &SPRITE_POS[KILLED_GHOST_INDEX*2]);
         swap16 (&SPRITE_DATA[2], &SPRITE_POS[KILLED_GHOST_INDEX*2 + 0x10]);
@@ -2610,15 +2612,15 @@ void setupGhostTimers_070e (int b)
     /* b = 2a */
     /* c = 8a */
     /* e = 32a + b + c */
-    /* e = 32a+8a+2a = 42a */
+    /* e = 32a+8a+2a = 42 = 0x2a*/
 
     // 0731  1600      ld      d,#00
     // 0733  210f33    ld      hl,#330f
     // 0736  19        add     hl,de
     // 0737  cd1408    call    #0814
     //-------------------------------
-    uint8_t a = ix[0] * 42;
-    uint8_t *hl = MOVE_DATA + a;
+    uint8_t a = ix[0] * 0x2a;
+    uint8_t *hl = MOVE_DATA_330f + a;
     printf ("%s movedata %d = %lx\n", __func__, a, hl-ROM);
     setupMovePat_0814(hl);
 
@@ -2739,6 +2741,9 @@ void setupMovePat_0814(uint8_t *hl)
     // 0817  011c00    ld      bc,#001c
     // 081a  edb0      ldir    
     //-------------------------------
+
+    /*  Copy move patterns for pacman (4 x 4 = 0x10) and for Blinky (3 x 4 =
+     *  0xc) */
     memcpy (&PACMAN_MOVE_PAT_NORMAL, hl, 0x1c);
 
     //-------------------------------
@@ -5076,7 +5081,7 @@ void blinkyStateDead_10c0 (void)
     // 10cc  c0        ret     nz
     //-------------------------------
     blinkyUpdatePosition_1bd8();
-    if (BLINKY_POS.y != 0x80 || BLINKY_POS.x != 0x64)
+    if (BLINKY_POS.x != 0x80 || BLINKY_POS.y != 0x64)
         return;
 
     //-------------------------------
@@ -5165,7 +5170,7 @@ void pinkyStateDead_1118 (void)
     // 1124  c0        ret     nz
     //-------------------------------
     pinkyUpdatePosition_1caf ();
-    if (PINKY_POS.y != 0x80 || PINKY_POS.x != 0x64)
+    if (PINKY_POS.x != 0x80 || PINKY_POS.y != 0x64)
         return;
 
     //-------------------------------
@@ -5239,7 +5244,7 @@ void inkyStateDead_115c (void)
     // 1166  ed52      sbc     hl,de
     // 1168  c0        ret     nz
     //-------------------------------
-    if (INKY_POS.y != 0x64 || INKY_POS.x != 0x80)
+    if (INKY_POS.x != 0x80 || INKY_POS.y != 0x64)
         return;
 
     //-------------------------------
@@ -5353,7 +5358,7 @@ void clydeStateDead_11c9 (void)
     // 11d3  ed52      sbc     hl,de
     // 11d5  c0        ret     nz
     //-------------------------------
-    if (CLYDE_POS.y != 0x64 || CLYDE_POS.x != 0x80)
+    if (CLYDE_POS.x != 0x80 || CLYDE_POS.y != 0x64)
         return;
 
     //-------------------------------
@@ -5523,7 +5528,7 @@ void showKillPoints_123f (void)
         // 1266  23        inc     hl
         // 1267  3618      ld      (hl),#18
         //-------------------------------
-        hl[1] = 0x18; // cyan ?
+        hl[1] = 0x18;
 
         //-------------------------------
         // 1269  3e00      ld      a,#00
@@ -5537,6 +5542,9 @@ void showKillPoints_123f (void)
         // 126e  f7        rst     #30
         // 126f  4a0300
         //-------------------------------
+
+        /*  Schedule a timer to advance to state 2 to allow the points to linger
+         *  on screen */
         schedISRTask (0x4a, ISRTASK_INC_KILLED_STATE, 0x00);
 
         //-------------------------------
@@ -5544,6 +5552,8 @@ void showKillPoints_123f (void)
         // 1275  34        inc     (hl)
         // 1276  c9        ret     
         //-------------------------------
+
+        /*  Advance to state 1, which just waits for state 2 */
         KILLED_STATE++;
         return;
     }
@@ -6290,96 +6300,100 @@ void spriteAnimation_14fe (void)
         // 1508  a7        and     a
         // 1509  c2b415    jp      nz,#15b4
         //-------------------------------
-        if (KILLED_GHOST_INDEX == 0)
+        if (KILLED_GHOST_INDEX != 0)
+        {
+            func_15b4 ();
+            return;
+        }
+
+        //-------------------------------
+        // 150c  211c15    ld      hl,#151c
+        // 150f  e5        push    hl
+        // 1510  3a304d    ld      a,(#4d30)
+        // 1513  e7        rst     #20
+        // 1514  8c 16 b1 16 d6 16 f7 16
+        //-------------------------------
+        void (*func[])() = 
+        {
+            selectPacmanLeftSprite_168c,
+            selectPacmanDownSprite_16b1,
+            selectPacmanRightSprite_16d6,
+            selectPacmanUpSprite_16f7
+        };
+        tableCall_0020 (func, PACMAN_ORIENTATION);
+
+        printf ("%s pac-sprite=%02x\n", __func__, PACMAN_SPRITE);
+
+        /*  TODO assume b is still 0x4e72 */
+        //-------------------------------
+        // 151c  78        ld      a,b
+        // 151d  a7        and     a
+        // 151e  282b      jr      z,#154b         ; (43)
+        //-------------------------------
+        if (COCKTAIL_MODE)
         {
             //-------------------------------
-            // 150c  211c15    ld      hl,#151c
-            // 150f  e5        push    hl
-            // 1510  3a304d    ld      a,(#4d30)
-            // 1513  e7        rst     #20
-            // 1514  8c 16 b1 16 d6 16 f7 16
+            // 1520  0ec0      ld      c,#c0
+            // 1522  3a0a4c    ld      a,(#4c0a)
+            // 1525  57        ld      d,a
+            // 1526  a1        and     c
+            // 1527  2005      jr      nz,#152e        ; (5)
             //-------------------------------
-            void (*func[])() = 
-            {
-                selectPacmanLeftSprite_168c,
-                selectPacmanDownSprite_16b1,
-                selectPacmanRightSprite_16d6,
-                selectPacmanUpSprite_16f7
-            };
-            tableCall_0020 (func, PACMAN_ORIENTATION);
-
-            printf ("%s pac-sprite=%02x\n", __func__, PACMAN_SPRITE);
-
-            /*  TODO assume b is still 0x4e72 */
-            //-------------------------------
-            // 151c  78        ld      a,b
-            // 151d  a7        and     a
-            // 151e  282b      jr      z,#154b         ; (43)
-            //-------------------------------
-            if (COCKTAIL_MODE)
+            if ((PACMAN_SPRITE & 0xc0) == 0)
             {
                 //-------------------------------
-                // 1520  0ec0      ld      c,#c0
-                // 1522  3a0a4c    ld      a,(#4c0a)
-                // 1525  57        ld      d,a
-                // 1526  a1        and     c
-                // 1527  2005      jr      nz,#152e        ; (5)
+                // 1529  7a        ld      a,d
+                // 152a  b1        or      c
+                // 152b  c34815    jp      #1548
                 //-------------------------------
-                if ((PACMAN_SPRITE & 0xc0) == 0)
+                PACMAN_SPRITE|= 0xc0;
+            }
+            else
+            {
+                //-------------------------------
+                // 152e  3a304d    ld      a,(#4d30)
+                // 1531  fe02      cp      #02
+                // 1533  2009      jr      nz,#153e        ; (9)
+                //-------------------------------
+                if (PACMAN_ORIENTATION == ORIENT_LEFT)
                 {
                     //-------------------------------
-                    // 1529  7a        ld      a,d
-                    // 152a  b1        or      c
-                    // 152b  c34815    jp      #1548
+                    // 1535  cb7a      bit     7,d
+                    // 1537  2812      jr      z,#154b         ; (18)
                     //-------------------------------
-                    PACMAN_SPRITE|= 0xc0;
-                }
-                else
-                {
-                    //-------------------------------
-                    // 152e  3a304d    ld      a,(#4d30)
-                    // 1531  fe02      cp      #02
-                    // 1533  2009      jr      nz,#153e        ; (9)
-                    //-------------------------------
-                    if (PACMAN_ORIENTATION == ORIENT_LEFT)
+                    if (PACMAN_SPRITE & 0x80)
                     {
                         //-------------------------------
-                        // 1535  cb7a      bit     7,d
-                        // 1537  2812      jr      z,#154b         ; (18)
+                        // 1539  7a        ld      a,d
+                        // 153a  a9        xor     c
+                        // 153b  c34815    jp      #1548
                         //-------------------------------
-                        if (PACMAN_SPRITE & 0x80)
-                        {
-                            //-------------------------------
-                            // 1539  7a        ld      a,d
-                            // 153a  a9        xor     c
-                            // 153b  c34815    jp      #1548
-                            //-------------------------------
-                            PACMAN_SPRITE ^= 0xc0;
-                        }
+                        PACMAN_SPRITE ^= 0xc0;
                     }
+                }
+                //-------------------------------
+                // 153e  fe03      cp      #03
+                // 1540  2009      jr      nz,#154b        ; (9)
+                //-------------------------------
+                else if (PACMAN_ORIENTATION == ORIENT_UP)
+                {
                     //-------------------------------
-                    // 153e  fe03      cp      #03
-                    // 1540  2009      jr      nz,#154b        ; (9)
+                    // 1542  cb72      bit     6,d
+                    // 1544  2805      jr      z,#154b         ; (5)
                     //-------------------------------
-                    else if (PACMAN_ORIENTATION == ORIENT_UP)
+                    if ((PACMAN_SPRITE & 0x40) != 0)
                     {
                         //-------------------------------
-                        // 1542  cb72      bit     6,d
-                        // 1544  2805      jr      z,#154b         ; (5)
+                        // 1546  7a        ld      a,d
+                        // 1547  a9        xor     c
+                        // 1548  320a4c    ld      (#4c0a),a
                         //-------------------------------
-                        if ((PACMAN_SPRITE & 0x40) != 0)
-                        {
-                            //-------------------------------
-                            // 1546  7a        ld      a,d
-                            // 1547  a9        xor     c
-                            // 1548  320a4c    ld      (#4c0a),a
-                            //-------------------------------
-                            PACMAN_SPRITE ^= 0xc0;
-                        }
+                        PACMAN_SPRITE ^= 0xc0;
                     }
                 }
             }
         }
+
         //-------------------------------
         // 154b  21c04d    ld      hl,#4dc0
         // 154e  56        ld      d,(hl)
@@ -6390,6 +6404,13 @@ void spriteAnimation_14fe (void)
         // 1558  dd7706    ld      (ix+#06),a
         // 155b  dd7708    ld      (ix+#08),a
         //-------------------------------
+
+        /*  TODO this is invoked every time.  It sets the sprites to be
+         *  frightened.  BUT why does it set them when in the killed state when
+         *  the points have been set as the sprite?  NOTE it doesn't change the
+         *  eyes sprite?  eyes is probably the same sprite with a colour to make
+         *  only the eyes visible 
+         */
         BLINKY_SPRITE = 
         PINKY_SPRITE = 
         INKY_SPRITE = 
@@ -6415,6 +6436,8 @@ void spriteAnimation_14fe (void)
             //-------------------------------
             BLINKY_SPRITE = BLINKY_ORIENTATION * 2 + GHOST_ANIMATION + 0x20;
         }
+
+        printf ("%s BLINKY sprite=%2x\n", __func__, BLINKY_SPRITE);
 
         //-------------------------------
         // 1575  3aad4d    ld      a,(#4dad)
@@ -6477,6 +6500,11 @@ void spriteAnimation_14fe (void)
         }
     }
 
+    func_15b4 ();
+}
+
+void func_15b4 (void)
+{
     //-------------------------------
     // 15b4  cde615    call    #15e6
     // 15b7  cd2d16    call    #162d
@@ -7058,7 +7086,6 @@ void pacmanGhostCoincide_1763 (int b)
     //-------------------------------
     KILLED_GHOST_INDEX = 
     PAC_DEAD_ANIM_STATE = b;
-
     //-------------------------------
     // 176a  a7        and     a
     // 176b  c8        ret     z
@@ -11964,6 +11991,7 @@ void clydeScatterOrChase_27f1 (int param)
         findBestOrientation_2966(CLYDE_TILE, PACMAN_TILE2, &CLYDE_ORIENTATION);
 }
 
+/*  Send blinky home if he is dead otherwise make him move randomly */
 void homeOrRandomBlinky_283b ()
 {
     //-------------------------------
@@ -11971,7 +11999,7 @@ void homeOrRandomBlinky_283b ()
     // 283e  a7        and     a
     // 283f  ca5528    jp      z,#2855
     //-------------------------------
-    if (BLINKY_STATE)
+    if (BLINKY_STATE != GHOST_STATE_ALIVE)
     {
         //-------------------------------
         // 2842  112c2e    ld      de,#2e2c
@@ -15465,13 +15493,29 @@ void delay_32ed (void)
     // 330b  0001    // LEFT
     // 330d  ff00    // UP
 
-    /*  TODO Table of move data.  Not sure yet how it works.  Looks like 6 entries
-     *  with 2a bytes in each?  Last one is incomplete though? */
+    /*  Table of move data.  Arranged as 6 x 42 (0x2a) groups.
+     *
+     *  The first 0x1c values are grouped as 32-bit values that are put
+     *  through a shift register to control speed of movement.  So for example
+     *  55555555 is move at half-speed, skipping a move every second frame.
+     *
+     *  Pacman has 4 move registers (normal, poweredup, difficulty1 and
+     *  difficulty2) while ghosts have 3 (normal, edible and tunnel) */
 
-    // 330f                                                55
-    // 3310  2a 55 2a 55 55 55 55 55  2a 55 2a 52 4a a5 94 25
-    // 3320  25 25 25 22 22 22 22 01  01 01 01 58 02 08 07 60
+    // 330f  55 2a 55 2a // pacman normal - 14 of 32 = 44%
+    //       55 55 55 55 // pacman powered - 16 of 32 = 50%
+    //       55 2a 55 2a // difficulty2 - 14 if 32 = 44%
+    //       52 4a a5 94 // difficulty1 - 13 of 32 = 41%
+    //       25 25 25 25 // ghost normal - 12 of 32 = 37.5%
+    //       22 22 22 22 // ghost edible - 8 of 32 = 25%
+    //       01 01 01 01 // ghost tunnel - 4 of 32 = 12.5%
+
+    /*  Difficulty table - 0xe bytes */
+
+    //       58 02 08 07 60
     // 3330  09 10 0e 68 10 70 17 14  19
+
+    /*  Next move pattern */
 
     // 3339                              52 4a a5 94 aa 2a 55
     // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22
@@ -15492,9 +15536,11 @@ void delay_32ed (void)
     // 33f0  6d d6 5a ad b5 25 25 25  25 92 24 92 24 2c 01 dc
     // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff
 
-    // 340b                                    d5 6a d5 6a d5
+    // 340b  d5 6a d5 6a // pacman normal - 18 of 32 = 56%
+    // 340f  d5
+
     // 3410  6a d5 6a b6 6d 6d db 
-    // 3417                       6d  6d 6d 6d d6 5a ad b5 48
+    // 3417  6d 6d 6d 6d d6 5a ad b5 48
     // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
     // 3430  0c fe ff ff ff
 

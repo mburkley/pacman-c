@@ -107,3 +107,8 @@
 #define MAIN_STATE_CREDIT       2
 #define MAIN_STATE_PLAY         3
 
+/* sprites:
+
+   ghost = 0x1c / 0x1d = frightened
+           0x22 - 0x27 = normal, 4 directions, 2 animations
+*/
