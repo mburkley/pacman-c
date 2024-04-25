@@ -76,13 +76,19 @@ static void kbdReopen (void)
     }
 }
 
-static void decodeEvent (struct input_event ev)
+static void decodeEvent (struct input_event ev, bool *paused)
 {
     int i;
     bool mapped = false;
 
     if (ev.type == EV_KEY && ev.value < 2)
     {
+        if (ev.code == 25 && ev.value != 0)
+        {
+            *paused = !*paused;
+            return;
+        }
+
         for (i = 0; i < NUM_KEY; i++)
             if (keyCode[i].code == ev.code)
             {
@@ -172,7 +178,7 @@ void kbdFindInputDevice (void)
     }
 }
 
-void kbdPoll (void)
+void kbdPoll (bool *paused)
 {
     struct input_event ev;
     struct pollfd pfds[2];
@@ -208,7 +214,7 @@ void kbdPoll (void)
         return;
     }
 
-    decodeEvent (ev);
+    decodeEvent (ev, paused);
 }
 
 void kbdClose (void)

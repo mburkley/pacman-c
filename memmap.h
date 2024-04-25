@@ -191,7 +191,7 @@ extern uint8_t dipSwitches;
 #define PINKY_TILE      (*(XYPOS*)(&memmap.mem[0x4d0c]))
 #define INKY_TILE       (*(XYPOS*)(&memmap.mem[0x4d0e]))
 #define CLYDE_TILE      (*(XYPOS*)(&memmap.mem[0x4d10]))
-#define PACMAN_DEMO_TILE     (*(XYPOS*)(&memmap.mem[0x4d12]))
+#define PACMAN_TILE     (*(XYPOS*)(&memmap.mem[0x4d12]))
 
 #define BLINKY_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d14]))
 #define PINKY_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d16]))
@@ -221,7 +221,7 @@ extern uint8_t dipSwitches;
 #define PINKY_TILE2  (*(XYPOS*)(&memmap.mem[0x4d33]))
 #define INKY_TILE2   (*(XYPOS*)(&memmap.mem[0x4d35]))
 #define CLYDE_TILE2  (*(XYPOS*)(&memmap.mem[0x4d37]))
-#define PACMAN_DEMO_TILE2 (*(XYPOS*)(&memmap.mem[0x4d39]))
+#define PACMAN_TILE2 (*(XYPOS*)(&memmap.mem[0x4d39]))
 
 #define BEST_ORIENTATION_FOUND memmap.mem[0x4d3b]
 #define PACMAN_DESIRED_ORIENTATION      memmap.mem[0x4d3c]
@@ -283,8 +283,8 @@ extern uint8_t dipSwitches;
 #define INKY_ORIENT_CHG_FLAG            memmap.mem[0x4db3]
 #define CLYDE_ORIENT_CHG_FLAG           memmap.mem[0x4db4]
 #define PACMAN_ORIENT_CHG_FLAG          memmap.mem[0x4db5]
-#define DIFF_FLAG_1                     memmap.mem[0x4db6]
-#define DIFF_FLAG_2                     memmap.mem[0x4db7]
+#define DIFF_FLAG_1                     memmap.mem[0x4db6] // Blinky chases even in scatter mode?
+#define DIFF_FLAG_2                     memmap.mem[0x4db7] // Cruise elroy mode?
 #define PINKY_LEAVE_HOME_COUNTER        memmap.mem[0x4db8]
 #define INKY_LEAVE_HOME_COUNTER         memmap.mem[0x4db9]
 #define CLYDE_LEAVE_HOME_COUNTER        memmap.mem[0x4dba]
@@ -314,7 +314,7 @@ extern uint8_t dipSwitches;
 
 #define MAIN_STATE                      memmap.mem[0x4e00]
 #define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
-#define MAIN_STATE_SUB1                 memmap.mem[0x4e02]
+#define INTRO_STATE                     memmap.mem[0x4e02]
 #define MAIN_STATE_SUB2                 memmap.mem[0x4e03]
 #define LEVEL_STATE_SUBR                memmap.mem[0x4e04]
 #define SCENE1_STATE                    memmap.mem[0x4e06]

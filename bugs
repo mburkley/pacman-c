@@ -7,15 +7,17 @@ FIX ghosts move through walls
 FIX can't eat edible ghosts
 FIX ghosts don't revert sprite when no longer edible
 FIX score doesn't update
+FIX intro pinky turns down instead of continuing straight
+FIX pacman gets stuck when finished dying
+FIX final pacman dead graphic wrong
 
 highscore doesn't follow score
 clyde goes too fast on powerup
-pacman gets stuck when finished dying
 eyes don't go home
 eat fruit says bad rom
 first fruit strawberry wrong colour
-ready doesn't go away
-intro pinky turns down instead of continuing straight
+ready/game over doesn't go away
 demo pacman doesn't stay within walls
 scores for eating ghosts are gone again
-
+remaining lives graphic is wrong
+pacman stays big after scene1

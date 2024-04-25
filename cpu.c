@@ -46,18 +46,19 @@ void interruptMode (int mode)
 {
 }
 
+static bool paused;
 /*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
     usleep(20000);
     static bool inInterrupt;
-    if (!inInterrupt && intVector)
+    if (!inInterrupt && !paused && intVector)
     {
         inInterrupt = true;
         intVector();
     }
     inInterrupt = false;
-    kbdPoll();
+    kbdPoll(&paused);
 
     printf ("sprite-at: ");
     for (int i = 0; i < 16; i++)
@@ -65,9 +66,9 @@ void interruptHalt (void)
     printf ("\nsprite-co: ");
     for (int i = 0; i < 16; i++)
         printf ("%02x ", SPRITECOORDS[i]);
-    printf ("\nstates: m=%d 0=%d 1=%d 2=%d l=%d s1=%d s2=%d s3=%d\n",
+    printf ("\nstates: main=%d 0=%d intro=%d 2=%d l=%d s1=%d s2=%d s3=%d\n",
             MAIN_STATE, MAIN_STATE_SUB0, 
-            MAIN_STATE_SUB1, MAIN_STATE_SUB2, 
+            INTRO_STATE, MAIN_STATE_SUB2, 
             LEVEL_STATE_SUBR,
             SCENE1_STATE,
             SCENE2_STATE,
@@ -83,8 +84,8 @@ void interruptHalt (void)
             INKY_SUBSTATE,
             CLYDE_SUBSTATE);
     printf ("pacman-tile %d,%d blinky-tile %d,%d\n",
-            PACMAN_DEMO_TILE2.x,
-            PACMAN_DEMO_TILE2.y,
+            PACMAN_TILE2.x,
+            PACMAN_TILE2.y,
             BLINKY_TILE2.x,
             BLINKY_TILE2.y);
     printf ("\n\n=====\n");

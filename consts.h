@@ -23,7 +23,7 @@
  */
 #define ISRTASK_INC_LEVEL_STATE        0
 #define ISRTASK_INC_MAIN_SUB2        1
-#define ISRTASK_INC_MAIN_SUB1        2
+#define ISRTASK_INC_INTRO_STATE        2
 #define ISRTASK_INC_KILLED_STATE        3
 #define ISRTASK_RESET_FRUIT     4
 #define ISRTASK_DISPLAY_READY         6
@@ -53,7 +53,7 @@
 #define TASK_CLEAR_PILLS_SCREEN         0x13
 #define TASK_CONFIGURE_GAME             0x14
 #define TASK_UPDATE_PILLS               0x15
-#define TASK_PACMAN_DEMO_ORIENT         0x17
+#define TASK_PACMAN_ORIENT              0x17
 #define TASK_CLEAR_SCORES               0x18
 #define TASK_ADD_TO_SCORE               0x19
 #define TASK_FRUIT_HISTORY              0x1b
@@ -81,8 +81,10 @@
 #define CHAR_SPACE      0x40
 #define CHAR_MAZE_MASK  0xc0  // Maze characters are 0xc0-0xff
 
-#define GHOST_ALIVE     0
-#define GHOST_DEAD      1
+#define GHOST_STATE_ALIVE               0
+#define GHOST_STATE_DEAD                1 // eyes?
+#define GHOST_STATE_ENTER_HOME          2
+#define GHOST_STATE_HOME_MOVE           3 // move left (inky) or right (clyde)
 
 #define GHOST_BLINKY    1
 #define GHOST_PINKY     2
@@ -99,3 +101,9 @@
 
 #define STATE_AT_HOME           0
 #define STATE_LEAVING_HOME      2
+
+#define MAIN_STATE_INIT         0
+#define MAIN_STATE_DEMO         1
+#define MAIN_STATE_CREDIT       2
+#define MAIN_STATE_PLAY         3
+
