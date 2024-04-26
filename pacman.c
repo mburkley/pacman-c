@@ -144,7 +144,7 @@ void scene2Animation_162d (void);
 void pacmanCheckGhostCoincidence_171d (void);
 void pacmanGhostCoincide_1763 (int b);
 void pacmanCheckEatGhost_1789 (void);
-void pacmanUpdateVector_1806 (void);
+void pacmanVectorFromJoystick_1806 (void);
 void pacmanCheckMoveClear_18e4 (int b);
 void pacmanUpdatePos_1985(XYPOS pos);
 void pacmanMoveTile_1a19 (void);
@@ -160,7 +160,7 @@ void pinkyCheckReverse_1f25 (void);
 void inkyCheckReverse_1f4c (void);
 void clydeCheckReverse_1f73 (void);
 uint16_t getScreenOffset_202d (XYPOS hl);
-void func_205a(XYPOS pos, uint8_t *aux);
+void checkGhostEnterTunnel_205a (XYPOS pos, uint8_t *aux);
 void inkyCheckLeaveHome_208c (void);
 void clydeCheckLeaveHome_20af (void);
 void scene1StateMachine_2108 (void);
@@ -1872,7 +1872,7 @@ void introducePoints_04d8 (void)
     // 04d8  ef        rst     #28
     // 04d9  1c11
     //-------------------------------
-    schedTask (TASK_DISPLAY_MSG, 0x11); // 10 Pts
+    schedTask (TASK_DISPLAY_MSG, MSG_10PTS);
 
     //-------------------------------
     //       0e12      ld      c,0x12
@@ -2178,7 +2178,7 @@ XYPOS pacmanReverse_05a5 (void)
     // 05be  c9        ret     
     //-------------------------------
     vector = MOVE_VECTOR_DATA[PACMAN_DESIRED_ORIENTATION];
-    PACMAN_TILE_CHANGE2 = vector;
+    PACMAN_VECTOR2 = vector;
     return vector;
 }
 
@@ -2292,8 +2292,8 @@ void func_05f3 (void)
     //-------------------------------
     schedTask (TASK_CLEAR_SCREEN, 0x01);
     schedTask (TASK_MAZE_COLOURS, 0x00);
-    schedTask (TASK_DISPLAY_MSG, 0x07);  // push start
-    schedTask (TASK_DISPLAY_MSG, 0x0b);  // (c) midway
+    schedTask (TASK_DISPLAY_MSG, MSG_PUSHSTART);
+    schedTask (TASK_DISPLAY_MSG, MSG_COPYRIGHT);
     schedTask (TASK_RESET_POSITIONS, 0x00);
 
     //-------------------------------
@@ -2320,7 +2320,7 @@ void func_05f3 (void)
     // 0618  1f00
     // 061a  c9        ret     
     //-------------------------------
-    schedTask (TASK_DISPLAY_MSG, 0x0a); // bonus pacman
+    schedTask (TASK_DISPLAY_MSG, MSG_BONUS_PACMAN);
     schedTask (TASK_SHOW_BONUS_LIFE_SCORE, 0x00);
 }
 
@@ -2341,9 +2341,9 @@ void checkStartButtons (void)
     // 0629  cd5e2c    call    #2c5e
     //-------------------------------
     if (CREDITS == 1)
-        displayMsg_2c5e (8);     // 1 player only
+        displayMsg_2c5e (MSG_ONEPLAYER);
     else
-        displayMsg_2c5e (9);     // 1 or 2 players
+        displayMsg_2c5e (MSG_ONEORTWOPLAYER);
 
     //-------------------------------
     // 062c  3a6e4e    ld      a,(#4e6e)
@@ -3583,7 +3583,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
                 // 0af5  2004      jr      nz,#0afb        ; (4)
                 //-------------------------------
                 SND_CH2_EFF_NUM|= 0x80;
-                if (PACMAN_COLOUR ==9)
+                if (PACMAN_COLOUR == 9)
                 {
                     //-------------------------------
                     // 0af7  cbbe      res     7,(hl)
@@ -4076,8 +4076,8 @@ void ghostsLeaveHouse_0c42 (void)
             // 0c7d  22144d    ld      (#4d14),hl
             // 0c80  221e4d    ld      (#4d1e),hl
             //-------------------------------
-            BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
-            BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
+            BLINKY_VECTOR.y = BLINKY_VECTOR2.y = 0x00;
+            BLINKY_VECTOR.x = BLINKY_VECTOR2.x = 0x01;
 
             //-------------------------------
             // 0c83  3e02      ld      a,#02
@@ -4135,7 +4135,7 @@ void ghostsLeaveHouse_0c42 (void)
             // 0cbb  22024d    ld      (#4d02),hl
             // 0cbe  c3fb0c    jp      #0cfb
             //-------------------------------
-            PINKY_POS = addXYOffset_2000 (PINKY_TILE_CHANGE2, PINKY_POS);
+            PINKY_POS = addXYOffset_2000 (PINKY_VECTOR2, PINKY_POS);
         }
         else
         {
@@ -4173,8 +4173,8 @@ void ghostsLeaveHouse_0c42 (void)
                 // 0ce8  22164d    ld      (#4d16),hl
                 // 0ceb  22204d    ld      (#4d20),hl
                 //-------------------------------
-                PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x00;
-                PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x01;
+                PINKY_VECTOR.y = PINKY_VECTOR2.y = 0x00;
+                PINKY_VECTOR.x = PINKY_VECTOR2.x = 0x01;
 
                 //-------------------------------
                 // 0cee  3e02      ld      a,#02
@@ -4230,9 +4230,9 @@ void ghostsLeaveHouse_0c42 (void)
             // 0d26  22044d    ld      (#4d04),hl
             //-------------------------------
             // printf ("%s inky tile-ch=%d,%d\n", __func__,
-            // INKY_TILE_CHANGE2.x,INKY_TILE_CHANGE2.y);
+            // INKY_VECTOR2.x,INKY_VECTOR2.y);
 
-            INKY_POS = addXYOffset_2000 (INKY_TILE_CHANGE2, INKY_POS);
+            INKY_POS = addXYOffset_2000 (INKY_VECTOR2, INKY_POS);
 
             //-------------------------------
             // 0d29  c3930d    jp      #0d93
@@ -4313,8 +4313,8 @@ void ghostsLeaveHouse_0c42 (void)
                     // 0d80  22184d    ld      (#4d18),hl
                     // 0d83  22224d    ld      (#4d22),hl
                     //-------------------------------
-                    INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0x00;
-                    INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x01;
+                    INKY_VECTOR.y = INKY_VECTOR2.y = 0x00;
+                    INKY_VECTOR.x = INKY_VECTOR2.x = 0x01;
 
                     //-------------------------------
                     // 0d86  3e02      ld      a,#02
@@ -4369,7 +4369,7 @@ void ghostsLeaveHouse_0c42 (void)
         // 0dbc  22064d    ld      (#4d06),hl
         // 0dbf  c9        ret     
         //-------------------------------
-        CLYDE_POS = addXYOffset_2000 (CLYDE_TILE_CHANGE2, CLYDE_POS);
+        CLYDE_POS = addXYOffset_2000 (CLYDE_VECTOR2, CLYDE_POS);
         return;
     }
     //-------------------------------
@@ -4446,8 +4446,8 @@ void ghostsLeaveHouse_0c42 (void)
     // 0e0f  221a4d    ld      (#4d1a),hl
     // 0e12  22244d    ld      (#4d24),hl
     //-------------------------------
-    CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0x00;
-    CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x01;
+    CLYDE_VECTOR.y = CLYDE_VECTOR2.y = 0x00;
+    CLYDE_VECTOR.x = CLYDE_VECTOR2.x = 0x01;
 
     //-------------------------------
     // 0e15  3e02      ld      a,#02
@@ -4821,7 +4821,7 @@ void func_100b (void)
     // 100b  ef        rst     #28
     // 100c  1c9b
     //-------------------------------
-    schedTask (TASK_DISPLAY_MSG, 0x9b);
+    schedTask (TASK_DISPLAY_MSG, 0x80 | MSG_100PTS);
 
     //-------------------------------
     // 100e  3a004e    ld      a,(#4e00)
@@ -4836,7 +4836,7 @@ void func_100b (void)
     // 1014  1ca2
     // 1016  c9        ret     
     //-------------------------------
-    schedTask (TASK_DISPLAY_MSG, 0xa2);
+    schedTask (TASK_DISPLAY_MSG, 0x80 | MSG_5000PTS);
 }
 
 void func_1017 (void)
@@ -4903,7 +4903,7 @@ void func_1017 (void)
     // 104d  cd221d    call    #1d22
     // 1050  cdf91d    call    #1df9
     //-------------------------------
-    pacmanUpdateVector_1806();
+    pacmanVectorFromJoystick_1806();
     blinkyUpdateMovePat_1b36();
     pinkyUpdateMovePat_1c4b();
     inkyUpdateMovePat_1d22();
@@ -7263,7 +7263,7 @@ return;
     pacmanGhostCoincide_1763 (0);
 }
 
-void pacmanUpdateVector_1806 (void)
+void pacmanVectorFromJoystick_1806 (void)
 {
     printf ("%s\n", __func__);
     //-------------------------------
@@ -7272,7 +7272,7 @@ void pacmanUpdateVector_1806 (void)
     // 180b  be        cp      (hl)
     // 180c  ca1118    jp      z,#1811
     //-------------------------------
-    if (PACMAN_MOVE_DELAY!= 0xff)
+    if (PACMAN_MOVE_DELAY != 0xff)
     {
         //-------------------------------
         // 180f  35        dec     (hl)
@@ -7389,28 +7389,28 @@ void pacmanUpdateVector_1806 (void)
         // 187a  a7        and     a
         // 187b  2806      jr      z,#1883         ; (6)
         //-------------------------------
-        int a;
+        int input;
         if (inverted)
         {
             //-------------------------------
             // 187d  3a4050    ld      a,(#5040)
             // 1880  c38618    jp      #1886
             //-------------------------------
-            a = IO_INPUT1;
+            input = IO_INPUT1;
         }
         else
         {
             //-------------------------------
             // 1883  3a0050    ld      a,(#5000)
             //-------------------------------
-            a = IO_INPUT0;
+            input = IO_INPUT0;
         }
         //-------------------------------
         // 1886  cb4f      bit     1,a
         // 1888  c29918    jp      nz,#1899
         //-------------------------------
 
-        if (~a & INPUT_LEFT)
+        if (~input & INPUT_LEFT)
         {
             //-------------------------------
             // 188b  2a0333    ld      hl,(#3303)
@@ -7419,7 +7419,7 @@ void pacmanUpdateVector_1806 (void)
             // 1893  221c4d    ld      (#4d1c),hl
             //-------------------------------
             PACMAN_ORIENTATION = ORIENT_LEFT;
-            PACMAN_TILE_CHANGE = *MOVE_VECTOR_LEFT;
+            PACMAN_VECTOR = *MOVE_VECTOR_LEFT;
 
             //-------------------------------
             // 1896  c35019    jp      #1950
@@ -7432,7 +7432,7 @@ void pacmanUpdateVector_1806 (void)
         // 1899  cb57      bit     2,a
         // 189b  c25019    jp      nz,#1950
         //-------------------------------
-        else if (~a & INPUT_RIGHT)
+        else if (~input & INPUT_RIGHT)
         {
             //-------------------------------
             // 189e  2aff32    ld      hl,(#32ff)
@@ -7441,7 +7441,7 @@ void pacmanUpdateVector_1806 (void)
             // 18a5  221c4d    ld      (#4d1c),hl
             //-------------------------------
             PACMAN_ORIENTATION = ORIENT_RIGHT;
-            PACMAN_TILE_CHANGE = *MOVE_VECTOR_RIGHT;
+            PACMAN_VECTOR = *MOVE_VECTOR_RIGHT;
 
             //-------------------------------
             // 18a8  c35019    jp      #1950
@@ -7478,28 +7478,28 @@ void pacmanUpdateVector_1806 (void)
     // 18bc  a7        and     a
     // 18bd  2806      jr      z,#18c5         ; (6)
     //-------------------------------
-    int a;
+    int input;
     if (inverted)
     {
         //-------------------------------
         // 18bf  3a4050    ld      a,(#5040)
         // 18c2  c3c818    jp      #18c8
         //-------------------------------
-        a = IO_INPUT1;
+        input = IO_INPUT1;
     }
     else
     {
         //-------------------------------
         // 18c5  3a0050    ld      a,(#5000)
         //-------------------------------
-        a = IO_INPUT0;
+        input = IO_INPUT0;
     }
 
     //-------------------------------
     // 18c8  cb4f      bit     1,a
     // 18ca  cac91a    jp      z,#1ac9
     //-------------------------------
-    if (~a & INPUT_LEFT)
+    if (~input & INPUT_LEFT)
     {
         pacmanOrientLeft_1ac9();
         return;
@@ -7509,7 +7509,7 @@ void pacmanUpdateVector_1806 (void)
     // 18cd  cb57      bit     2,a
     // 18cf  cad91a    jp      z,#1ad9
     //-------------------------------
-    if (~a & INPUT_RIGHT)
+    if (~input & INPUT_RIGHT)
     {
         pacmanOrientRight_1ad9();
         return;
@@ -7519,7 +7519,7 @@ void pacmanUpdateVector_1806 (void)
     // 18d2  cb47      bit     0,a
     // 18d4  cae81a    jp      z,#1ae8
     //-------------------------------
-    if (~a & INPUT_UP)
+    if (~input & INPUT_UP)
     {
         pacmanOrientUp_1ae8();
         return;
@@ -7529,7 +7529,7 @@ void pacmanUpdateVector_1806 (void)
     // 18d7  cb5f      bit     3,a
     // 18d9  caf81a    jp      z,#1af8
     //-------------------------------
-    if (~a & INPUT_DOWN)
+    if (~input & INPUT_DOWN)
     {
         pacmanOrientDown_1af8();
         return;
@@ -7540,19 +7540,19 @@ void pacmanUpdateVector_1806 (void)
     // 18df  22264d    ld      (#4d26),hl
     // 18e2  0601      ld      b,#01
     //-------------------------------
-    PACMAN_TILE_CHANGE2 = PACMAN_TILE_CHANGE;
-    pacmanCheckMoveClear_18e4(1);
+    PACMAN_VECTOR2 = PACMAN_VECTOR;
+    pacmanCheckMoveClear_18e4 (1);
 }
 
 void pacmanCheckMoveClear_18e4 (int b)
 {
-    // printf ("%s\n", __func__);
+    printf ("%s\n", __func__);
     //-------------------------------
     // 18e4  dd21264d  ld      ix,#4d26
     // 18e8  fd21394d  ld      iy,#4d39
     // 18ec  cd0f20    call    #200f
     //-------------------------------
-    int a = getScreenCharPosOffset_200f(PACMAN_TILE_CHANGE2, PACMAN_TILE2);
+    int a = getScreenCharPosOffset_200f (PACMAN_VECTOR2, PACMAN_TILE2);
 
     //-------------------------------
     // 18ef  e6c0      and     #c0
@@ -7577,7 +7577,7 @@ void pacmanCheckMoveClear_18e4 (int b)
         // 18fc  0f        rrca    
         // 18fd  da0b19    jp      c,#190b
         //-------------------------------
-        if ((PACMAN_ORIENTATION & 0x01) == 0)
+        if ((PACMAN_ORIENTATION & ORIENT_VERTICAL) == 0)
         {
             //-------------------------------
             // 1900  3a094d    ld      a,(#4d09)
@@ -7623,7 +7623,7 @@ void pacmanCheckMoveClear_18e4 (int b)
     // 1916  dd211c4d  ld      ix,#4d1c
     // 191a  cd0f20    call    #200f
     //-------------------------------
-    a = getScreenCharPosOffset_200f(PACMAN_TILE_CHANGE, PACMAN_TILE2);
+    a = getScreenCharPosOffset_200f (PACMAN_VECTOR, PACMAN_TILE2);
 
     //-------------------------------
     // 191d  e6c0      and     #c0
@@ -7641,7 +7641,7 @@ void pacmanCheckMoveClear_18e4 (int b)
     // 1926  0f        rrca    
     // 1927  da3519    jp      c,#1935
     //-------------------------------
-    if ((PACMAN_ORIENTATION & 0x01) == 0)
+    if ((PACMAN_ORIENTATION & ORIENT_VERTICAL) == 0)
     {
         //-------------------------------
         // 192a  3a094d    ld      a,(#4d09)
@@ -7685,7 +7685,7 @@ void pacmanHitMazeWall_1940 (int b)
     // 194a  3a3c4d    ld      a,(#4d3c)
     // 194d  32304d    ld      (#4d30),a
     //-------------------------------
-    PACMAN_TILE_CHANGE = PACMAN_TILE_CHANGE2;
+    PACMAN_VECTOR = PACMAN_VECTOR2;
 
     if (b != 1)
         PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
@@ -7695,20 +7695,24 @@ void pacmanHitMazeWall_1940 (int b)
 
 void pacmanMove_1950 (void)
 {
-    // printf ("%s\n", __func__);
+    printf ("%s\n", __func__);
     //-------------------------------
     // 1950  dd211c4d  ld      ix,#4d1c
     // 1954  fd21084d  ld      iy,#4d08
     // 1958  cd0020    call    #2000
     //-------------------------------
-    XYPOS pacmanXY = addXYOffset_2000 (PACMAN_TILE_CHANGE, PACMAN_POS);
+    XYPOS pacmanXY = addXYOffset_2000 (PACMAN_VECTOR, PACMAN_POS);
 
     //-------------------------------
     // 195b  3a304d    ld      a,(#4d30)
     // 195e  0f        rrca    
     // 195f  da7519    jp      c,#1975
     //-------------------------------
-    if ((PACMAN_ORIENTATION & 0x01) == 0)
+    printf ("%s xy=%d,%d, &7=%d,%d\n", __func__,
+            pacmanXY.x,pacmanXY.y,
+            pacmanXY.x&7,pacmanXY.y&7);
+
+    if ((PACMAN_ORIENTATION & ORIENT_VERTICAL) == 0)
     {
         //-------------------------------
         // 1962  7d        ld      a,l
@@ -7760,15 +7764,14 @@ void pacmanMove_1950 (void)
 /*  Pass in pacman XY pixel coords in hl */
 void pacmanUpdatePos_1985 (XYPOS pos)
 {
-    // printf ("%s\n", __func__);
+    printf ("%s\n", __func__);
     //-------------------------------
     // 1985  22084d    ld      (#4d08),hl
     // 1988  cd1820    call    #2018
     // 198b  22394d    ld      (#4d39),hl
     //-------------------------------
     PACMAN_POS = pos;
-    pos = pixelToTile_2018(pos);
-    PACMAN_TILE2 = pos;
+    PACMAN_TILE2 = pixelToTile_2018 (pos);
     // printf ("%s %d,%d -> %d,%d\n", __func__, PACMAN_POS.x,PACMAN_POS.y,pos.x,pos.y);
 
     //-------------------------------
@@ -7847,7 +7850,7 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     // 19d5  cd6500    call    #0065
     //-------------------------------
     PACMAN_MOVE_DELAY = 0xff;
-    uint16_t addr = getScreenOffset_0065(PACMAN_TILE2);
+    uint16_t addr = getScreenOffset_0065 (PACMAN_TILE2);
 
     //-------------------------------
     // 19d8  7e        ld      a,(hl)
@@ -7856,7 +7859,7 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     // 19dd  fe14      cp      #14
     // 19df  c0        ret     nz
     //-------------------------------
-    if(SCREEN[addr] != CHAR_PILL && SCREEN[addr] != CHAR_POWERUP)
+    if (SCREEN[addr] != CHAR_PILL && SCREEN[addr] != CHAR_POWERUP)
         return;
 
     //-------------------------------
@@ -7941,13 +7944,14 @@ void pacmanUpdatePos_1985 (XYPOS pos)
 
 void pacmanMoveTile_1a19 (void)
 {
+    printf ("%s pos=%d,%d\n", __func__, PACMAN_POS.x, PACMAN_POS.y);
     //-------------------------------
     // 1a19  211c4d    ld      hl,#4d1c
     // 1a1c  7e        ld      a,(hl)
     // 1a1d  a7        and     a
     // 1a1e  ca2e1a    jp      z,#1a2e
     //-------------------------------
-    if (PACMAN_TILE_CHANGE.y != 0)
+    if (PACMAN_VECTOR.y != 0)
     {
         //-------------------------------
         // 1a21  3a084d    ld      a,(#4d08)
@@ -7990,7 +7994,7 @@ void pacmanMoveTile_1a19 (void)
         // 1a3f  ef        rst     #28
         // 1a40  1700
         //-------------------------------
-        schedTask (TASK_PACMAN_ORIENT, ORIENT_RIGHT);
+        schedTask (TASK_PACMAN_ORIENT, 0);
     }
 
     //-------------------------------
@@ -7999,7 +8003,7 @@ void pacmanMoveTile_1a19 (void)
     // 1a4a  cd0020    call    #2000
     // 1a4d  22124d    ld      (#4d12),hl
     //-------------------------------
-    PACMAN_TILE = addXYOffset_2000 (PACMAN_TILE_CHANGE, PACMAN_TILE);
+    PACMAN_TILE = addXYOffset_2000 (PACMAN_VECTOR2, PACMAN_TILE);
 
     //-------------------------------
     // 1a50  2a264d    ld      hl,(#4d26)
@@ -8007,13 +8011,13 @@ void pacmanMoveTile_1a19 (void)
     //-------------------------------
     // printf ("%s tile change %d,%d -> %d,%d\n",
     //         __func__,
-    //         PACMAN_TILE_CHANGE2.x, PACMAN_TILE_CHANGE2.y,
-    //         PACMAN_TILE_CHANGE.x, PACMAN_TILE_CHANGE.y);
-    PACMAN_TILE_CHANGE = PACMAN_TILE_CHANGE2;
+    //         PACMAN_VECTOR2.x, PACMAN_VECTOR2.y,
+    //         PACMAN_VECTOR.x, PACMAN_VECTOR.y);
+    PACMAN_VECTOR = PACMAN_VECTOR2;
     // printf ("%s tile change %d,%d -> %d,%d\n",
     //         __func__,
-    //         PACMAN_TILE_CHANGE2.x, PACMAN_TILE_CHANGE2.y,
-    //         PACMAN_TILE_CHANGE.x, PACMAN_TILE_CHANGE.y);
+    //         PACMAN_VECTOR2.x, PACMAN_VECTOR2.y,
+    //         PACMAN_VECTOR.x, PACMAN_VECTOR.y);
 
     //-------------------------------
     // 1a56  3a3c4d    ld      a,(#4d3c)
@@ -8036,7 +8040,7 @@ void pacmanMove_1a5c (void)
     // 1a64  cd0020    call    #2000
     // 1a67  c38519    jp      #1985
     //-------------------------------
-    XYPOS pos = addXYOffset_2000 (PACMAN_TILE_CHANGE, PACMAN_POS);
+    XYPOS pos = addXYOffset_2000 (PACMAN_VECTOR, PACMAN_POS);
     pacmanUpdatePos_1985 (pos);
 }
 
@@ -8135,7 +8139,7 @@ void pacmanOrientLeft_1ac9 (void)
     // 1ad1  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION = ORIENT_LEFT;
-    PACMAN_TILE_CHANGE2 = *MOVE_VECTOR_LEFT;
+    PACMAN_VECTOR2 = *MOVE_VECTOR_LEFT;
 
     //-------------------------------
     // 1ad4  0600      ld      b,#00
@@ -8153,7 +8157,7 @@ void pacmanOrientRight_1ad9 (void)
     // 1ae0  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION = ORIENT_RIGHT;
-    PACMAN_TILE_CHANGE2 = *MOVE_VECTOR_RIGHT;
+    PACMAN_VECTOR2 = *MOVE_VECTOR_RIGHT;
 
     //-------------------------------
     // 1ae3  0600      ld      b,#00
@@ -8171,7 +8175,7 @@ void pacmanOrientUp_1ae8 (void)
     // 1af0  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION = ORIENT_UP;
-    PACMAN_TILE_CHANGE2 = *MOVE_VECTOR_UP;
+    PACMAN_VECTOR2 = *MOVE_VECTOR_UP;
 
     //-------------------------------
     // 1af3  0600      ld      b,#00
@@ -8189,7 +8193,7 @@ void pacmanOrientDown_1af8 (void)
     // 1b00  22264d    ld      (#4d26),hl
     //-------------------------------
     PACMAN_DESIRED_ORIENTATION = ORIENT_DOWN;
-    PACMAN_TILE_CHANGE2 = *MOVE_VECTOR_DOWN;
+    PACMAN_VECTOR2 = *MOVE_VECTOR_DOWN;
 
     //-------------------------------
     // 1b03  0600      ld      b,#00
@@ -8295,14 +8299,14 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b46  01994d    ld      bc,#4d99
     // 1b49  cd5a20    call    #205a
     //-------------------------------
-    func_205a(BLINKY_TILE2, &BLINKY_AUX_POS);
+    checkGhostEnterTunnel_205a (BLINKY_TILE2, &BLINKY_IN_TUNNEL);
     //-------------------------------
     // 1b4c  3a994d    ld      a,(#4d99)
     // 1b4f  a7        and     a
     // 1b50  ca6a1b    jp      z,#1b6a
     //-------------------------------
-    printf ("%s aux = %d\n", __func__, BLINKY_AUX_POS);
-    if (BLINKY_AUX_POS != 0)
+    printf ("%s aux = %d\n", __func__, BLINKY_IN_TUNNEL);
+    if (BLINKY_IN_TUNNEL != 0)
     {
         //-------------------------------
         // 1b53  2a604d    ld      hl,(#4d60)
@@ -8320,8 +8324,6 @@ void blinkyUpdateMovePat_1b36 (void)
 
         if ((BLINKY_MOVE_PAT_TUNNEL & 1) == 0)
             return;
-
-        blinkyUpdatePosition_1bd8();
     }
 
     //-------------------------------
@@ -8329,7 +8331,7 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b6d  a7        and     a
     // 1b6e  ca881b    jp      z,#1b88
     //-------------------------------
-    if (BLINKY_EDIBLE != 0)
+    else if (BLINKY_EDIBLE != 0)
     {
         //-------------------------------
         // 1b71  2a5c4d    ld      hl,(#4d5c)
@@ -8347,8 +8349,6 @@ void blinkyUpdateMovePat_1b36 (void)
 
         if ((BLINKY_MOVE_PAT_EDIBLE & 1) == 0)
             return;
-
-        blinkyUpdatePosition_1bd8();
     }
 
     //-------------------------------
@@ -8356,7 +8356,7 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b8b  a7        and     a
     // 1b8c  caa61b    jp      z,#1ba6
     //-------------------------------
-    if (DIFF_FLAG_2 != 0)
+    else if (DIFF_FLAG_2 != 0)
     {
         //-------------------------------
         // 1b8f  2a504d    ld      hl,(#4d50)
@@ -8432,7 +8432,7 @@ void blinkyUpdatePosition_1bd8 (void)
     // 1bdc  a7        and     a
     // 1bdd  caed1b    jp      z,#1bed
     //-------------------------------
-    if (BLINKY_TILE_CHANGE.y != 0)
+    if (BLINKY_VECTOR.y != 0)
     {
         //-------------------------------
         // 1be0  3a004d    ld      a,(#4d00)
@@ -8509,7 +8509,7 @@ void blinkyUpdatePosition_1bd8 (void)
     // 1c27  220a4d    ld      (#4d0a),hl
     //-------------------------------
     blinkyCheckReverse_1efe();
-    BLINKY_TILE = addXYOffset_2000 (BLINKY_TILE_CHANGE2, BLINKY_TILE);
+    BLINKY_TILE = addXYOffset_2000 (BLINKY_VECTOR2, BLINKY_TILE);
 
     //-------------------------------
     // 1c2a  2a1e4d    ld      hl,(#4d1e)
@@ -8517,7 +8517,7 @@ void blinkyUpdatePosition_1bd8 (void)
     // 1c30  3a2c4d    ld      a,(#4d2c)
     // 1c33  32284d    ld      (#4d28),a
     //-------------------------------
-    BLINKY_TILE_CHANGE = BLINKY_TILE_CHANGE2;
+    BLINKY_VECTOR = BLINKY_VECTOR2;
     BLINKY_PREV_ORIENTATION = BLINKY_ORIENTATION;
 
 jump_1c36:
@@ -8527,7 +8527,7 @@ jump_1c36:
     // 1c3e  cd0020    call    #2000
     // 1c41  22004d    ld      (#4d00),hl
     //-------------------------------
-    BLINKY_POS = addXYOffset_2000 (BLINKY_TILE_CHANGE, BLINKY_POS);
+    BLINKY_POS = addXYOffset_2000 (BLINKY_VECTOR, BLINKY_POS);
 
     //-------------------------------
     // 1c44  cd1820    call    #2018
@@ -8537,8 +8537,8 @@ jump_1c36:
     BLINKY_TILE2 = pixelToTile_2018(BLINKY_POS);
 
     printf ("%s upd blinky pos %d,%d -> %d,%d\n", __func__,
-            BLINKY_TILE_CHANGE.x,
-            BLINKY_TILE_CHANGE.y,
+            BLINKY_VECTOR.x,
+            BLINKY_VECTOR.y,
             BLINKY_POS.x,
             BLINKY_POS.y);
 }
@@ -8566,14 +8566,14 @@ void pinkyUpdateMovePat_1c4b (void)
     // 1c59  019a4d    ld      bc,#4d9a
     // 1c5c  cd5a20    call    #205a
     //-------------------------------
-    func_205a(PINKY_TILE2, &PINKY_AUX_POS);
+    checkGhostEnterTunnel_205a (PINKY_TILE2, &PINKY_IN_TUNNEL);
 
     //-------------------------------
     // 1c5f  3a9a4d    ld      a,(#4d9a)
     // 1c62  a7        and     a
     // 1c63  ca7d1c    jp      z,#1c7d
     //-------------------------------
-    if (PINKY_AUX_POS != 0)
+    if (PINKY_IN_TUNNEL != 0)
     {
         //-------------------------------
         // 1c66  2a6c4d    ld      hl,(#4d6c)
@@ -8648,7 +8648,7 @@ void pinkyUpdatePosition_1caf (void)
     // 1cb3  a7        and     a
     // 1cb4  cac41c    jp      z,#1cc4
     //-------------------------------
-    if (PINKY_TILE_CHANGE.y != 0)
+    if (PINKY_VECTOR.y != 0)
     {
         //-------------------------------
         // 1cb7  3a024d    ld      a,(#4d02)
@@ -8728,13 +8728,13 @@ void pinkyUpdatePosition_1caf (void)
     // 1cfb  cd0020    call    #2000
     // 1cfe  220c4d    ld      (#4d0c),hl
     //-------------------------------
-    PINKY_TILE = addXYOffset_2000 (PINKY_TILE_CHANGE2, PINKY_TILE);
+    PINKY_TILE = addXYOffset_2000 (PINKY_VECTOR2, PINKY_TILE);
 
     //-------------------------------
     // 1d01  2a204d    ld      hl,(#4d20)
     // 1d04  22164d    ld      (#4d16),hl
     //-------------------------------
-    PINKY_TILE_CHANGE = PINKY_TILE_CHANGE2;
+    PINKY_VECTOR = PINKY_VECTOR2;
 
     //-------------------------------
     // 1d07  3a2d4d    ld      a,(#4d2d)
@@ -8749,7 +8749,7 @@ jump_1d0d:
     // 1d15  cd0020    call    #2000
     // 1d18  22024d    ld      (#4d02),hl
     //-------------------------------
-    PINKY_POS = addXYOffset_2000 (PINKY_TILE_CHANGE, PINKY_POS);
+    PINKY_POS = addXYOffset_2000 (PINKY_VECTOR, PINKY_POS);
 
     //-------------------------------
     // 1d1b  cd1820    call    #2018
@@ -8782,14 +8782,14 @@ void inkyUpdateMovePat_1d22 (void)
     // 1d30  019b4d    ld      bc,#4d9b
     // 1d33  cd5a20    call    #205a
     //-------------------------------
-    func_205a(INKY_TILE2, &INKY_AUX_POS);
+    checkGhostEnterTunnel_205a (INKY_TILE2, &INKY_IN_TUNNEL);
 
     //-------------------------------
     // 1d36  3a9b4d    ld      a,(#4d9b)
     // 1d39  a7        and     a
     // 1d3a  ca541d    jp      z,#1d54
     //-------------------------------
-    if (INKY_AUX_POS != 0)
+    if (INKY_IN_TUNNEL != 0)
     {
         //-------------------------------
         // 1d3d  2a784d    ld      hl,(#4d78)
@@ -8864,7 +8864,7 @@ void inkyUpdatePosition_1d86 (void)
     // 1d8a  a7        and     a
     // 1d8b  ca9b1d    jp      z,#1d9b
     //-------------------------------
-    if (INKY_TILE_CHANGE.y != 0)
+    if (INKY_VECTOR.y != 0)
     {
         //-------------------------------
         // 1d8e  3a044d    ld      a,(#4d04)
@@ -8941,7 +8941,7 @@ void inkyUpdatePosition_1d86 (void)
     // 1dd5  220e4d    ld      (#4d0e),hl
     //-------------------------------
     inkyCheckReverse_1f4c();
-    INKY_TILE = addXYOffset_2000 (INKY_TILE_CHANGE2, INKY_TILE);
+    INKY_TILE = addXYOffset_2000 (INKY_VECTOR2, INKY_TILE);
 
     //-------------------------------
     // 1dd8  2a224d    ld      hl,(#4d22)
@@ -8949,7 +8949,7 @@ void inkyUpdatePosition_1d86 (void)
     // 1dde  3a2e4d    ld      a,(#4d2e)
     // 1de1  322a4d    ld      (#4d2a),a
     //-------------------------------
-    INKY_TILE_CHANGE = INKY_TILE_CHANGE2;
+    INKY_VECTOR = INKY_VECTOR2;
     INKY_PREV_ORIENTATION = INKY_ORIENTATION;
 
 jump_1de4:
@@ -8959,7 +8959,7 @@ jump_1de4:
     // 1dec  cd0020    call    #2000
     // 1def  22044d    ld      (#4d04),hl
     //-------------------------------
-    INKY_POS = addXYOffset_2000 (INKY_TILE_CHANGE, INKY_POS);
+    INKY_POS = addXYOffset_2000 (INKY_VECTOR, INKY_POS);
 
     //-------------------------------
     // 1df2  cd1820    call    #2018
@@ -8992,14 +8992,14 @@ void clydeUpdateMovePat_1df9 (void)
     // 1e07  019c4d    ld      bc,#4d9c
     // 1e0a  cd5a20    call    #205a
     //-------------------------------
-    func_205a(CLYDE_TILE2, &CLYDE_AUX_POS);
+    checkGhostEnterTunnel_205a (CLYDE_TILE2, &CLYDE_IN_TUNNEL);
 
     //-------------------------------
     // 1e0d  3a9c4d    ld      a,(#4d9c)
     // 1e10  a7        and     a
     // 1e11  ca2b1e    jp      z,#1e2b
     //-------------------------------
-    if (CLYDE_AUX_POS != 0)
+    if (CLYDE_IN_TUNNEL != 0)
     {
         //-------------------------------
         // 1e14  2a844d    ld      hl,(#4d84)
@@ -9039,9 +9039,9 @@ void clydeUpdateMovePat_1df9 (void)
             // 1e45  34        inc     (hl)
             // 1e46  c35d1e    jp      #1e5d
             //-------------------------------
-            rotate32 (&CLYDE_MOVE_PAT_TUNNEL, 1);
+            rotate32 (&CLYDE_MOVE_PAT_EDIBLE, 1);
 
-            if ((CLYDE_MOVE_PAT_TUNNEL & 1) == 0)
+            if ((CLYDE_MOVE_PAT_EDIBLE & 1) == 0)
                 return;
         }
         else
@@ -9057,9 +9057,9 @@ void clydeUpdateMovePat_1df9 (void)
             // 1e59  217c4d    ld      hl,#4d7c
             // 1e5c  34        inc     (hl)
             //-------------------------------
-            rotate32 (&CLYDE_MOVE_PAT_EDIBLE, 1);
+            rotate32 (&CLYDE_MOVE_PAT_NORMAL, 1);
 
-            if ((CLYDE_MOVE_PAT_EDIBLE & 1) == 0)
+            if ((CLYDE_MOVE_PAT_NORMAL & 1) == 0)
                 return;
         }
     }
@@ -9074,7 +9074,7 @@ void clydeUpdatePosition_1e5d (void)
     // 1e61  a7        and     a
     // 1e62  ca721e    jp      z,#1e72
     //-------------------------------
-    if (CLYDE_TILE_CHANGE.y != 0)
+    if (CLYDE_VECTOR.y != 0)
     {
         //-------------------------------
         // 1e65  3a064d    ld      a,(#4d06)
@@ -9125,7 +9125,7 @@ void clydeUpdatePosition_1e5d (void)
             // 1e90  2a104d    ld      hl,(#4d10)
             // 1e93  cd5220    call    #2052
             //-------------------------------
-            uint16_t addr = getColourOffset_2052(CLYDE_TILE);
+            uint16_t addr = getColourOffset_2052 (CLYDE_TILE);
 
             //-------------------------------
             // 1e96  7e        ld      a,(hl)
@@ -9151,7 +9151,7 @@ void clydeUpdatePosition_1e5d (void)
     // 1eac  22104d    ld      (#4d10),hl
     //-------------------------------
     clydeCheckReverse_1f73();
-    CLYDE_TILE = addXYOffset_2000 (CLYDE_TILE_CHANGE2, CLYDE_TILE);
+    CLYDE_TILE = addXYOffset_2000 (CLYDE_VECTOR2, CLYDE_TILE);
 
     //-------------------------------
     // 1eaf  2a244d    ld      hl,(#4d24)
@@ -9159,7 +9159,7 @@ void clydeUpdatePosition_1e5d (void)
     // 1eb5  3a2f4d    ld      a,(#4d2f)
     // 1eb8  322b4d    ld      (#4d2b),a
     //-------------------------------
-    CLYDE_TILE_CHANGE = CLYDE_TILE_CHANGE2;
+    CLYDE_VECTOR = CLYDE_VECTOR2;
     CLYDE_PREV_ORIENTATION = CLYDE_ORIENTATION;
 
 jump_1ebb:
@@ -9169,20 +9169,20 @@ jump_1ebb:
     // 1ec3  cd0020    call    #2000
     // 1ec6  22064d    ld      (#4d06),hl
     //-------------------------------
-    CLYDE_POS = addXYOffset_2000 (CLYDE_TILE_CHANGE, CLYDE_POS);
+    CLYDE_POS = addXYOffset_2000 (CLYDE_VECTOR, CLYDE_POS);
 
     //-------------------------------
     // 1ec9  cd1820    call    #2018
     // 1ecc  22374d    ld      (#4d37),hl
     // 1ecf  c9        ret     
     //-------------------------------
-    CLYDE_TILE2 = pixelToTile_2018(CLYDE_POS);
+    CLYDE_TILE2 = pixelToTile_2018 (CLYDE_POS);
 }
 
 /*  Ghost number 1-4 or 5 for pacman.  Checking if in tunnel ?
  *  Tile positions are 0x1e to 0x3d for x and 0x22 to 0x3e for y
  *  Wrap-around is when x reaches 0x1d or 0x3e */
-bool checkTunnelTBD_1ed0(int ghost)
+bool checkTunnelTBD_1ed0 (int ghost)
 {
     //-------------------------------
     // 1ed0  87        add     a,a
@@ -9192,33 +9192,34 @@ bool checkTunnelTBD_1ed0(int ghost)
     // 1ed7  09        add     hl,bc
     // 1ed8  7e        ld      a,(hl)
     //-------------------------------
-    XYPOS *pos = &BLINKY_TILE + ghost - 1;
-    printf ("%s check %04lx\n", __func__, (uint8_t*)pos-MEM);
+    /*  Note 4d09 is odd, it's 4d08 + 1 which is (blinky-1).x */
+    XYPOS *tile = &BLINKY_TILE + ghost - 1;
+    printf ("%s check %04lx\n", __func__, (uint8_t*)tile-MEM);
 
     //-------------------------------
     // 1ed9  fe1d      cp      #1d
     // 1edb  c2e31e    jp      nz,#1ee3
     //-------------------------------
-    if (pos->x == 0x1d)
+    if (tile->x == 0x1d)
     {
         //-------------------------------
         // 1ede  363d      ld      (hl),#3d
         // 1ee0  c3fc1e    jp      #1efc
         //-------------------------------
-        pos->x = 0x3d;
+        tile->x = 0x3d;
     }
 
     //-------------------------------
     // 1ee3  fe3e      cp      #3e
     // 1ee5  c2ed1e    jp      nz,#1eed
     //-------------------------------
-    else if (pos->x == 0x3e)
+    else if (tile->x == 0x3e)
     {
         //-------------------------------
         // 1ee8  361e      ld      (hl),#1e
         // 1eea  c3fc1e    jp      #1efc
         //-------------------------------
-        pos->x = 0x1e;
+        tile->x = 0x1e;
     }
     else
     {
@@ -9226,24 +9227,15 @@ bool checkTunnelTBD_1ed0(int ghost)
         // 1eed  0621      ld      b,#21
         // 1eef  90        sub     b
         // 1ef0  dafc1e    jp      c,#1efc
+        // 1ef3  7e        ld      a,(hl)
+        // 1ef4  063b      ld      b,#3b
+        // 1ef6  90        sub     b
+        // 1ef7  d2fc1e    jp      nc,#1efc
+        // 1efa  a7        and     a            ; clear carry flag
+        // 1efb  c9        ret     
         //-------------------------------
-        if (pos->x >= 0x21)
-        {
-            //-------------------------------
-            // 1ef3  7e        ld      a,(hl)
-            // 1ef4  063b      ld      b,#3b
-            // 1ef6  90        sub     b
-            // 1ef7  d2fc1e    jp      nc,#1efc
-            //-------------------------------
-            if (pos->x < 0x3b)
-            {
-                //-------------------------------
-                // 1efa  a7        and     a
-                // 1efb  c9        ret     
-                //-------------------------------
-                return false;
-            }
-        }
+        if (tile->x >= 0x21 && tile->x < 0x3b)
+            return false;
     }
 
     //-------------------------------
@@ -9282,7 +9274,7 @@ void blinkyCheckReverse_1efe (void)
     // 1f13  df        rst     #18
     // 1f14  221e4d    ld      (#4d1e),hl
     //-------------------------------
-    BLINKY_TILE_CHANGE2 = MOVE_VECTOR_DATA[BLINKY_ORIENTATION];
+    BLINKY_VECTOR2 = MOVE_VECTOR_DATA[BLINKY_ORIENTATION];
 
     //-------------------------------
     // 1f17  3a024e    ld      a,(#4e02)
@@ -9295,7 +9287,7 @@ void blinkyCheckReverse_1efe (void)
     //-------------------------------
     // 1f1d  22144d    ld      (#4d14),hl
     //-------------------------------
-    BLINKY_TILE_CHANGE = BLINKY_TILE_CHANGE2;
+    BLINKY_VECTOR = BLINKY_VECTOR2;
 
     //-------------------------------
     // 1f20  78        ld      a,b
@@ -9338,7 +9330,7 @@ void pinkyReverse_1f2e (void)
     // 1f3a  df        rst     #18
     // 1f3b  22204d    ld      (#4d20),hl
     //-------------------------------
-    PINKY_TILE_CHANGE2 = MOVE_VECTOR_DATA[PINKY_ORIENTATION];
+    PINKY_VECTOR2 = MOVE_VECTOR_DATA[PINKY_ORIENTATION];
 
     //-------------------------------
     // 1f3e  3a024e    ld      a,(#4e02)
@@ -9351,7 +9343,7 @@ void pinkyReverse_1f2e (void)
     //-------------------------------
     // 1f44  22164d    ld      (#4d16),hl
     //-------------------------------
-    PINKY_TILE_CHANGE = PINKY_TILE_CHANGE2;
+    PINKY_VECTOR = PINKY_VECTOR2;
 
     //-------------------------------
     // 1f47  78        ld      a,b
@@ -9398,7 +9390,7 @@ void inkyReverse_1f55 (void)
     // 1f61  df        rst     #18
     // 1f62  22224d    ld      (#4d22),hl
     //-------------------------------
-    INKY_TILE_CHANGE2 = MOVE_VECTOR_DATA[INKY_ORIENTATION];
+    INKY_VECTOR2 = MOVE_VECTOR_DATA[INKY_ORIENTATION];
 
     //-------------------------------
     // 1f65  3a024e    ld      a,(#4e02)
@@ -9450,7 +9442,7 @@ void clydeReverse_1f7c (void)
     // 1f88  df        rst     #18
     // 1f89  22244d    ld      (#4d24),hl
     //-------------------------------
-    CLYDE_TILE_CHANGE2 = MOVE_VECTOR_DATA[CLYDE_ORIENTATION];
+    CLYDE_VECTOR2 = MOVE_VECTOR_DATA[CLYDE_ORIENTATION];
 
     //-------------------------------
     // 1f8c  3a024e    ld      a,(#4e02)
@@ -9605,12 +9597,12 @@ uint16_t getColourOffset_2052 (XYPOS pos)
     return getScreenOffset_0065(pos);
 }
 
-void func_205a (XYPOS pos, uint8_t *aux)
+void checkGhostEnterTunnel_205a (XYPOS pos, uint8_t *aux)
 {
     //-------------------------------
     // 205a  cd5220    call    #2052
     //-------------------------------
-    uint16_t addr = getColourOffset_2052(pos);
+    uint16_t addr = getColourOffset_2052 (pos);
 
     //-------------------------------
     // 205d  7e        ld      a,(hl)
@@ -9912,8 +9904,8 @@ void updateMoveVector_2130 (void)
     // 2130  cd0618    call    #1806
     // 2133  cd0618    call    #1806
     //-------------------------------
-    pacmanUpdateVector_1806();
-    pacmanUpdateVector_1806();
+    pacmanVectorFromJoystick_1806();
+    pacmanVectorFromJoystick_1806();
     updateBlinkyMoveVectorTwice_2136();
 }
 
@@ -9974,7 +9966,7 @@ void scene1State2_214b (void)
     // 2166  32304d    ld      (#4d30),a
     //-------------------------------
     XYPOS vector = pacmanReverse_05a5();
-    PACMAN_TILE_CHANGE = vector;
+    PACMAN_VECTOR = vector;
     PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
     //-------------------------------
@@ -10031,8 +10023,8 @@ void scene1State6_2186 (void)
     // 2186  cd0618    call    #1806
     // 2189  cd0618    call    #1806
     //-------------------------------
-    pacmanUpdateVector_1806();
-    pacmanUpdateVector_1806();
+    pacmanVectorFromJoystick_1806();
+    pacmanVectorFromJoystick_1806();
 
     //-------------------------------
     // 218c  3a3a4d    ld      a,(#4d3a)
@@ -10145,7 +10137,7 @@ void scene2State2_21e1(uint16_t iy)
     // 21ed  32b74d    ld      (#4db7),a
     //-------------------------------
     BLINKY_SUBSTATE = 
-    DIFF_FLAG_2 = PACMAN_TILE2.x + 1;
+    DIFF_FLAG_2 = 0x2d; // PACMAN_TILE2.x + 1;
     incScene2State_212b();
 }
 
@@ -10258,8 +10250,8 @@ void updateMoveVector_2237 (void)
     // 2240  cd230e    call    #0e23
     // 2243  c9        ret     
     //-------------------------------
-    pacmanUpdateVector_1806();
-    pacmanUpdateVector_1806();
+    pacmanVectorFromJoystick_1806();
+    pacmanVectorFromJoystick_1806();
     blinkyUpdateMovePat_1b36();
     toggleGhostAnimation_0e23();
 }
@@ -10805,12 +10797,12 @@ void mainTaskLoop_234b (void)
             configureGame_26d0,         // 0x14 TASK_CONFIGURE_GAME
             updatePillsFromScreen_2487,
             advanceLevelState_23e8,
-            pacmanOrientationDemo_28e3,
+            pacmanOrientationDemo_28e3, // 0x17 TASK_PACMAN_ORIENT
             clearScores_2ae0,           // 0x18 TASK_CLEAR_SCORES
             addToScore_2a5a,            // 0x19 TASK_ADD_TO_SCORE
             func_2b6a,
             fruitHistoryLevelCheck_2bea,// 0x1b
-            displayMsg_2c5e,            // 0x1c
+            displayMsg_2c5e,            // 0x1c TASK_DISPLAY_MSG
             displayCredits_2ba1,
             resetPositions_2675,        // 0x1e
             showBonusLifeScore_26b2     // 0x1f
@@ -11371,40 +11363,40 @@ void initialisePositions_25d3 (int b)
         // 25c4  22144d    ld      (#4d14),hl
         // 25c7  221e4d    ld      (#4d1e),hl
         //-------------------------------
-        BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
-        BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
+        BLINKY_VECTOR.y = BLINKY_VECTOR2.y = 0x00;
+        BLINKY_VECTOR.x = BLINKY_VECTOR2.x = 0x01;
 
         //-------------------------------
         // 25ca  210100    ld      hl,#0001
         // 25cd  22164d    ld      (#4d16),hl
         // 25d0  22204d    ld      (#4d20),hl
         //-------------------------------
-        PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x01;
-        PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x00;
+        PINKY_VECTOR.y = PINKY_VECTOR2.y = 0x01;
+        PINKY_VECTOR.x = PINKY_VECTOR2.x = 0x00;
 
         //-------------------------------
         // 25d3  21ff00    ld      hl,#00ff
         // 25d6  22184d    ld      (#4d18),hl
         // 25d9  22224d    ld      (#4d22),hl
         //-------------------------------
-        INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0xff;
-        INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x00;
+        INKY_VECTOR.y = INKY_VECTOR2.y = 0xff;
+        INKY_VECTOR.x = INKY_VECTOR2.x = 0x00;
 
         //-------------------------------
         // 25dc  21ff00    ld      hl,#00ff
         // 25df  221a4d    ld      (#4d1a),hl
         // 25e2  22244d    ld      (#4d24),hl
         //-------------------------------
-        CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0xff;
-        CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x00;
+        CLYDE_VECTOR.y = CLYDE_VECTOR2.y = 0xff;
+        CLYDE_VECTOR.x = CLYDE_VECTOR2.x = 0x00;
 
         //-------------------------------
         // 25e5  210001    ld      hl,#0100
         // 25e8  221c4d    ld      (#4d1c),hl
         // 25eb  22264d    ld      (#4d26),hl
         //-------------------------------
-        PACMAN_TILE_CHANGE.y = PACMAN_TILE_CHANGE2.y = 0x00;
-        PACMAN_TILE_CHANGE.x = PACMAN_TILE_CHANGE2.x = 0x01;
+        PACMAN_VECTOR.y = PACMAN_VECTOR2.y = 0x00;
+        PACMAN_VECTOR.x = PACMAN_VECTOR2.x = 0x01;
 
         //-------------------------------
         // 25ee  210201    ld      hl,#0102
@@ -11487,16 +11479,16 @@ void initialisePositions_25d3 (int b)
         // 2654  221c4d    ld      (#4d1c),hl
         // 2657  22264d    ld      (#4d26),hl
         //-------------------------------
-        BLINKY_TILE_CHANGE.y = BLINKY_TILE_CHANGE2.y = 0x00;
-        BLINKY_TILE_CHANGE.x = BLINKY_TILE_CHANGE2.x = 0x01;
-        PINKY_TILE_CHANGE.y = PINKY_TILE_CHANGE2.y = 0x00;
-        PINKY_TILE_CHANGE.x = PINKY_TILE_CHANGE2.x = 0x01;
-        INKY_TILE_CHANGE.y = INKY_TILE_CHANGE2.y = 0x00;
-        INKY_TILE_CHANGE.x = INKY_TILE_CHANGE2.x = 0x01;
-        CLYDE_TILE_CHANGE.y = CLYDE_TILE_CHANGE2.y = 0x00;
-        CLYDE_TILE_CHANGE.x = CLYDE_TILE_CHANGE2.x = 0x01;
-        PACMAN_TILE_CHANGE.y = PACMAN_TILE_CHANGE2.y = 0x00;
-        PACMAN_TILE_CHANGE.x = PACMAN_TILE_CHANGE2.x = 0x01;
+        BLINKY_VECTOR.y = BLINKY_VECTOR2.y = 0x00;
+        BLINKY_VECTOR.x = BLINKY_VECTOR2.x = 0x01;
+        PINKY_VECTOR.y = PINKY_VECTOR2.y = 0x00;
+        PINKY_VECTOR.x = PINKY_VECTOR2.x = 0x01;
+        INKY_VECTOR.y = INKY_VECTOR2.y = 0x00;
+        INKY_VECTOR.x = INKY_VECTOR2.x = 0x01;
+        CLYDE_VECTOR.y = CLYDE_VECTOR2.y = 0x00;
+        CLYDE_VECTOR.x = CLYDE_VECTOR2.x = 0x01;
+        PACMAN_VECTOR.y = PACMAN_VECTOR2.y = 0x00;
+        PACMAN_VECTOR.x = PACMAN_VECTOR2.x = 0x01;
 
         //-------------------------------
         // 265a  21284d    ld      hl,#4d28
@@ -11775,8 +11767,9 @@ void blinkyScatterOrChase_2730 (int param)
                 // 2757  c9        ret     
                 //-------------------------------
                 XYPOS target = { 0x1d, 0x22 };
-                BLINKY_TILE_CHANGE2 = 
+                BLINKY_VECTOR2 = 
                     findBestOrientation_2966 (BLINKY_TILE, target, &BLINKY_ORIENTATION);
+                showTarget (BLINKY_TILE, target, GHOST_BLINKY);
                 return;
             }
         }
@@ -11791,7 +11784,8 @@ void blinkyScatterOrChase_2730 (int param)
     // 2768  322c4d    ld      (#4d2c),a
     // 276b  c9        ret     
     //-------------------------------
-    BLINKY_TILE_CHANGE2 = findBestOrientation_2966 (BLINKY_TILE, PACMAN_TILE2, &BLINKY_ORIENTATION);
+    BLINKY_VECTOR2 = findBestOrientation_2966 (BLINKY_TILE, PACMAN_TILE2, &BLINKY_ORIENTATION);
+    showTarget (BLINKY_TILE, PACMAN_TILE2, GHOST_BLINKY);
 }
 
 void pinkyScatterOrChase_276c (int param)
@@ -11821,7 +11815,8 @@ void pinkyScatterOrChase_276c (int param)
             // 278d  c9        ret     
             //-------------------------------
             XYPOS target = { 0x1d, 0x39 };
-            PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PINKY_TILE, target, &PINKY_ORIENTATION);
+            PINKY_VECTOR2 = findBestOrientation_2966 (PINKY_TILE, target, &PINKY_ORIENTATION);
+            showTarget (PINKY_TILE, target, GHOST_PINKY);
             return;
         }
     }
@@ -11838,8 +11833,8 @@ void pinkyScatterOrChase_276c (int param)
     /*  Make a target tile for pinky that is 4 times pacman's current direction
      *  of travel plus pacman's current tile */
     XYPOS target;
-    target.x = PACMAN_TILE_CHANGE.x * 4 + PACMAN_TILE2.x;
-    target.y = PACMAN_TILE_CHANGE.y * 4 + PACMAN_TILE2.y;
+    target.x = PACMAN_VECTOR.x * 4 + PACMAN_TILE2.x;
+    target.y = PACMAN_VECTOR.y * 4 + PACMAN_TILE2.y;
 
     //-------------------------------
     // 2799  2a0c4d    ld      hl,(#4d0c)
@@ -11849,7 +11844,8 @@ void pinkyScatterOrChase_276c (int param)
     // 27a5  322d4d    ld      (#4d2d),a
     // 27a8  c9        ret     
     //-------------------------------
-    PINKY_TILE_CHANGE2 = findBestOrientation_2966 (PINKY_TILE, target, &PINKY_ORIENTATION);
+    PINKY_VECTOR2 = findBestOrientation_2966 (PINKY_TILE, target, &PINKY_ORIENTATION);
+    showTarget (PINKY_TILE, target, GHOST_PINKY);
 }
 
 void inkyScatterOrChase_27a9 (int param)
@@ -11878,8 +11874,9 @@ void inkyScatterOrChase_27a9 (int param)
             // 27ca  c9        ret     
             //-------------------------------
             XYPOS target = { 0x40, 0x20 };
-            INKY_TILE_CHANGE2 = 
+            INKY_VECTOR2 = 
                 findBestOrientation_2966 (INKY_TILE, target, &INKY_ORIENTATION);
+            showTarget (INKY_TILE, target, GHOST_INKY);
             return;
         }
     }
@@ -11896,8 +11893,8 @@ void inkyScatterOrChase_27a9 (int param)
      *  a tile that is 2 tiles ahead of pacman's current vector and then twice
      *  the vector between that tile and blinky's tile */
     XYPOS target;
-    target.y = PACMAN_TILE_CHANGE.y * 2 + PACMAN_TILE2.y;
-    target.x = PACMAN_TILE_CHANGE.x * 2 + PACMAN_TILE2.x;
+    target.y = PACMAN_VECTOR.y * 2 + PACMAN_TILE2.y;
+    target.x = PACMAN_VECTOR.x * 2 + PACMAN_TILE2.x;
 
     //-------------------------------
     // 27d8  7d        ld      a,l
@@ -11924,8 +11921,9 @@ void inkyScatterOrChase_27a9 (int param)
     // 27ed  322e4d    ld      (#4d2e),a
     // 27f0  c9        ret     
     //-------------------------------
-    INKY_TILE_CHANGE2 = 
+    INKY_VECTOR2 = 
         findBestOrientation_2966 (INKY_TILE, target, &INKY_ORIENTATION);
+    showTarget (INKY_TILE, target, GHOST_INKY);
 }
 
 void clydeScatterOrChase_27f1 (int param)
@@ -11956,8 +11954,9 @@ void clydeScatterOrChase_27f1 (int param)
             //-------------------------------
 
             XYPOS target = { 0x40, 0x3b };
-            CLYDE_TILE_CHANGE2 = 
-                findBestOrientation_2966(CLYDE_TILE, target, &CLYDE_ORIENTATION);
+            CLYDE_VECTOR2 = 
+                findBestOrientation_2966 (CLYDE_TILE, target, &CLYDE_ORIENTATION);
+            showTarget (CLYDE_TILE, target, GHOST_CLYDE);
             return;
         }
     }
@@ -11967,7 +11966,7 @@ void clydeScatterOrChase_27f1 (int param)
     // 2817  fd21104d  ld      iy,#4d10
     // 281b  cdea29    call    #29ea
     //-------------------------------
-    uint16_t dist = computeDistance_29ea(PACMAN_TILE2, CLYDE_TILE);
+    uint16_t dist = computeDistance_29ea (PACMAN_TILE2, CLYDE_TILE);
 
     //-------------------------------
     // 281e  114000    ld      de,#0040
@@ -11987,11 +11986,12 @@ void clydeScatterOrChase_27f1 (int param)
     // 2837  322f4d    ld      (#4d2f),a
     // 283a  c9        ret     
     //-------------------------------
-    CLYDE_TILE_CHANGE2 = 
-        findBestOrientation_2966(CLYDE_TILE, PACMAN_TILE2, &CLYDE_ORIENTATION);
+    CLYDE_VECTOR2 = 
+        findBestOrientation_2966 (CLYDE_TILE, PACMAN_TILE2, &CLYDE_ORIENTATION);
+    showTarget (CLYDE_TILE, PACMAN_TILE2, GHOST_CLYDE);
 }
 
-/*  Send blinky home if he is dead otherwise make him move randomly */
+/*  Send blinky home if he is dead otherwise make him move randomly (frightened) */
 void homeOrRandomBlinky_283b ()
 {
     //-------------------------------
@@ -12011,8 +12011,9 @@ void homeOrRandomBlinky_283b ()
         // 2854  c9        ret     
         //-------------------------------
         XYPOS target = { 0x2c, 0x2e };
-        BLINKY_TILE_CHANGE2 = 
+        BLINKY_VECTOR2 = 
             findBestOrientation_2966(BLINKY_TILE, target, &BLINKY_ORIENTATION);
+        showTarget (BLINKY_TILE, target, GHOST_BLINKY);
         return;
     }
     //-------------------------------
@@ -12023,8 +12024,9 @@ void homeOrRandomBlinky_283b ()
     // 2861  322c4d    ld      (#4d2c),a
     // 2864  c9        ret     
     //-------------------------------
-    BLINKY_TILE_CHANGE2 = 
+    BLINKY_VECTOR2 = 
         randomDirection_291e(BLINKY_TILE, &BLINKY_ORIENTATION);
+    showTarget (BLINKY_TILE, BLINKY_TILE, GHOST_BLINKY);
 }
 
 void homeOrRandomPinky_2865 ()
@@ -12046,8 +12048,9 @@ void homeOrRandomPinky_2865 ()
         // 287e  c9        ret     
         //-------------------------------
         XYPOS target = { 0x2c, 0x2e };
-        PINKY_TILE_CHANGE2 = 
+        PINKY_VECTOR2 = 
             findBestOrientation_2966(PINKY_TILE, target, &PINKY_ORIENTATION);
+        showTarget (PINKY_TILE, target, GHOST_PINKY);
         return;
     }
 
@@ -12059,8 +12062,9 @@ void homeOrRandomPinky_2865 ()
     // 288b  322d4d    ld      (#4d2d),a
     // 288e  c9        ret     
     //-------------------------------
-    PINKY_TILE_CHANGE2 = 
+    PINKY_VECTOR2 = 
         randomDirection_291e(PINKY_TILE, &PINKY_ORIENTATION);
+    showTarget (PINKY_TILE, PINKY_TILE, GHOST_PINKY);
 }
 
 void homeOrRandomInky_288f ()
@@ -12082,8 +12086,9 @@ void homeOrRandomInky_288f ()
         // 28a8  c9        ret     
         //-------------------------------
         XYPOS target = { 0x2c, 0x2e };
-        INKY_TILE_CHANGE2 = 
+        INKY_VECTOR2 = 
             findBestOrientation_2966(INKY_TILE, target, &INKY_ORIENTATION);
+        showTarget (INKY_TILE, target, GHOST_INKY);
         return;
     }
 
@@ -12095,8 +12100,9 @@ void homeOrRandomInky_288f ()
     // 28b5  322e4d    ld      (#4d2e),a
     // 28b8  c9        ret     
     //-------------------------------
-    INKY_TILE_CHANGE2 = 
+    INKY_VECTOR2 = 
         randomDirection_291e(INKY_TILE, &INKY_ORIENTATION);
+    showTarget (INKY_TILE, INKY_TILE, GHOST_INKY);
 }
 
 void homeOrRandomClyde_28b9 ()
@@ -12118,8 +12124,9 @@ void homeOrRandomClyde_28b9 ()
         // 28d2  c9        ret     
         //-------------------------------
         XYPOS target = { 0x2c, 0x2e };
-        CLYDE_TILE_CHANGE2 = 
-            findBestOrientation_2966(CLYDE_TILE, target, &CLYDE_ORIENTATION);
+        CLYDE_VECTOR2 = 
+            findBestOrientation_2966 (CLYDE_TILE, target, &CLYDE_ORIENTATION);
+        showTarget (CLYDE_TILE, target, GHOST_CLYDE);
         return;
     }
 
@@ -12131,8 +12138,9 @@ void homeOrRandomClyde_28b9 ()
     // 28df  322f4d    ld      (#4d2f),a
     // 28e2  c9        ret     
     //-------------------------------
-    CLYDE_TILE_CHANGE2 = 
-        randomDirection_291e(CLYDE_TILE, &CLYDE_ORIENTATION);
+    CLYDE_VECTOR2 = 
+        randomDirection_291e (CLYDE_TILE, &CLYDE_ORIENTATION);
+    showTarget (CLYDE_TILE, CLYDE_TILE, GHOST_CLYDE);
 }
 
 /*  Appears to choose pacman orientation in demo mode based on ghosts' locations
@@ -12155,9 +12163,9 @@ void pacmanOrientationDemo_28e3 ()
         // 28fa  323c4d    ld      (#4d3c),a
         // 28fd  c9        ret     
         //-------------------------------
-        PACMAN_TILE_CHANGE2 = 
-            findBestOrientation_2966(PACMAN_TILE, PINKY_TILE,
-        &PACMAN_DESIRED_ORIENTATION);
+        PACMAN_VECTOR2 = 
+            findBestOrientation_2966 (PACMAN_TILE, PINKY_TILE, &PACMAN_DESIRED_ORIENTATION);
+        showTarget (PACMAN_TILE, PINKY_TILE, 5);
         return;
     }
 
@@ -12168,18 +12176,18 @@ void pacmanOrientationDemo_28e3 ()
     // 2906  87        add     a,a
     // 2907  91        sub     c
     // 2908  6f        ld      l,a
-    //-------------------------------
-    XYPOS desired;
-    desired.y = PACMAN_TILE2.y*2-PINKY_TILE.y;
-
-    //-------------------------------
     // 2909  7c        ld      a,h
     // 290a  87        add     a,a
     // 290b  90        sub     b
     // 290c  67        ld      h,a
     //-------------------------------
-    desired.x = PACMAN_TILE2.x*2-PINKY_TILE.x;
-    printf ("%s desired x = %d\n", __func__, desired.x);
+
+    /*  TODO appears to be trying to get away from pinky in demo mode by
+     *  creating a target tile that is in the opposite direction to pinky's
+     *  vector to pacman */
+    XYPOS target;
+    target.y = PACMAN_TILE2.y * 2 - PINKY_TILE.y;
+    target.x = PACMAN_TILE2.x * 2 - PINKY_TILE.x;
 
     //-------------------------------
     // 290d  eb        ex      de,hl
@@ -12190,10 +12198,9 @@ void pacmanOrientationDemo_28e3 ()
     // 291a  323c4d    ld      (#4d3c),a
     // 291d  c9        ret     
     //-------------------------------
-    printf ("%s tile = %d,%d\n", __func__, PACMAN_TILE.x, PACMAN_TILE.y);
-    PACMAN_TILE_CHANGE2 = 
-        findBestOrientation_2966(PACMAN_TILE, desired, &PACMAN_DESIRED_ORIENTATION);
-    printf ("%s tilechange2 = %d,%d\n", __func__, PACMAN_TILE_CHANGE2.x, PACMAN_TILE_CHANGE2.y);
+    PACMAN_VECTOR2 = 
+        findBestOrientation_2966 (PACMAN_TILE, target, &PACMAN_DESIRED_ORIENTATION);
+    showTarget (PACMAN_TILE, target, 5);
 }
 
 XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation)
@@ -12684,26 +12691,26 @@ void addToScore_2a5a (int b)
     // 2a8c  218a4e    ld      hl,#4e8a
     //-------------------------------
 
-    /*  Get Ptr to LSD of high score */
-    uint8_t *highScore = &HIGH_SCORE[2];
+    /*  Get Ptr to MSD of high score */
+    uint8_t *highScore = HIGH_SCORE;
 
     //-------------------------------
     // 2a8f  0603      ld      b,#03
     //-------------------------------
-    for (b = 0; b < 3; b++)
+    for (b = 2; b >= 0; b--)
     {
         //-------------------------------
         // 2a91  1a        ld      a,(de)
         // 2a92  be        cp      (hl)
         // 2a93  d8        ret     c
         //-------------------------------
-        if (*score < *highScore)
+        if (score[b] < highScore[b])
             return;
 
         //-------------------------------
         // 2a94  2005      jr      nz,#2a9b        ; (5)
         //-------------------------------
-        if (*score != 0)
+        if (score[b] != 0)
             break;
 
         //-------------------------------
@@ -12711,13 +12718,11 @@ void addToScore_2a5a (int b)
         // 2a97  2b        dec     hl
         // 2a98  10f7      djnz    #2a91           ; (-9)
         //-------------------------------
-        score--;
-        highScore--;
     }
     //-------------------------------
     // 2a9a  c9        ret     
     //-------------------------------
-    if (b == 3)
+    if (b == -1)
         return;
 
     //-------------------------------
@@ -12742,8 +12747,7 @@ void addToScore_2a5a (int b)
     // 2aaa  21f243    ld      hl,#43f2
     // 2aad  180f      jr      #2abe           ; (15)
     //-------------------------------
-    highScore--;
-    drawScore_2abe (0x3f2, highScore, 4);
+    drawScore_2abe (0x3f2, &highScore[2], 4);
 }
 
 void drawPlayerScore_2aaf (uint8_t *score)
@@ -13120,7 +13124,7 @@ void displayCredits_2ba1 ()
         // 2ba8  0602      ld      b,#02
         // 2baa  c35e2c    jp      #2c5e
         //-------------------------------
-        displayMsg_2c5e (2);
+        displayMsg_2c5e (MSG_FREEPLAY);
         return;
     }
     //-------------------------------
@@ -13130,7 +13134,7 @@ void displayCredits_2ba1 ()
     // 2bb5  e6f0      and     #f0
     // 2bb7  2809      jr      z,#2bc2         ; (9)
     //-------------------------------
-    displayMsg_2c5e (1);
+    displayMsg_2c5e (MSG_CREDIT);
     int digit = CREDITS & 0xf0;
     if (digit != 0)
     {
@@ -13575,7 +13579,7 @@ jump_2c93:
         //-------------------------------
         chr++;
         bc++;
-        while (*chr != 0x2f && bc > 0)
+        while (*chr++ != 0x2f && bc > 0)
             bc--;
 
         //-------------------------------
@@ -15108,7 +15112,7 @@ void serviceModeOrStartGame_3174 (void)
         // 31e6  47        ld      b,a
         // 31e7  cd5e2c    call    #2c5e		
         //-------------------------------
-        displayMsg_2c5e (MSG_FREEPLAY + DIP_SWITCH_COINS);
+        displayMsg_2c5e (MSG_NOCOINS + DIP_SWITCH_COINS);
 
         //-------------------------------
         // 31ea  3a8050	ld      a,(#5080)	; Read dips

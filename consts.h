@@ -69,7 +69,16 @@
 #define MSG_PLAYER2     4
 #define MSG_GAMEOVER    5
 #define MSG_READY       6
+#define MSG_PUSHSTART    7
+#define MSG_ONEPLAYER   8
+#define MSG_ONEORTWOPLAYER   9
+#define MSG_BONUS_PACMAN  0x0a
+#define MSG_COPYRIGHT    0x0b
+#define MSG_10PTS        0x11
+#define MSG_100PTS        0x1b
+#define MSG_5000PTS        0x22
 #define MSG_BADROMRAM    0x24
+#define MSG_NOCOINS     0x25
 #define MSG_PACMAN       0x29
 #define MSG_BONUS_NONE   0x2a
 #define MSG_BONUS        0x2b
@@ -95,6 +104,8 @@
 #define ORIENT_DOWN     1
 #define ORIENT_LEFT     2
 #define ORIENT_UP       3
+
+#define ORIENT_VERTICAL 1  // mask, 1 and 3 are vertical, 0 and 2 are horizontal
 
 #define IMG_MIRROR 0x80
 #define IMG_INVERT 0x40

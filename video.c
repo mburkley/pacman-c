@@ -34,6 +34,7 @@
 #include <GL/glut.h>
 #include <GL/gl.h>
 
+#include "structs.h"
 #include "memmap.h"
 #include "video.h"
 
@@ -201,7 +202,60 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
         }
     }
 }
-                     
+
+static void drawLine (int x1, int y1, int x2, int y2, uint8_t col)
+{
+    double x = x1;
+    double y = y1;
+    double dx = x2-x1;
+    double dy = y2-y1;
+    double len = sqrt (dx * dx + dy * dy);
+
+    // rotate8 (&col, 2);
+    col <<= 2;
+    col += 3;
+
+    for (int i = 0; i < len; i++)
+    {
+        if (x >0 && x < SCREEN_XSIZE && y>0 && y < SCREEN_YSIZE)
+            videoPlot (x, y, col, false);
+        x += (dx / len);
+        y += (dy / len);
+    }
+}
+
+static struct
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+    int col;
+}
+targets[5];
+
+void showTarget (XYPOS a, XYPOS b, int ghost)
+{
+    targets[ghost-1].x1 = 490 - a.x * 8 - 10,
+    targets[ghost-1].y1 = a.y * 8 - 224 - 10,
+    targets[ghost-1].x2 = 490 - b.x * 8 - 10,
+    targets[ghost-1].y2 = b.y * 8 - 224 - 10,
+    targets[ghost-1].col = ghost*2-1;
+}
+
+static void drawTargets (void)
+{
+    for (int i = 0; i < 5; i++)
+    {
+        if (targets[i].col != 0)
+            drawLine (targets[i].x1,
+                        targets[i].y1,
+                        targets[i].x2,
+                        targets[i].y2,
+                        targets[i].col);
+    }
+}
+
 static void videoRedraw (void)
 {
     int x, y;
@@ -230,6 +284,9 @@ static void videoRedraw (void)
                          SPRITEATTRIB[sprite * 2] >> 2, SPRITEATTRIB[sprite * 2] & 3,
                          SPRITEATTRIB[sprite * 2 + 1]);
     }
+
+    // drawLine (0, 0, SCREEN_XSIZE-1, SCREEN_YSIZE-1, 9);
+    drawTargets ();
 }
 
 static bool videoThreadRunning = false;

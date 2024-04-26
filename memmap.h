@@ -193,17 +193,17 @@ extern uint8_t dipSwitches;
 #define CLYDE_TILE      (*(XYPOS*)(&memmap.mem[0x4d10]))
 #define PACMAN_TILE     (*(XYPOS*)(&memmap.mem[0x4d12]))
 
-#define BLINKY_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d14]))
-#define PINKY_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d16]))
-#define INKY_TILE_CHANGE   (*(XYPOS*)(&memmap.mem[0x4d18]))
-#define CLYDE_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d1a]))
-#define PACMAN_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d1c]))
+#define BLINKY_VECTOR (*(XYPOS*)(&memmap.mem[0x4d14]))
+#define PINKY_VECTOR  (*(XYPOS*)(&memmap.mem[0x4d16]))
+#define INKY_VECTOR   (*(XYPOS*)(&memmap.mem[0x4d18]))
+#define CLYDE_VECTOR  (*(XYPOS*)(&memmap.mem[0x4d1a]))
+#define PACMAN_VECTOR (*(XYPOS*)(&memmap.mem[0x4d1c]))
 
-#define BLINKY_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d1e]))
-#define PINKY_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d20]))
-#define INKY_TILE_CHANGE2   (*(XYPOS*)(&memmap.mem[0x4d22]))
-#define CLYDE_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d24]))
-#define PACMAN_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d26]))
+#define BLINKY_VECTOR2 (*(XYPOS*)(&memmap.mem[0x4d1e]))
+#define PINKY_VECTOR2  (*(XYPOS*)(&memmap.mem[0x4d20]))
+#define INKY_VECTOR2   (*(XYPOS*)(&memmap.mem[0x4d22]))
+#define CLYDE_VECTOR2  (*(XYPOS*)(&memmap.mem[0x4d24]))
+#define PACMAN_VECTOR2 (*(XYPOS*)(&memmap.mem[0x4d26]))
 
 #define BLINKY_PREV_ORIENTATION memmap.mem[0x4d28]
 #define PINKY_PREV_ORIENTATION  memmap.mem[0x4d29]
@@ -251,10 +251,10 @@ extern uint8_t dipSwitches;
 #define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94]
 #define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
 #define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
-#define BLINKY_AUX_POS                  memmap.mem[0x4d99]
-#define PINKY_AUX_POS                   memmap.mem[0x4d9a]
-#define INKY_AUX_POS                    memmap.mem[0x4d9b]
-#define CLYDE_AUX_POS                   memmap.mem[0x4d9c]
+#define BLINKY_IN_TUNNEL                  memmap.mem[0x4d99]
+#define PINKY_IN_TUNNEL                   memmap.mem[0x4d9a]
+#define INKY_IN_TUNNEL                    memmap.mem[0x4d9b]
+#define CLYDE_IN_TUNNEL                   memmap.mem[0x4d9c]
 #define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d]
 #define EATEN_SINCE_MOVE                memmap.mem[0x4d9e]
 #define EATEN_PILLS_COUNT               memmap.mem[0x4d9f]
@@ -454,3 +454,6 @@ static inline void assert (bool cond, char *file, int line)
 }
 
 #define ASSERT(cond) assert(cond,__FILE__,__LINE__)
+
+#include "structs.h"
+extern void showTarget (XYPOS a, XYPOS b, int col);

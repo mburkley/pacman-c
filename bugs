@@ -12,9 +12,9 @@ FIX pacman gets stuck when finished dying
 FIX final pacman dead graphic wrong
 FIX eyes don't go home
 FIX scores for eating ghosts are gone again
+FIX clyde goes too fast on powerup
+FIX highscore doesn't follow score
 
-highscore doesn't follow score
-clyde goes too fast on powerup
 eat fruit says bad rom
 first fruit strawberry wrong colour
 ready/game over doesn't go away

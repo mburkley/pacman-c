@@ -8,6 +8,7 @@ video.c \
 kbd.c
 
 LIBS=\
+-l m\
 -l glut\
 -l GL
 
