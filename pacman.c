@@ -3183,7 +3183,7 @@ void setupScreenGameOver_0988 (void)
     // 09bd  3d        dec     a
     // 09be  2804      jr      z,#09c4         ; (4)
     //-------------------------------
-    if (MAIN_STATE == MAIN_STATE_DEMO)
+    if (MAIN_STATE != MAIN_STATE_DEMO)
     {
         //-------------------------------
         // 09c0  f7        rst     #30
@@ -3619,7 +3619,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
                 // 0b0e  ddbe03    cp      (ix+#03)
                 // 0b11  2807      jr      z,#0b1a         ; (7)
                 //-------------------------------
-                if (BLINKY_COLOUR!= 0x11)
+                if (BLINKY_COLOUR != 0x11)
                 {
                     //-------------------------------
                     // 0b13  dd360311  ld      (ix+#03),#11
@@ -3644,7 +3644,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
             // 0b23  ddbe03    cp      (ix+#03)
             // 0b26  2807      jr      z,#0b2f         ; (7)
             //-------------------------------
-            if (BLINKY_COLOUR!= 3)
+            if (BLINKY_COLOUR != 3)
             {
                 //-------------------------------
                 // 0b28  dd360301  ld      (ix+#03),#01
@@ -3681,7 +3681,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
                 // 0b43  ddbe05    cp      (ix+#05)
                 // 0b46  2807      jr      z,#0b4f         ; (7)
                 //-------------------------------
-                if (PINKY_COLOUR!= 0x11)
+                if (PINKY_COLOUR != 0x11)
                 {
                     //-------------------------------
                     // 0b48  dd360511  ld      (ix+#05),#11
@@ -3706,7 +3706,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
             // 0b58  ddbe05    cp      (ix+#05)
             // 0b5b  2807      jr      z,#0b64         ; (7)
             //-------------------------------
-            if (PINKY_COLOUR!= 0x03)
+            if (PINKY_COLOUR != 0x03)
             {
                 //-------------------------------
                 // 0b5d  dd360503  ld      (ix+#05),#03
@@ -3743,7 +3743,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
                 // 0b78  ddbe07    cp      (ix+#07)
                 // 0b7b  2807      jr      z,#0b84         ; (7)
                 //-------------------------------
-                if (INKY_COLOUR!= 0x11)
+                if (INKY_COLOUR != 0x11)
                 {
                     //-------------------------------
                     // 0b7d  dd360711  ld      (ix+#07),#11
@@ -3768,7 +3768,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
             // 0b8d  ddbe07    cp      (ix+#07)
             // 0b90  2807      jr      z,#0b99         ; (7)
             //-------------------------------
-            if (INKY_COLOUR!= 5)
+            if (INKY_COLOUR != 5)
             {
                 //-------------------------------
                 // 0b92  dd360705  ld      (ix+#07),#05
@@ -3995,7 +3995,7 @@ void flashPowerups_0c0d (void)
         // 0c39  2002      jr      nz,#0c3d        ; (2)
         // 0c3b  3e00      ld      a,#00
         //-------------------------------
-        if (COLOUR[0x332] ==0x10)
+        if (COLOUR[0x332] == 0x10)
             a = 0;
 
         //-------------------------------
@@ -13103,7 +13103,7 @@ void drawFruit_2b8f (uint8_t *hl, int a)
     // 2b9f  e1        pop     hl
     // 2ba0  c9        ret     
     //-------------------------------
-    printf ("%s hl = %lx\n", __func__, hl-SCREEN);
+    printf ("%s hl = [%lx]=%02x\n", __func__, hl-SCREEN, a);
     hl[0] = a++;
     hl[1] = a++;
     hl[0x20] = a++;
@@ -13187,23 +13187,22 @@ void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
     // 2bda  112000    ld      de,#0020 ; chars per row
     //-------------------------------
 
-    while(rows--)
+    while (rows--)
     {
         //-------------------------------
         // 2bdd  e5        push    hl
         // 2bde  c5        push    bc
         //-------------------------------
 
-        int pos = addr;
-        int n = cols;
-        while(n--)
+        for (int x = 0; x < cols; x++)
         {
             //-------------------------------
             // 2bdf  71        ld      (hl),c
             // 2be0  23        inc     hl
             // 2be1  10fc      djnz    #2bdf           ; (-4)
             //-------------------------------
-            MEM[pos++] = ch;
+            MEM[addr + x] = ch;
+            printf ("%s screen-addr [%04x]=%02x\n", __func__, addr+x-0x4400, ch);
         }
 
         //-------------------------------
@@ -13213,7 +13212,7 @@ void fillScreenArea_2bcd (int addr, int ch, int cols, int rows)
         // 2be6  3d        dec     a
         // 2be7  20f4      jr      nz,#2bdd        ; (-12)
         //-------------------------------
-        addr+= 0x20;
+        addr += 0x20;
     }
 
     //-------------------------------
@@ -13436,9 +13435,7 @@ void displayMsg_2c5e (int b)
     //-------------------------------
     uint8_t *video = &SCREEN[de];
     de = -1;
-    printf ("video pos %lx\n", video-SCREEN);
-    printf ("colour pos %lx\n", colour-COLOUR);
-    printf ("first byte %02x\n", *chr);
+
     //-------------------------------
     // 2c75  cb7e      bit     7,(hl)  
     // 2c77  2003      jr      nz,#2c7c     ; (3) 
@@ -13467,7 +13464,6 @@ void displayMsg_2c5e (int b)
         // 2c85  fe2f      cp      #2f		; #2f = end of text
         // 2c87  2809      jr      z,#2c92         ; Done with VRAM
         //-------------------------------
-        // printf ("1st byte < 0x80\n");
         while(*chr != 0x2f)
         {
             //-------------------------------
@@ -13476,7 +13472,8 @@ void displayMsg_2c5e (int b)
             // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
             // 2c8f  04        inc     b		; Inc char count
             //-------------------------------
-            // printf ("out %c, move %d\n", *chr, de);
+            printf ("%s normal %04lx => [%04lx]='%c', move %d\n", __func__,
+                    chr-MEM, video-MEM, *chr, de);
             *video = *chr++;
             video += de;
             bc++;
@@ -13508,7 +13505,8 @@ jump_2c93:
                 // 2c9e  23        inc     hl		; Next color 
                 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
                 //-------------------------------
-                // printf ("col %02x\n", *chr);
+                printf ("%s multi-colour [%04lx] => [%04lx]=%02x, move %d\n", __func__, 
+                        chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr++;
                 colour += de;
 
@@ -13531,7 +13529,8 @@ jump_2c93:
                 // 2ca9  10f9      djnz    #2ca4           ; Loop until b = 0
                 // 2cab  c9        ret     
                 //-------------------------------
-                // printf ("col %02x\n", *chr);
+                printf ("%s single-colour [%04lx] => [%04lx]=%02x, move %d\n",
+                        __func__, chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr;
                 colour += de;
             }
@@ -13556,7 +13555,7 @@ jump_2c93:
             // 2cb6  dd19      add     ix,de		; Next screen pos
             // 2cb8  04        inc     b		; Inc char count  
             //-------------------------------
-            // printf ("space to %lx\n", video-SCREEN);
+            printf ("%s blank [%04lx]=0x40, move %d\n", __func__, video-MEM, de);
             *video = 0x40;
             chr++;
             video += de;
@@ -13579,8 +13578,12 @@ jump_2c93:
         //-------------------------------
         chr++;
         bc++;
-        while (*chr++ != 0x2f && bc > 0)
+        while (*chr != 0x2f && bc > 0)
+        {
+            printf ("%s skip [%04lX] count=%d\n", __func__, chr-MEM, bc);
+            chr++;
             bc--;
+        }
 
         //-------------------------------
         // 2cbf  18d2      jr      #2c93           ; Do CRAM

@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct
+typedef union
 {
     struct
     {
@@ -40,33 +40,33 @@ typedef struct
         uint8_t colour[0x400]; // starts at 0x4400
         uint8_t ram[0x7f0];  // starts at 0x4800
         uint8_t spriteAttrib[0x10];  // starts at 0x4ff0
+        union
+        {
+            struct
+            {
+                uint8_t in0[0x40]; // 0x5000-0x503f
+                uint8_t in1[0x40]; // 0x5040-0x507f
+                uint8_t dipSwitches[0x40]; // 0x5080-0x50bf
+            } read;
+            struct
+            {
+                uint8_t intEnable;  // 0x5000
+                uint8_t soundEnable; // 0x5001
+                uint8_t auxEnable; // 0x5002
+                uint8_t flipScreen; // 0x5003
+                uint8_t player1Start; // 0x5004
+                uint8_t player2Start; // 0x5005
+                uint8_t coinLockout; // 0x5006
+                uint8_t coinCounter; // 0x5007
+                uint8_t outputs[8]; // 0x5000-0x5007
+                uint8_t __unused1[0x38];
+                uint8_t soundRegs[0x20]; // 0x5040
+                uint8_t spriteCoords[0x10]; // 0x5060
+                uint8_t __unused2[0x50];
+                uint8_t watchdog[0x40]; // 0x50c0-0x50ff
+            } write;
+        } regs;
     };
-    union
-    {
-        struct
-        {
-            uint8_t in0[0x40]; // 0x5000-0x503f
-            uint8_t in1[0x40]; // 0x5040-0x507f
-            uint8_t dipSwitches[0x40]; // 0x5080-0x50bf
-        } read;
-        struct
-        {
-            uint8_t intEnable;  // 0x5000
-            uint8_t soundEnable; // 0x5001
-            uint8_t auxEnable; // 0x5002
-            uint8_t flipScreen; // 0x5003
-            uint8_t player1Start; // 0x5004
-            uint8_t player2Start; // 0x5005
-            uint8_t coinLockout; // 0x5006
-            uint8_t coinCounter; // 0x5007
-            uint8_t outputs[8]; // 0x5000-0x5007
-            uint8_t __unused1[0x38];
-            uint8_t soundRegs[0x20]; // 0x5040
-            uint8_t spriteCoords[0x10]; // 0x5060
-            uint8_t __unused2[0x50];
-            uint8_t watchdog[0x40]; // 0x50c0-0x50ff
-        } write;
-    } regs;
     uint8_t mem[0x5100];
 }
 CPU_MEMMAP;

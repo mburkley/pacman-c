@@ -14,10 +14,11 @@ FIX eyes don't go home
 FIX scores for eating ghosts are gone again
 FIX clyde goes too fast on powerup
 FIX highscore doesn't follow score
+FIX ready/game over doesn't go away
+FIX remaining lives graphic is wrong
 
 eat fruit says bad rom
 first fruit strawberry wrong colour
-ready/game over doesn't go away
 demo pacman doesn't stay within walls
-remaining lives graphic is wrong
 pacman stays big after scene1
+pacman demo doesn't turn up and eat bottom right powerup like mame does
