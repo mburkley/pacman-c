@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "memmap.h"
 #include "protos.h"
@@ -347,7 +348,7 @@ void isr_3000 (void);
 void romChecksumBad_3031 (uint8_t h, uint8_t checksum);
 void ramTest_3042 (void);
 void badRam_30b5 (uint8_t e, uint8_t checksum);
-void badRamOrRom_30bd (int e, uint8_t checksum, int b);
+void testResultRamRom (int e, uint8_t checksum, int b);
 void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum);
 void serviceModeOrStartGame_3174 (void);
 void delay_32ed (void);
@@ -13541,7 +13542,7 @@ jump_2c93:
     else
     {
         //-------------------------------
-        // 	;; Message # > 80 (erase previous message?!), use 2nd color code
+        // 	;; Message # > 80 (erase previous message), use 2nd color code
         // 2cac  7e        ld      a,(hl)		; Read next char
         // 2cad  fe2f      cp      #2f
         // 2caf  280a      jr      z,#2cbb         ; Done with VRAM
@@ -14568,26 +14569,33 @@ void romChecksumBad_3031 (uint8_t h, uint8_t checksum)
     // 303f  c3bd30    jp      #30bd
     //-------------------------------
     printf ("ROM checksum fail\n");
-    badRamOrRom_30bd (h>>4, checksum, 0);
+    testResultRamRom (h>>4, checksum, 0);
 }
 
 /* RAM test (4c00) */
 void ramTest_3042 (void)
 {
+    //-------------------------------
     // 3042  315431    ld      sp,#3154
+    //-------------------------------
     uint16_t *stackData = DATA_3154;
-    uint8_t a;
-    uint16_t de;
+    uint8_t a = 0;
+    uint16_t de = 0;
     uint8_t testValue = 0;
 
     do
     {
+        printf ("%s a=%02x de=%04x\n", __func__, a, de);
+        //-------------------------------
         // 3045  06ff      ld      b,#ff
-        for (uint8_t b = 0xff; b > 0; b--)
+        //-------------------------------
+        for (uint8_t b = 0xff; b != 0; b--)
         {
+            //-------------------------------
             // 3047  e1        pop     hl		; 4c00 (first time)
             // 3048  d1        pop     de		; 040f (first time)
             // 3049  48        ld      c,b		; 0xff -> c
+            //-------------------------------
             uint16_t hl = *stackData++;
             de = *stackData++;
             testValue = b;
@@ -14595,53 +14603,72 @@ void ramTest_3042 (void)
 
             do
             {
+                //-------------------------------
                 // 304a  32c050    ld      (#50c0),a	; Kick the dog
+                //-------------------------------
                 kickWatchdog();
+
+                /*  Add a sleep to show power on test progress when testing
+                 *  video */
+                if (hl < 0x4800) usleep (10000);
 
                 do
                 {
                     do
                     {
+                        //-------------------------------
                         // 304d  79        ld      a,c		; 0xff -> a
                         // 304e  a3        and     e		; e -> a
                         // 304f  77        ld      (hl),a
+                        //-------------------------------
                         testValue &= de;
                         MEM[hl] = testValue;
                         // printf ("%04X = %02x=%02x ", hl, testValue, MEM[hl]);
+                        //-------------------------------
                         // 3050  c633      add     a,#33
                         // 3052  4f        ld      c,a
                         // 3053  2c        inc     l
+                        //-------------------------------
                         testValue += 0x33;
                         hl++;
 
+                        //-------------------------------
                         // 3054  7d        ld      a,l
                         // 3055  e60f      and     #0f
                         // 3057  c24d30    jp      nz,#304d
+                        //-------------------------------
                     }
                     while ((hl & 0x0f) != 0);
                     // printf ("\n");
 
+                    //-------------------------------
                     // 305a  79        ld      a,c
                     // 305b  87        add     a,a
                     // 305c  87        add     a,a
                     // 305d  81        add     a,c
                     // 305e  c631      add     a,#31
                     // 3060  4f        ld      c,a
-                    testValue = testValue * 3 + 0x31;
+                    //-------------------------------
+                    testValue = testValue * 5 + 0x31;
+                    //-------------------------------
                     // 3061  7d        ld      a,l
                     // 3062  a7        and     a		
                     // 3063  c24d30    jp      nz,#304d
+                    //-------------------------------
                 }
                 while ((hl & 0xff) != 0);
 
+                //-------------------------------
                 // 3066  24        inc     h
                 // 3067  15        dec     d
                 // 3068  c24a30    jp      nz,#304a
-                hl += 0x100;
+                //-------------------------------
+                // hl += 0x100;
                 de -= 0x100;
             }
-            while ((de & 0x100) != 0);
+            while ((de & 0xff00) != 0);
 
+            //-------------------------------
             // 306b  3b        dec     sp
             // 306c  3b        dec     sp
             // 306d  3b        dec     sp
@@ -14649,6 +14676,7 @@ void ramTest_3042 (void)
             // 306f  e1        pop     hl		; 4c00
             // 3070  d1        pop     de		; 040f 
             // 3071  48        ld      c,b
+            //-------------------------------
             stackData -= 2;
             hl = *stackData++;
             de = *stackData++;
@@ -14658,21 +14686,27 @@ void ramTest_3042 (void)
             // 	;; Check crap in ram
             do
             {
+                //-------------------------------
                 // 3072  32c050    ld      (#50c0),a	; Kick the dog
+                //-------------------------------
                 kickWatchdog();
                 do
                 {
                     do
                     {
+                        //-------------------------------
                         // 3075  79        ld      a,c
                         // 3076  a3        and     e
                         // 3077  4f        ld      c,a
+                        //-------------------------------
                         // printf ("%02x&%04x = %02x ", testValue, de, testValue&de);
                         testValue &= de;
+                        //-------------------------------
                         // 3078  7e        ld      a,(hl)
                         // 3079  a3        and     e
                         // 307a  b9        cp      c
                         // 307b  c2b530    jp      nz,#30b5	; Ram test failed
+                        //-------------------------------
                         // printf ("%04X = %02x=%02x ", hl, testValue, MEM[hl]);
                         if (testValue != (MEM[hl] & de))
                         {
@@ -14683,38 +14717,49 @@ void ramTest_3042 (void)
                             return;
                         }
 
+                        //-------------------------------
                         // 307e  c633      add     a,#33
                         // 3080  4f        ld      c,a
                         // printf ("%02x+0x33 = %02x ", testValue, testValue+0x33);
+                        //-------------------------------
                         testValue += 0x33;
+                        //-------------------------------
                         // 3081  2c        inc     l
                         // 3082  7d        ld      a,l
                         // 3083  e60f      and     #0f
                         // 3085  c27530    jp      nz,#3075
+                        //-------------------------------
                     }
                     while ((++hl & 0x0f) != 0);
                     // printf ("\nnext row : ");
 
+                    //-------------------------------
                     // 3088  79        ld      a,c
                     // 3089  87        add     a,a
                     // 308a  87        add     a,a
                     // 308b  81        add     a,c
                     // 308c  c631      add     a,#31
                     // 308e  4f        ld      c,a
-                    testValue = testValue * 3 + 0x31;
+                    //-------------------------------
+                    testValue = testValue * 5 + 0x31;
+                    //-------------------------------
                     // 308f  7d        ld      a,l
                     // 3090  a7        and     a
                     // 3091  c27530    jp      nz,#3075
+                    //-------------------------------
                 }
                 while ((hl & 0xff) != 0);
+                //-------------------------------
                 // 3094  24        inc     h
                 // 3095  15        dec     d
                 // 3096  c27230    jp      nz,#3072
-                hl += 0x100;
+                //-------------------------------
+                // hl += 0x100;
                 de -= 0x100;
             }
-            while ((de & 0x100) != 0);
+            while ((de & 0xff00) != 0);
 
+            //-------------------------------
             // 3099  3b        dec     sp
             // 309a  3b        dec     sp
             // 309b  3b        dec     sp
@@ -14723,10 +14768,12 @@ void ramTest_3042 (void)
             // 309e  d610      sub     #10
             // 30a0  47        ld      b,a
             // 30a1  10a4      djnz    #3047           ; (-92)
+            //-------------------------------
             stackData -= 2;
             b -= 0x10;
         }
 
+        //-------------------------------
         // 30a3  f1        pop     af		; 4c00 
         // 30a4  d1        pop     de
         // 30a5  fe44      cp      #44
@@ -14734,40 +14781,49 @@ void ramTest_3042 (void)
         // 30aa  7b        ld      a,e
         // 30ab  eef0      xor     #f0
         // 30ad  c24530    jp      nz,#3045	; Check if totally done
+        //-------------------------------
         a = *stackData++ >> 8;
         de = *stackData++;
     }
     while ((a != 0x44) || ((de & 0xff) ^ 0xf0) != 0);
+    //-------------------------------
     // 30b0  0601      ld      b,#01
     // 30b2  c3bd30    jp      #30bd
+    //-------------------------------
     printf ("RAM test pass\n");
-    badRamOrRom_30bd ((de & 0xff), testValue, 1);
+    testResultRamRom ((de & 0xff), testValue, 1);
 }
 
 /* Display bad ram (?) */
 void badRam_30b5 (uint8_t e, uint8_t c)
 {
     printf ("BADRAM!\n");
+    //-------------------------------
     // 30b5  7b        ld      a,e
     // 30b6  e601      and     #01
     // 30b8  ee01      xor     #01
     // 30ba  5f        ld      e,a
     // 30bb  0600      ld      b,#00
-    badRamOrRom_30bd ((e&1)^1, c, 0);
+    //-------------------------------
+    testResultRamRom ((e&1)^1, c, 0);
 }
 
 /* Display bad rom (?) */
-void badRamOrRom_30bd (int e, uint8_t checksum, int pass)
+void testResultRamRom (int e, uint8_t checksum, int pass)
 {
     printf ("Check RAM/ROM tests passed\n");
+    //-------------------------------
     // 30bd  31c04f    ld      sp,#4fc0
     // 30c0  d9        exx			; Swap register pairs 
+    //-------------------------------
     // 
     // 	;; Clear all program ram
 
+    //-------------------------------
     // 30c1  21004c    ld      hl,#4c00
     // 30c4  0604      ld      b,#04
     // 30c6  32c050    ld      (#50c0),a	; Kick watchdog
+    //-------------------------------
     kickWatchdog();
     for (int i = 0; i < 0x400; i++)
     {
@@ -14805,8 +14861,11 @@ void badRamOrRom_30bd (int e, uint8_t checksum, int pass)
         //-------------------------------
     }
 
+    //-------------------------------
     // 30e2  0604      ld      b,#04
     // 30e4  32c050    ld      (#50c0),a
+    //-------------------------------
+
     /* Set all color ram to 0x0f */
     kickWatchdog();
     for (int i = 0; i < 0x400; i++)
@@ -14911,6 +14970,7 @@ void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum)
     //-------------------------------
     if ((IN0_UP & IN1_UP) == 0)
     {
+        //-------------------------------
         // 3136  c1        pop     bc
         // 3137  79        ld      a,c
         // 3138  e60f      and     #0f
@@ -14923,26 +14983,34 @@ void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum)
         // 3141  0f        rrca    
         // 3142  4f        ld      c,a
         // 3143  ed438541  ld      (#4185),bc
+        //-------------------------------
         SCREEN[0x185] = checksum & 0xf;
         SCREEN[0x186] = checksum >> 4;
     }
 
     do
     {
+        //-------------------------------
         // 3147  32c050    ld      (#50c0),a
+        //-------------------------------
         kickWatchdog();
+        //-------------------------------
         // 314a  3a4050    ld      a,(#5040)
         // 314d  e610      and     #10
         // 314f  28f6      jr      z,#3147         ; (-10)
+        //-------------------------------
     }
     while (IN1_SERVICE == 0);
 
+    //-------------------------------
     // 3151  c30b23    jp      #230b
+    //-------------------------------
     initSelfTest_230b ();
 }
 
     /* Stack stuff used in ram test */
 
+    //-------------------------------
     // 3154  004c
     // 3156  0f04
     // 3158  004c
@@ -14955,12 +15023,15 @@ void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum)
     // 3166  0f04
     // 3168  0044
     // 316a  f004
+    //-------------------------------
 
     // 	;; RAM Error data
+    //-------------------------------
     // 316c  4f40				; O _ -> BAD   ROM 
     // 316e  4157				; A W -> BAD W RAM 
     // 3170  4156				; A V -> BAD V RAM 
     // 3172  4143				; A C -> BAD C RAM 
+    //-------------------------------
 /* Start the game ?!?!? */
 void serviceModeOrStartGame_3174 (void)
 {
@@ -15138,27 +15209,35 @@ void serviceModeOrStartGame_3174 (void)
         }
         else
         {
+            //-------------------------------
             // 31ff  07        rlca    
             // 3200  5f        ld      e,a
             // 3201  d5        push    de
             // 3202  062b      ld      b,#2b
             // 3204  cd5e2c    call    #2c5e
+            //-------------------------------
             displayMsg_2c5e (MSG_BONUS);
 
+            //-------------------------------
             // 3207  062e      ld      b,#2e
             // 3209  cd5e2c    call    #2c5e
+            //-------------------------------
             displayMsg_2c5e (MSG_000);
 
+            //-------------------------------
             // 320c  d1        pop     de
             // 320d  1600      ld      d,#00
             // 320f  21f932    ld      hl,#32f9
             // 3212  19        add     hl,de
             // 3213  7e        ld      a,(hl)
             // 3214  322a42    ld      (#422a),a
+            //-------------------------------
             SCREEN[0x22a] = DATA_32f9[DIP_SWITCH_BONUS];
+            //-------------------------------
             // 3217  23        inc     hl
             // 3218  7e        ld      a,(hl)
             // 3219  324a42    ld      (#424a),a
+            //-------------------------------
             SCREEN[0x24a] = DATA_32f9[DIP_SWITCH_BONUS + 1];
         }
         //-------------------------------
@@ -15203,6 +15282,7 @@ void serviceModeOrStartGame_3174 (void)
         // 3241  e610      and     #10
         // 3243  ca8831    jp      z,#3188
         //-------------------------------
+        usleep (500000);  // Allow user to see test progress
     }
     while (IN1_SERVICE == 0);
     printf ("service loop done\n");
@@ -15244,7 +15324,6 @@ void serviceModeOrStartGame_3174 (void)
         //-------------------------------
         uint16_t hl = *stackData++ - 0x4000; // 0x4002 in ROM which is video
         uint16_t de = *stackData++;
-        printf ("%s hl = %4x de=%04x\n", __func__, hl, de);
         do
         {
             //-------------------------------
@@ -15253,8 +15332,10 @@ void serviceModeOrStartGame_3174 (void)
             //-------------------------------
             kickWatchdog();
             uint16_t bc = *stackData++;
+        printf ("%s hl = %4x de=%04x, bc=%04x\n", __func__, hl, de, bc);
 
-            for (int i = 0; i < (bc >> 8); i++)
+            // for (int i = 0; i < (bc >> 8); i++)
+            for (int i = 0; i < 0x10; i++)
             {
                 //-------------------------------
                 // 325f  3e3c      ld      a,#3c
@@ -15267,7 +15348,7 @@ void serviceModeOrStartGame_3174 (void)
                 // 3264  23        inc     hl
                 // 3265  10f8      djnz    #325f           ; (-8)
                 //-------------------------------
-                SCREEN[hl++] = de & 0xff;
+                SCREEN[hl++] = de >> 8;
             }
 
             //-------------------------------
@@ -15275,8 +15356,8 @@ void serviceModeOrStartGame_3174 (void)
             // 3268  3b        dec     sp
             // 3269  c1        pop     bc
             //-------------------------------
-            stackData--;
-            bc = *stackData++;
+            // stackData--;
+            // bc = *stackData++;
 
             for (int i = 0; i < 0x10; i++)
             {
@@ -15485,12 +15566,19 @@ void delay_32ed (void)
     //-------------------------------
     for (int hl = 0x2800; hl > 0; hl--)
         ;
+
+    usleep (100000);
 }
     /*  Bonus life points, 10, 15 or 20 (thousand) */
+
+    //-------------------------------
     // 32f9  30 31 35 31 30 32
+    //-------------------------------
 
     /*  Table of vectors is repeated to allow a loop to count forwards 4 times
      *  from any starting orientation */
+
+    //-------------------------------
     // 32ff  00ff    // RIGHT dy = 0, dx=-1
     // 3301  0100    // DOWN  dy = 1, dx=0
     // 3303  0001    // LEFT  dy = 0, dx=1
@@ -15499,6 +15587,7 @@ void delay_32ed (void)
     // 3309  0100    // DOWN
     // 330b  0001    // LEFT
     // 330d  ff00    // UP
+    //-------------------------------
 
     /*  Table of move data.  Arranged as 6 x 42 (0x2a) groups.
      *
@@ -15509,6 +15598,7 @@ void delay_32ed (void)
      *  Pacman has 4 move registers (normal, poweredup, difficulty1 and
      *  difficulty2) while ghosts have 3 (normal, edible and tunnel) */
 
+    //-------------------------------
     // 330f  55 2a 55 2a // pacman normal - 14 of 32 = 44%
     //       55 55 55 55 // pacman powered - 16 of 32 = 50%
     //       55 2a 55 2a // difficulty2 - 14 if 32 = 44%
@@ -15516,14 +15606,18 @@ void delay_32ed (void)
     //       25 25 25 25 // ghost normal - 12 of 32 = 37.5%
     //       22 22 22 22 // ghost edible - 8 of 32 = 25%
     //       01 01 01 01 // ghost tunnel - 4 of 32 = 12.5%
+    //-------------------------------
 
     /*  Difficulty table - 0xe bytes */
 
+    //-------------------------------
     //       58 02 08 07 60
     // 3330  09 10 0e 68 10 70 17 14  19
+    //-------------------------------
 
     /*  Next move pattern */
 
+    //-------------------------------
     // 3339                              52 4a a5 94 aa 2a 55
     // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22
     // 3350  91 01 01 01 01 00 00 00  00 00 00 00 00 00 00 00
@@ -15550,9 +15644,11 @@ void delay_32ed (void)
     // 3417  6d 6d 6d 6d d6 5a ad b5 48
     // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
     // 3430  0c fe ff ff ff
+    //-------------------------------
 
     /*  Maze draw data */
 
+    //-------------------------------
     // 3435                 40 fc d0  d2 d2 d2 d2 d2 d2 d2 d2
     // 3440  d4 fc fc fc da 
 
@@ -15594,9 +15690,11 @@ void delay_32ed (void)
     // 35b0  dc 00 
 
     // 35b2        00 00 00
+    //-------------------------------
 
     /*  Pill draw data  - 0x1e x 8 = 0xf0 entries */
 
+    //-------------------------------
     // 35b5                 62 01 02  01 01 01 01 0c 01 01 04
     // 35c0  01 01 01 04 04 03 0c 03  03 03 04 04 03 0c 03 01
     // 35d0  01 01 03 04 04 03 0c 06  03 04 04 03 0c 06 03 04
@@ -15613,8 +15711,10 @@ void delay_32ed (void)
     // 3680  03 04 04 03 0c 06 03 04  04 03 0c 03 01 01 01 03
     // 3690  04 04 03 0c 03 03 03 04  01 02 01 01 01 01 0c 01
     // 36a0  01 04 01 01 01                                  
+    //-------------------------------
 
     // 	;; Indirect Lookup table for 2c5e routine  (0x48 entries) 
+    //-------------------------------
     // 36a5  1337			; 0         HIGH SCORE
     // 36a7  2337			; 1	    CREDIT   
     // 36a9  3237			; 2	    FREE PLAY
@@ -15650,10 +15750,10 @@ void delay_32ed (void)
     // 36e5  ec38			; 20 0039    2000
     // 36e7  f638			; 21 0039    3000
     // 36e9  0039			; 22 0039    5000
-    // 36eb  0a39                      ; 23         MEMORY  OK
+    // 36eb  0a39                       ; 23         MEMORY  OK
     // 36ed  1a39			; 24         BAD    R M
     // 36ef  6f39			; 25         FREE  PLAY       
-    // 36f1  2a39                      ; 26         1 COIN  1 CREDIT 
+    // 36f1  2a39                       ; 26         1 COIN  1 CREDIT 
     // 36f3  5839			; 27         1 COIN  2 CREDITS
     // 36f5  4139			; 28         2 COINS 1 CREDIT 
     // 36f7  4f3e			; 29 a339    PAC-MAN
@@ -15670,11 +15770,27 @@ void delay_32ed (void)
     // 370d  113e			; 34 1a3a    "EEEEEEEE"
     // 3711  b43d			; 35 2c3a    -POKEY   
     // 3711  303e			; 36 3d3a    "GGGGGGGG"
+    //-------------------------------
 
-    /*  Each msg is the same format.  Two bytes at the start to indicate where
-     *  on the screen the message should be printed, the text of the msg itself,
-     *  terminated by 0x2f and then 4 bytes.  The msg terminator, the colour,
-     *  another terminator and I think a second colour. */
+    /*  Each msg is the same format.  The message number is or'd with #80 to
+     *  indicate the message is to be erased.  With n being the length of the msg:
+    *
+     *  byte 0..1  : Address on the screen the message should be printed.  Or'd
+     *              with #8000 means msg is on top or bottom 2 lines of screen.
+     *  bytes 2..n+1 : The text of the msg itself
+     *  byte  n+2    : 0x2f - end of text
+     *  byte  n+3    : 1st colour.  First byte or'd with #80 means all the text is the
+     *  same colour (single byte), otherwise it is a string of colours the same length as the
+     *  message.
+     *  byte  n+4    : 0x2f - end of 1st colour info
+     *  byte  n+5    : 2nd colour.  Used when erasing a msg.  Again, if first
+     *  byte is or'd with #80 then it is a single byte, otherwise it is a
+     *  string. */
+
+    /*  NOTE : code for the msg table is disabled.  I have originally intended
+     *  to a build a table that would be compiled in but then opted to just
+     *  reference the ROM code instead. */
+
     #if 0
     uint8_t *msgTable_36a5[] = 
     {
@@ -15708,8 +15824,8 @@ void delay_32ed (void)
         {
             0x8c, 0x02
             'P','L','A','Y','E','R','@','O','N','E', 
-            0x2f, 0x85, 0x2f, 0x10, 0x10, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a,
-            0x10, 0x10
+            0x2f, 0x85, 
+            0x2f, 0x10, 0x10, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a, 0x1a, 0x10, 0x10
         },
 
         // 	;; 36a5 Table Entry 4
@@ -16079,6 +16195,7 @@ void delay_32ed (void)
     /*  Apparently this is the data for the "made by namco" easter egg.  The
      *  data draws the msg using the same format as the maze draw */
 
+    //-------------------------------
     // 3a4f                                                01 
     // 3a50  01 03 01 01 01 03 02 02  02 01 01 01 01 02 04 04 
     // 3a60  04 06 02 02 02 02 04 02  04 04 04 06 02 02 02 02 
@@ -16090,8 +16207,10 @@ void delay_32ed (void)
     // 3ac0  02 04 02 01 01 01 01 02  02 02 0e 02 04 02 04 02 
     // 3ad0  01 02 01 0a 01 01 01 01  03 01 01 01 03 01 01 03 
     // 3ae0  04 00
+    //-------------------------------
 
     /*  Test stack used in 325d */
+    //-------------------------------
     // 3ae2  02 40 
     // 3ae4  01 3e
     // 3ae6  3d 10
@@ -16101,6 +16220,7 @@ void delay_32ed (void)
     // 3aee  c2 43
     // 3af0  01 3e
     // 3ad2  3d 10
+    //-------------------------------
 
 /*  draw easter egg */
 void madeByNamco_3af4 (void)
@@ -16139,6 +16259,7 @@ void madeByNamco_3af4 (void)
 
     /*  Fruit table */
 
+    //-------------------------------
     // 3b08  90 14   ; cherry
     // 3b0a  94 0F   ; strawberry
     // 3b0c  98 15   ; 1st orange
@@ -16159,9 +16280,11 @@ void madeByNamco_3af4 (void)
     // 3b2a  AC 16   ; 6th key
     // 3b2c  AC 16   ; 7th key
     // 3b2e  AC 16   ; 8th key
+    //-------------------------------
 
     /*  Sound effects */
 
+    //-------------------------------
     // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00
 
     // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00
@@ -16195,6 +16318,7 @@ void madeByNamco_3af4 (void)
     // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b
     // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00
     // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+    //-------------------------------
 
     #if 0
     // 	;; 36a5 Table Entry a
@@ -16361,6 +16485,7 @@ void madeByNamco_3af4 (void)
     },
     #endif
 
+    //-------------------------------
     // 3e5c                                       00 00 00 00
     // 3e70  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 3e80  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
@@ -16387,8 +16512,13 @@ void madeByNamco_3af4 (void)
     // 3fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 3fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 3ff0  00 00 00 00 00 00 00 00  00 00                  
+    //-------------------------------
 
+    //-------------------------------
     // 3ffa  0030				; Interrupt Vector 3000 
     // 3ffc  8d00				; Interrupt Vector 008d 
+    //-------------------------------
 
-    // 3ffe  75 73 ; Checksum data 
+    //-------------------------------
+    // 3ffe  75 73 ; Checksum data for 4th ROM
+    //-------------------------------

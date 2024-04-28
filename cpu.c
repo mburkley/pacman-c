@@ -98,4 +98,5 @@ void interruptVector (void (*func) (void))
 
 void kickWatchdog (void)
 {
+// usleep(50000);
 }
