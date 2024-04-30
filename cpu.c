@@ -67,9 +67,9 @@ void interruptHalt (void)
     for (int i = 0; i < 16; i++)
         printf ("%02x ", SPRITECOORDS[i]);
     printf ("\nstates: main=%d 0=%d intro=%d 2=%d l=%d s1=%d s2=%d s3=%d\n",
-            MAIN_STATE, MAIN_STATE_SUB0, 
-            INTRO_STATE, MAIN_STATE_SUB2, 
-            LEVEL_STATE_SUBR,
+            MAIN_STATE, RESET_STATE, 
+            INTRO_STATE, CREDIT_STATE, 
+            LEVEL_STATE,
             SCENE1_STATE,
             SCENE2_STATE,
             SCENE3_STATE);

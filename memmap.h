@@ -167,10 +167,10 @@ extern uint8_t dipSwitches;
 #define TASK_LIST_BEGIN         (*(uint16_t*)&memmap.mem[0x4c82])
 
 #define SOUND_COUNTER                   &memmap.mem[0x4c84]
-#define TIMER_HUNDREDTHS                memmap.mem[0x4c86]
+#define TIMER_SIXTIETHS                 memmap.mem[0x4c86]
 #define TIMER_SECONDS                   memmap.mem[0x4c87]
 #define TIMER_MINUTES                   memmap.mem[0x4c88]
-#define TIMER_HOURS                     memmap.mem[0x4c89]
+#define TIMER_HOURS                     memmap.mem[0x4c89] // Actually a hundred mins?
 #define COUNTER_LIMITS_CHANGES          memmap.mem[0x4c8a]
 #define RND_NUM_GEN1                    memmap.mem[0x4c8b]
 #define RND_NUM_GEN2                    memmap.mem[0x4c8c]
@@ -313,10 +313,10 @@ extern uint8_t dipSwitches;
 #define WAIT_START_BUTTON               memmap.mem[0x4dd6]
 
 #define MAIN_STATE                      memmap.mem[0x4e00]
-#define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
+#define RESET_STATE                     memmap.mem[0x4e01]
 #define INTRO_STATE                     memmap.mem[0x4e02]
-#define MAIN_STATE_SUB2                 memmap.mem[0x4e03]
-#define LEVEL_STATE_SUBR                memmap.mem[0x4e04]
+#define CREDIT_STATE                    memmap.mem[0x4e03] // coin inserted
+#define LEVEL_STATE                     memmap.mem[0x4e04]
 #define SCENE1_STATE                    memmap.mem[0x4e06]
 #define SCENE2_STATE                    memmap.mem[0x4e07]
 #define SCENE3_STATE                    memmap.mem[0x4e08]

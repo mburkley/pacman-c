@@ -39,9 +39,9 @@ void dispatchISRTasks_0221 (void);
 void checkCoinInput_0267 (void);
 void checkCoinCounterTimeout_02ad (void);
 void func_039d (void);
-void func_03dc (void);
+void initResetGame_03dc (void);
 void introStateMachine_03fe (void);
-void func_045f (void);
+void introStart_045f (void);
 void introduceBlinky_0471 (void);
 void introduceShadow_047f (void);
 void introducePinky_048b (void);
@@ -69,21 +69,21 @@ void displayIntroMsg_0585(int c);
 void introduceGhost_0593(int c);
 XYPOS pacmanReverse_05a5 (void);
 void drawGhost_05bf (int hl, int a);
-void mainState2_05e5 (void);
-void func_05f3 (void);
-void func_0674 (void);
-void func_06a8 (void);
-void levelStateSubroutineStateMachine_06be (void);
+void coinInsertedStateMachine_05e5 (void);
+void pushStartMsg_05f3 (void);
+void player1ReadyMsg_0674 (void);
+void creditStateReset_06a8 (void);
+void playGameStateMachine_06be (void);
 void setupGhostTimers_070e(int b);
 void setupMovePat_0814(uint8_t *hl);
 void levelStatePlayerReady_0899 (void);
-void func_08cd (void);
+void playGameMain_08cd (void);
 void switchPlayers_0940 (void);
 void func_0972 (void);
-void setupScreenGameOver_0988 (void);
+void gameOverOrNextPlayer_0988 (void);
 void func_09ea (int param);
-void advanceToLevelState3_09d2 (void);
-void func_09d8 (void);
+void advanceToLevelStatePlayGame_09d2 (void);
+void playGameSoundOff_09d8 (void);
 void func_09e8 (void);
 void func_09fe (void);
 void func_0a02 (void);
@@ -95,15 +95,14 @@ void func_0a0c (void);
 void func_0a0e (void);
 void nextLevelStateMachine_0a2c (void);
 void nextLevel_0a7c (void);
-void setupScreenGameOver_0aa0 (void);
-void advanceToLevelState3_0aa3 (void);
+void gameOverOrNextPlayer_0aa0 (void);
+void advanceToLevelStatePlayGame_0aa3 (void);
 void swapP1P2Difficulty_0aa6 (void);
 void ghostsFlashBecomingInedible_0ac3 (void);
 void flashPowerups_0c0d (void);
 void ghostsLeaveHouse_0c42 (void);
 void toggleGhostAnimation_0e23 (void);
 void ghostsChangeOrientation_0e36 (void);
-void func_0ead (void);
 void resetFruit_1000 (void);
 void func_100b (void);
 void func_1017 (void);
@@ -113,15 +112,15 @@ void pinkyStateMachine_109e (void);
 void inkyStateMachine_10a8 (void);
 void clydeStateMachine_10b4 (void);
 void blinkyStateDead_10c0 (void);
-void blinkyStateEnterHome_10d2 (void);
-void func_1101 (void);
+void blinkyStateEnterHouse_10d2 (void);
+void ghostsAnyDeadSoundOff_1101 (void);
 void pinkyStateDead_1118 (void);
-void pinkyStateEnterHome_112a (void);
-void inkyStateEnterHome_116e (void);
-void inkyStateHomeMoveAside_118f (void);
+void pinkyStateEnterHouse_112a (void);
+void inkyStateEnterHouse_116e (void);
+void inkyStateHouseMoveAside_118f (void);
 void clydeStateDead_11c9 (void);
-void clydeStateEnterHome_11db (void);
-void clydeStateHomeMoveAside_11fc (void);
+void clydeStateEnterHouse_11db (void);
+void clydeStateHouseMoveAside_11fc (void);
 void ghostKilledState_1235 (void);
 void pacmanDeadAnimState5_12cb (void);
 void pacmanDeadAnimState6_12f9 (void);
@@ -139,7 +138,7 @@ void powerupOver_1376 (void);
 void spriteAnimationUpright_141f (void);
 void spriteAnimationCocktail_1490 (void);
 void spriteAnimation_14fe (void);
-void func_15b4 (void);
+void ghostsCocktailMode_15b4 (void);
 void scene1Animation_15e6 (void);
 void scene2Animation_162d (void);
 void pacmanCheckGhostCoincidence_171d (void);
@@ -162,8 +161,8 @@ void inkyCheckReverse_1f4c (void);
 void clydeCheckReverse_1f73 (void);
 uint16_t getScreenOffset_202d (XYPOS hl);
 void checkGhostEnterTunnel_205a (XYPOS pos, uint8_t *aux);
-void inkyCheckLeaveHome_208c (void);
-void clydeCheckLeaveHome_20af (void);
+void inkyCheckLeaveHouse_208c (void);
+void clydeCheckLeaveHouse_20af (void);
 void scene1StateMachine_2108 (void);
 void scene1State0_211a (void);
 void updateMoveVector_2130 (void);
@@ -210,7 +209,7 @@ uint8_t* getPlayerScorePtr_2b0b (void);
 void drawBlankSquare_2b7e(uint8_t *hl);
 void drawCharSquare_2b80 (uint8_t *hl, int a);
 void drawFruit_2b8f (uint8_t *hl, int a);
-void func_2b6a (int unused);
+void bottomTextColourAndDisplayLives_2b6a (int unused);
 void displayFruitHistory_2bfd (uint8_t *table, int level);
 void func_2c44(uint8_t a);
 void func_2cc1 (void);
@@ -236,7 +235,7 @@ uint8_t func_2fad (uint8_t *ix, uint8_t *iy);
 
 void kickWatchdog (void);
 void mainStateMachine_03c8  (void);
-void addISRTask(uint8_t *ptr, int count, uint8_t* data);
+// void addISRTask(uint8_t *ptr, int count, uint8_t* data);
 void addTask (uint8_t task, uint8_t param);
 void mainStateMachine_03c8  (void);
 void resetStateMachine_03d4 (void);
@@ -248,7 +247,7 @@ void extraLife_2b33 (uint8_t *score);
 void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
 void incLevelStateSubr_0894 (void);
 void incMainSub2_06a3 (void);
-void initLeaveHomeCounters_083a(uint8_t *hl);
+void initLeaveHouseCounters_083a(uint8_t *hl);
 void isr_008d (void);
 void jumpClearScreen_23ed(int param);
 void nothing (void);
@@ -259,7 +258,7 @@ void playerDied_090d (void);
 void playerUp (void);
 uint8_t random_2a23 (void);
 void resetGameState_2698 ();
-void resetGhostPosition_267e (int y, int x);
+void setGhostPosition_267e (int y, int x);
 void resetPlayerParams_0879 (void);
 void resetPositions_2675 ();
 void schedISRTask (uint8_t time, uint8_t routine, uint8_t param);
@@ -302,7 +301,7 @@ void pinkyReverse_1f2e (void);
 void inkyReverse_1f55 (void);
 void clydeReverse_1f7c (void);
 void pacmanDeadAnimState_1291 (void);
-void pinkyCheckLeaveHome_2069 (void);
+void pinkyCheckLeaveHouse_2069 (void);
 void inkyStateDead_115c(void);
 void blinkyUpdatePosition_1bd8 (void);
 void pinkyUpdatePosition_1caf (void);
@@ -320,7 +319,7 @@ void pacmanOrientDown_1af8 (void);
 uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos);
 XYPOS pixelToTile_2018 (XYPOS pos);
 void resetFruitState_1004 (void);
-void updateLeaveHomeCounters_1b08 (void);
+void updateLeaveHouseCounters_1b08 (void);
 void pacmanMove_1a5c (void);
 void updateDifficultyTBD_20d7 (void);
 uint16_t getColourOffset_2052 (XYPOS pos);
@@ -413,14 +412,6 @@ void setMemory_0008 (uint8_t *hl, uint8_t b, uint8_t a)
     memset (hl, a, b);
 }
 
-void setupGhostTimers_000d (int param)
-{
-    //-------------------------------
-    // 000d  c30e07    jp      #070e
-    //-------------------------------
-    setupGhostTimers_070e(param);
-}
-
 /*  Memory location 000c is referenced in several tables.  It is just a return
  *  so define an empty function to add to the jump tables */
 void nothing_000c (void)
@@ -436,6 +427,14 @@ void nothingParam_000c (uint16_t unused)
 uint8_t nothingReturnParam_000c (uint8_t *unused1, uint8_t *unused2)
 {
     return 0;
+}
+
+void setupGhostTimers_000d (int param)
+{
+    //-------------------------------
+    // 000d  c30e07    jp      #070e
+    //-------------------------------
+    setupGhostTimers_070e(param);
 }
 
 /*  Add b to hl, fetch return the byte at *(hl+b).  hl is also modified */
@@ -941,8 +940,10 @@ void updateCounters_01dc (void)
     // 01e2  23        inc     hl
     //-------------------------------
     uint8_t *ptr = SOUND_COUNTER;
-    (*ptr)++; ptr++;
-    (*ptr)--; ptr++;
+    printf ("%s Counters %d,%d\n", __func__, ptr[0], ptr[1]);
+    ptr[0]++;
+    ptr[1]--;
+    ptr = &TIMER_SIXTIETHS;
 
     //-------------------------------
     // 01e3  111902    ld      de,#0219
@@ -951,12 +952,17 @@ void updateCounters_01dc (void)
     uint8_t *data = DATA_0219;
     int c = 1;
 
+    /*  Walk through 4 BCD bytes which hold timer info.  Each increasing byte is
+     *  a clock order of magnitude, sixtieths, seconds, minutes and hours (or is
+     *  that 100 minutes?).  Do two comparisons for each half, high nybble and
+     *  low nybble.  If they don't match, break, otherwise increment the next
+     *  digit. */
     for (int b = 0; b < 4; b++)
     {
         //-------------------------------
         // 01e9  34        inc     (hl)
         //-------------------------------
-        (*ptr)++;
+        ptr[b]++;
 
         //-------------------------------
         // 01ea  7e        ld      a,(hl)
@@ -965,40 +971,43 @@ void updateCounters_01dc (void)
         // 01ee  be        cp      (hl)
         // 01ef  2013      jr      nz,#0204        ; (19)
         //-------------------------------
-        int a = *ptr & 0x0f;
+        int a = ptr[b] & 0x0f;
 
-        if (a == *data)
-        {
-            //-------------------------------
-            // 01f1  0c        inc     c
-            // 01f2  1a        ld      a,(de)
-            // 01f3  c610      add     a,#10
-            // 01f5  e6f0      and     #f0
-            // 01f7  12        ld      (de),a
-            //-------------------------------
-            c++;
-            *ptr = (*ptr+0x10) & 0xf0;
+        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, a, data[b]);
+        if (a != data[b])
+            break;
 
-            //-------------------------------
-            // 01f8  23        inc     hl
-            // 01f9  be        cp      (hl)
-            // 01fa  2008      jr      nz,#0204        ; (8)
-            //-------------------------------
-            if (*ptr != *++data)
-                break;
+        //-------------------------------
+        // 01f1  0c        inc     c
+        // 01f2  1a        ld      a,(de)
+        // 01f3  c610      add     a,#10
+        // 01f5  e6f0      and     #f0
+        // 01f7  12        ld      (de),a
+        //-------------------------------
+        c++;
+        ptr[b] = (ptr[b] + 0x10) & 0xf0;
 
-            //-------------------------------
-            // 01fc  0c        inc     c
-            // 01fd  eb        ex      de,hl
-            // 01fe  3600      ld      (hl),#00
-            // 0200  23        inc     hl
-            // 0201  13        inc     de
-            // 0202  10e5      djnz    #01e9           ; (-27)
-            //-------------------------------
-            c++;
-            *ptr++= 0;
-            data++;
-        }
+        //-------------------------------
+        // 01f8  23        inc     hl
+        // 01f9  be        cp      (hl)
+        // 01fa  2008      jr      nz,#0204        ; (8)
+        //-------------------------------
+        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, ptr[b], data[b+1]);
+        if (ptr[b] != data[b+1])
+            break;
+
+        //-------------------------------
+        // 01fc  0c        inc     c
+        // 01fd  eb        ex      de,hl
+        // 01fe  3600      ld      (hl),#00
+        // 0200  23        inc     hl
+        // 0201  13        inc     de
+        // 0202  10e5      djnz    #01e9           ; (-27)
+        //-------------------------------
+        c++;
+        // *ptr++= 0;
+        ptr[b] = 0;
+        // data++;
     }
 
     //-------------------------------
@@ -1033,6 +1042,8 @@ void updateCounters_01dc (void)
     RND_NUM_GEN2 = RND_NUM_GEN2 * 5 + 1;
 }
  
+    /*  Data related to timer counts, seconds, minutes, hours */ 
+
     //-------------------------------
     // 0219  06 a0 0a 60 0a 60 0a a0 
     //-------------------------------
@@ -1407,15 +1418,15 @@ void showStartNumPlayers_02fd (void)
         // 0338  fe02      cp      #02
         // 033a  d24403    jp      nc,#0344
         //-------------------------------
-        if (MAIN_STATE_SUB2 >= MAIN_STATE_CREDIT)
+        if (CREDIT_STATE >= CREDIT_STATE_PLAYER1_READY)
         {
             //-------------------------------
             // 033d  cd6903    call    #0369
             // 0340  cd7603    call    #0376
             // 0343  c9        ret     
             //-------------------------------
-            oneUp(ix);
-            twoUp(iy);
+            oneUp (ix);
+            twoUp (iy);
             return;
         }
     }
@@ -1435,9 +1446,9 @@ void showStartNumPlayers_02fd (void)
         // 0356  c36103    jp      #0361
         //-------------------------------
         if ((COIN_TIMER & 0x10) == 0)
-            oneUp(ix);
+            oneUp (ix);
         else
-            oneBlank(ix);
+            oneBlank (ix);
     }
     else
     {
@@ -1447,9 +1458,9 @@ void showStartNumPlayers_02fd (void)
         // 035e  c49003    call    nz,#0390
         //-------------------------------
         if ((COIN_TIMER & 0x10) == 0)
-            twoUp(iy);
+            twoUp (iy);
         else
-            twoBlank(iy);
+            twoBlank (iy);
     }
 
     //-------------------------------
@@ -1459,7 +1470,7 @@ void showStartNumPlayers_02fd (void)
     // 0368  c9        ret     
     //-------------------------------
     if (!TWO_PLAYERS)
-        twoBlank(iy);
+        twoBlank (iy);
 }
 
 /* Display "1UP" */
@@ -1576,8 +1587,8 @@ void mainStateMachine_03c8 (void)
     {
         resetStateMachine_03d4,
         introStateMachine_03fe,
-        mainState2_05e5,
-        levelStateSubroutineStateMachine_06be
+        coinInsertedStateMachine_05e5,
+        playGameStateMachine_06be
     };
     tableCall_0020 (func, MAIN_STATE);
 }
@@ -1594,14 +1605,14 @@ void resetStateMachine_03d4 (void)
     //-------------------------------
     void (*func[])() = 
     {
-        func_03dc,
+        initResetGame_03dc,
         nothing_000c
     };
-    tableCall_0020 (func, MAIN_STATE_SUB0);
+    tableCall_0020 (func, RESET_STATE);
 }
 
 /*  4e00 ==0 && 4e01 == 0 => 4e01=1 */
-void func_03dc (void)
+void initResetGame_03dc (void)
 {
     //-------------------------------
     // 03dc  ef        rst     #28
@@ -1637,11 +1648,10 @@ void func_03dc (void)
     // 03fb  3601      ld      (hl),#01
     // 03fd  c9        ret     
     //-------------------------------
-    MAIN_STATE_SUB0++;
+    RESET_STATE++;
     SOUNDENABLE = 1;
 }
 
-/*  4e00 ==1.  If have credit, 4e00=2 */
 void introStateMachine_03fe (void)
 {
     //-------------------------------
@@ -1665,7 +1675,7 @@ void introStateMachine_03fe (void)
         // 0412  c9        ret     
         //-------------------------------
 
-        INTRO_STATE = LEVEL_STATE_SUBR = 0;
+        INTRO_STATE = LEVEL_STATE = 0;
         MAIN_STATE++;
         return;
     }
@@ -1682,7 +1692,7 @@ void introStateMachine_03fe (void)
     //-------------------------------
     void (*func[])() = 
     {
-        func_045f, nothing_000c,
+        introStart_045f, nothing_000c,
         introduceBlinky_0471, nothing_000c,   // state 2
         introduceShadow_047f, nothing_000c,
         introduceBlinky_0485, nothing_000c,   // 6
@@ -1707,7 +1717,7 @@ void introStateMachine_03fe (void)
     tableCall_0020 (func, INTRO_STATE);
 }
 
-void func_045f (void)
+void introStart_045f (void)
 {
     //-------------------------------
     // 045f  ef        rst     #28
@@ -1729,7 +1739,7 @@ void func_045f (void)
     // 046d  cd8505    call    #0585
     // 0470  c9        ret     
     //-------------------------------
-    displayIntroMsg_0585(0xc);
+    displayIntroMsg_0585 (MSG_NICKNAME);
 }
 
 void introduceBlinky_0471 (void)
@@ -1743,7 +1753,7 @@ void introduceBlinky_0471 (void)
     // 047e  c9        ret     
     //-------------------------------
     drawGhost_05bf(0x304, 1);
-    displayIntroMsg_0585(0xc);
+    displayIntroMsg_0585 (MSG_NICKNAME);
 }
 
 void introduceShadow_047f (void)
@@ -1777,7 +1787,7 @@ void introducePinky_048b (void)
     // 0498  c9        ret     
     //-------------------------------
     drawGhost_05bf(0x307, 3);
-    displayIntroMsg_0585(0xc);
+    displayIntroMsg_0585 (MSG_NICKNAME);
 }
 
 void introduceSpeedy_0499 (void)
@@ -1811,7 +1821,7 @@ void introduceInky_04a5 (void)
     // 04b2  c9        ret     
     //-------------------------------
     drawGhost_05bf(0x30a,5);
-    displayIntroMsg_0585(0xc);
+    displayIntroMsg_0585 (MSG_NICKNAME);
 }
 
 void introduceBashful_04b3 (void)
@@ -1845,7 +1855,7 @@ void introduceClyde_04bf (void)
     // 04cc  c9        ret     
     //-------------------------------
     drawGhost_05bf(0x30d,7);
-    displayIntroMsg_0585(0xc);
+    displayIntroMsg_0585 (MSG_NICKNAME);
 }
 
 void introduceClyde_04cd (void)
@@ -1879,7 +1889,7 @@ void introducePoints_04d8 (void)
     //       0e12      ld      c,0x12
     // 04dd  c38505    jp      #0585
     //-------------------------------
-    displayIntroMsg_0585(0x12);
+    displayIntroMsg_0585 (MSG_50PTS);
 }
 
 void setupIntroScene_04e0 (void)
@@ -1888,14 +1898,14 @@ void setupIntroScene_04e0 (void)
     // 04e0  0e13      ld      c,#13
     // 04e2  cd8505    call    #0585
     //-------------------------------
-    displayIntroMsg_0585(0x13);
+    displayIntroMsg_0585 (MSG_COPYRIGHT2);
 
     //-------------------------------
     // 04e5  cd7908    call    #0879
     // 04e8  35        dec     (hl)
     //-------------------------------
     resetPlayerParams_0879();
-    LEVEL_STATE_SUBR--;
+    LEVEL_STATE--;
 
     //-------------------------------
     // 04e9  ef        rst     #28
@@ -1908,7 +1918,7 @@ void setupIntroScene_04e0 (void)
     // 04f3  0401
     //-------------------------------
     schedTask (TASK_CLEAR_GHOST_STATE, 0);
-    schedTask (TASK_BLINKY_SUBSTATE, 1);
+    schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_CHASE);
     schedTask (TASK_SETUP_GHOST_TIMERS, 0x14);
     schedTask (TASK_INIT_POSITIONS, 1);
 
@@ -2074,12 +2084,12 @@ void introCheckAllGhostsEaten_056c (void)
 
 void introFinalTBD_057c (void)
 {
-    printf ("%s lss=%d\n", __func__, LEVEL_STATE_SUBR);
+    printf ("%s lss=%d\n", __func__, LEVEL_STATE);
     //-------------------------------
     // 057c  cdbe06    call    #06be
     // 057f  c9        ret     
     //-------------------------------
-    levelStateSubroutineStateMachine_06be();
+    playGameStateMachine_06be();
 }
 
 void selectDisplayGhostName_0580(int c)
@@ -2250,8 +2260,7 @@ void drawGhost_05bf (int hl, int a)
     COLOUR[hl] = a;
 }
 
-/*  4e00 == 2 */
-void mainState2_05e5 (void)
+void coinInsertedStateMachine_05e5 (void)
 {
     //-------------------------------
     // 05e5  3a034e    ld      a,(#4e03)
@@ -2262,17 +2271,16 @@ void mainState2_05e5 (void)
     //-------------------------------
     void (*func[])() =
     {
-        func_05f3,
+        pushStartMsg_05f3,
         checkStartButtons,
-        func_0674,
+        player1ReadyMsg_0674,
         nothing_000c,
-        func_06a8
+        creditStateReset_06a8
     };
-    tableCall_0020 (func, MAIN_STATE_SUB2);
+    tableCall_0020 (func, CREDIT_STATE);
 }
 
-/*  4e00 ==2 && 4e03 == 0, advance 4e03 to 1 */
-void func_05f3 (void)
+void pushStartMsg_05f3 (void)
 {
     //-------------------------------
     // 05f3  cda12b    call    #2ba1
@@ -2291,11 +2299,11 @@ void func_05f3 (void)
     // 0602  ef        rst     #28
     // 0603  1e00
     //-------------------------------
-    schedTask (TASK_CLEAR_SCREEN, 0x01);
-    schedTask (TASK_MAZE_COLOURS, 0x00);
+    schedTask (TASK_CLEAR_SCREEN, 1);
+    schedTask (TASK_MAZE_COLOURS, 0);
     schedTask (TASK_DISPLAY_MSG, MSG_PUSHSTART);
-    schedTask (TASK_DISPLAY_MSG, MSG_COPYRIGHT);
-    schedTask (TASK_RESET_POSITIONS, 0x00);
+    schedTask (TASK_DISPLAY_MSG, MSG_COPYRIGHT1);
+    schedTask (TASK_RESET_POSITIONS, 0);
 
     //-------------------------------
     // 0605  21034e    ld      hl,#4e03
@@ -2303,7 +2311,7 @@ void func_05f3 (void)
     // 0609  3e01      ld      a,#01
     // 060b  32d64d    ld      (#4dd6),a
     //-------------------------------
-    MAIN_STATE_SUB2++;
+    CREDIT_STATE++;
     WAIT_START_BUTTON = 1;
 
     //-------------------------------
@@ -2418,7 +2426,7 @@ void checkStartButtons (void)
     // 0664  21034e    ld      hl,#4e03
     // 0667  34        inc     (hl)
     //-------------------------------
-    MAIN_STATE_SUB2++;
+    CREDIT_STATE++;
 
     //-------------------------------
     // 0668  af        xor     a
@@ -2433,8 +2441,7 @@ void checkStartButtons (void)
     SND_CH2_WAV_NUM = 1;
 }
 
-/*  4e00 == 2 && 4e03 == 2.  Play start sound? 4e03=3 */
-void func_0674 (void)
+void player1ReadyMsg_0674 (void)
 {
     //-------------------------------
     // 0674  ef        rst     #28
@@ -2456,15 +2463,15 @@ void func_0674 (void)
     // 068c  ef        rst     #28
     // 068d  1b00
     //-------------------------------
-    schedTask (TASK_CLEAR_SCREEN, 0x01);
-    schedTask (TASK_MAZE_COLOURS, 0x01);
-    schedTask (TASK_DRAW_MAZE, 0x00);
-    schedTask (TASK_CLEAR_PILLS, 0x00);
-    schedTask (TASK_DRAW_PILLS, 0x00);
+    schedTask (TASK_CLEAR_SCREEN, 1);
+    schedTask (TASK_MAZE_COLOURS, 1);
+    schedTask (TASK_DRAW_MAZE, 0);
+    schedTask (TASK_CLEAR_PILLS, 0);
+    schedTask (TASK_DRAW_PILLS, 0);
     schedTask (TASK_DISPLAY_MSG, MSG_PLAYER1);
     schedTask (TASK_DISPLAY_MSG, MSG_READY);
-    schedTask (TASK_CLEAR_SCORES, 0x00);
-    schedTask (TASK_FRUIT_HISTORY, 0x00);
+    schedTask (TASK_CLEAR_SCORES, 0);
+    schedTask (TASK_FRUIT_HISTORY, 0);
 
     //-------------------------------
     // 068f  af        xor     a
@@ -2480,7 +2487,7 @@ void func_0674 (void)
     // 069c  ef        rst     #28
     // 069d  1a00
     //-------------------------------
-    schedTask (0x1a, 0x00);
+    schedTask (TASK_BOTTOM_COLOUR, 0x00);
 
     //-------------------------------
     // 069f  f7        rst     #30
@@ -2497,10 +2504,10 @@ void incMainSub2_06a3 (void)
     // 06a6  34        inc     (hl)
     // 06a7  c9        ret     
     //-------------------------------
-    MAIN_STATE_SUB2++;
+    CREDIT_STATE++;
 }
 
-void func_06a8 (void)
+void creditStateReset_06a8 (void)
 {
     //-------------------------------
     // 06a8  21154e    ld      hl,#4e15
@@ -2508,7 +2515,7 @@ void func_06a8 (void)
     // 06ac  cd6a2b    call    #2b6a
     //-------------------------------
     P1_DISPLAY_LIVES--;
-    func_2b6a (0);
+    bottomTextColourAndDisplayLives_2b6a (0);
 
     //-------------------------------
     // 06af  af        xor     a
@@ -2520,13 +2527,13 @@ void func_06a8 (void)
     // 06bd  c9        ret     
     //-------------------------------
     INTRO_STATE = 
-    MAIN_STATE_SUB2 = 
-    LEVEL_STATE_SUBR = 0;
+    CREDIT_STATE = 
+    LEVEL_STATE = 0;
     MAIN_STATE++;
 }
 
-/*  4e00 == 3 */
-void levelStateSubroutineStateMachine_06be (void)
+/*  called if MAIN_STATE_PLAY */
+void playGameStateMachine_06be (void)
 {
     //-------------------------------
     // 06be  3a044e    ld      a,(#4e04)
@@ -2542,13 +2549,13 @@ void levelStateSubroutineStateMachine_06be (void)
     {
         resetPlayerParams_0879,
         levelStatePlayerReady_0899, nothing_000c,
-        func_08cd,
+        playGameMain_08cd,
         playerDied_090d, nothing_000c,
         switchPlayers_0940, nothing_000c,
         func_0972,
-        setupScreenGameOver_0988, nothing_000c,
-        advanceToLevelState3_09d2,
-        func_09d8, nothing_000c,
+        gameOverOrNextPlayer_0988, nothing_000c,
+        advanceToLevelStatePlayGame_09d2,
+        playGameSoundOff_09d8, nothing_000c,
         func_09e8, nothing_000c,     
         func_09fe, nothing_000c,
         func_0a02, nothing_000c,
@@ -2560,10 +2567,10 @@ void levelStateSubroutineStateMachine_06be (void)
         func_0a0e, nothing_000c,
         nextLevelStateMachine_0a2c, nothing_000c,
         nextLevel_0a7c,
-        setupScreenGameOver_0aa0, nothing_000c,
-        advanceToLevelState3_0aa3
+        gameOverOrNextPlayer_0aa0, nothing_000c,
+        advanceToLevelStatePlayGame_0aa3
     };
-    tableCall_0020 (func, LEVEL_STATE_SUBR);
+    tableCall_0020 (func, LEVEL_STATE);
 }
 
 void setupGhostTimers_070e (int b)
@@ -2645,7 +2652,7 @@ void setupGhostTimers_070e (int b)
     //-------------------------------
     hl = DATA_0843+3*ix[2];
     printf ("%s leave home counter=%lx\n", __func__, hl-ROM);
-    initLeaveHomeCounters_083a(hl);
+    initLeaveHouseCounters_083a(hl);
 
     //-------------------------------
     // 0750  dd7e03    ld      a,(ix+#03)
@@ -2787,7 +2794,7 @@ void setupMovePat_0814(uint8_t *hl)
 }
 
 /*  Sets the leave home counters for pinky, inky and clyde */
-void initLeaveHomeCounters_083a(uint8_t *hl)
+void initLeaveHouseCounters_083a(uint8_t *hl)
 {
     //-------------------------------
     // 083a  11b84d    ld      de,#4db8
@@ -2798,10 +2805,14 @@ void initLeaveHomeCounters_083a(uint8_t *hl)
     memcpy (&PINKY_LEAVE_HOME_COUNTER, hl, 3);
 }
 
+    /*  Leave home counter data, groups of 3 bytes */
+
+    //-------------------------------
     // 0843           14 1e 46 00 1e  3c 00 00 32 00 00 00 14
     // 0850  0a 1e 0f 28 14 32 19 3c  1e 50 28 64 32 78 3c 8c
     // 0860  46 c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78
     // 0870  00 01 00 f0 00 f0 00 b4  00                    
+    //-------------------------------
 
 /*  side-effect: Sets HL to 0x4e04 */
 void resetPlayerParams_0879 (void)
@@ -2840,7 +2851,7 @@ void incLevelStateSubr_0894 (void)
     // 0897  34        inc     (hl)
     // 0898  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void levelStatePlayerReady_0899 (void)
@@ -2855,7 +2866,7 @@ void levelStatePlayerReady_0899 (void)
     //-------------------------------
     if (MAIN_STATE == MAIN_STATE_DEMO)
     {
-         LEVEL_STATE_SUBR = 9;
+         LEVEL_STATE = LEVEL_STATE_GAME_OVER;
          return;
     }
 
@@ -2873,12 +2884,12 @@ void levelStatePlayerReady_0899 (void)
     // 08b4  ef        rst     #28
     // 08b5  1a00
     //-------------------------------
-    schedTask (TASK_CLEAR_GHOST_STATE, 0x00);
+    schedTask (TASK_CLEAR_GHOST_STATE, 0);
     schedTask (TASK_DISPLAY_MSG, 0x80 | MSG_PLAYER1);
-    schedTask (TASK_INIT_POSITIONS, 0x00);
-    schedTask (TASK_BLINKY_SUBSTATE, 0x00);
-    schedTask (TASK_SETUP_GHOST_TIMERS, 0x00);
-    schedTask (0x1a, 0x00);
+    schedTask (TASK_INIT_POSITIONS, 0);
+    schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_IN_HOUSE);
+    schedTask (TASK_SETUP_GHOST_TIMERS, 0);
+    schedTask (TASK_BOTTOM_COLOUR, 0);
 
     //-------------------------------
     // 08b7  f7        rst     #30
@@ -2901,7 +2912,7 @@ void levelStatePlayerReady_0899 (void)
     incLevelStateSubr_0894();
 }
 
-void func_08cd (void)
+void playGameMain_08cd (void)
 {
     //-------------------------------
     // 08cd  3a0050    ld      a,(#5000)
@@ -2917,7 +2928,7 @@ void func_08cd (void)
         // 08db  1300
         // 08dd  c9        ret     
         //-------------------------------
-        LEVEL_STATE_SUBR = 0x0e;
+        LEVEL_STATE = 0x0e;
         schedTask (TASK_CLEAR_PILLS_SCREEN, 0x00);
         return;
     }
@@ -2934,7 +2945,7 @@ void func_08cd (void)
         // 08e8  360c      ld      (hl),#0c
         // 08ea  c9        ret     
         //-------------------------------
-        LEVEL_STATE_SUBR = 0x0c;
+        LEVEL_STATE = 0x0c;
         return;
     }
 
@@ -2979,7 +2990,7 @@ void playerDied_090d (void)
     // 0915  21044e    ld      hl,#4e04
     // 0918  34        inc     (hl)
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 
     //-------------------------------
     // 0919  3a144e    ld      a,(#4e14)
@@ -3029,7 +3040,7 @@ void playerDied_090d (void)
     // 093e  34        inc     (hl)
     // 093f  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void switchPlayers_0940 (void)
@@ -3067,7 +3078,7 @@ void switchPlayers_0940 (void)
             // 095f  34        inc     (hl)
             // 0960  c9        ret     
             //-------------------------------
-            LEVEL_STATE_SUBR++;
+            LEVEL_STATE++;
             return;
         }
     }
@@ -3091,7 +3102,7 @@ void switchPlayers_0940 (void)
     // 096e  32044e    ld      (#4e04),a
     // 0971  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR = 9;
+    LEVEL_STATE = LEVEL_STATE_GAME_OVER;
 }
 
 void func_0972 (void)
@@ -3105,7 +3116,7 @@ void func_0972 (void)
     // 097f  320350    ld      (#5003),a
     //-------------------------------
     INTRO_STATE = 
-    LEVEL_STATE_SUBR = 
+    LEVEL_STATE = 
     TWO_PLAYERS = 
     PLAYER = 0;
     FLIPSCREEN = 0;
@@ -3118,7 +3129,7 @@ void func_0972 (void)
     MAIN_STATE = MAIN_STATE_DEMO;
 }
 
-void setupScreenGameOver_0988 (void)
+void gameOverOrNextPlayer_0988 (void)
 {
     //-------------------------------
     // 0988  ef        rst     #28
@@ -3151,9 +3162,9 @@ void setupScreenGameOver_0988 (void)
     schedTask (TASK_CLEAR_PILLS_SCREEN, 0);
     schedTask (TASK_DRAW_PILLS, 0);
     schedTask (TASK_INIT_POSITIONS, 0);
-    schedTask (TASK_BLINKY_SUBSTATE, 0);
+    schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_IN_HOUSE);
     schedTask (TASK_SETUP_GHOST_TIMERS, 0);
-    schedTask (0x1a, 0);
+    schedTask (TASK_BOTTOM_COLOUR, 0);
     schedTask (TASK_DISPLAY_MSG, MSG_READY);
 
     //-------------------------------
@@ -3205,17 +3216,17 @@ void setupScreenGameOver_0988 (void)
     incLevelStateSubr_0894();
 }
 
-void advanceToLevelState3_09d2 (void)
+void advanceToLevelStatePlayGame_09d2 (void)
 {
     //-------------------------------
     // 09d2  3e03      ld      a,#03
     // 09d4  32044e    ld      (#4e04),a
     // 09d7  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR = 3;
+    LEVEL_STATE = LEVEL_STATE_PLAY_GAME;
 }
 
-void func_09d8 (void)
+void playGameSoundOff_09d8 (void)
 {
     //-------------------------------
     // 09d8  f7        rst     #30
@@ -3224,7 +3235,7 @@ void func_09d8 (void)
     // 09df  34        inc     (hl)
     //-------------------------------
     schedISRTask (0x54, ISRTASK_INC_LEVEL_STATE, 0x00);
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 
     //-------------------------------
     // 09e0  af        xor     a
@@ -3259,14 +3270,14 @@ void func_09ea (int param)
     // 09f6  cd7e26    call    #267e
     //-------------------------------
     schedISRTask (0x42, ISRTASK_INC_LEVEL_STATE, 0x00);
-    resetGhostPosition_267e (0, 0);
+    setGhostPosition_267e (0, 0);
 
     //-------------------------------
     // 09f9  21044e    ld      hl,#4e04
     // 09fc  34        inc     (hl)
     // 09fd  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void func_09fe (void)
@@ -3346,21 +3357,21 @@ void func_0a0e (void)
     // 0a23  f7        rst     #30
     // 0a24  430000
     //-------------------------------
-    schedTask (TASK_CLEAR_SCREEN, 0x01);
-    schedTask (TASK_CLEAR_COLOUR, 0x00);
-    schedTask (TASK_CLEAR_GHOST_STATE, 0x00);
-    schedTask (TASK_CLEAR_PILLS_SCREEN, 0x00);
-    schedTask (TASK_INIT_POSITIONS, 0x01);
-    schedTask (TASK_BLINKY_SUBSTATE, 0x01);
+    schedTask (TASK_CLEAR_SCREEN, 1);
+    schedTask (TASK_CLEAR_COLOUR, 0);
+    schedTask (TASK_CLEAR_GHOST_STATE, 0);
+    schedTask (TASK_CLEAR_PILLS_SCREEN, 0);
+    schedTask (TASK_INIT_POSITIONS, 1);
+    schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_CHASE);
     schedTask (TASK_SETUP_GHOST_TIMERS, 0x13);
-    schedISRTask (0x43, ISRTASK_INC_LEVEL_STATE, 0x00);
+    schedISRTask (0x43, ISRTASK_INC_LEVEL_STATE, 0);
 
     //-------------------------------
     // 0a27  21044e    ld      hl,#4e04
     // 0a2a  34        inc     (hl)
     // 0a2b  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 /*  State machine for levels.  After level 2, play scene1, after level 5 play
@@ -3440,7 +3451,7 @@ void incLevelState_0a6f (void)
     // 0a78  32dc4e    ld      (#4edc),a
     // 0a7b  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR += 2;
+    LEVEL_STATE += 2;
     SND_CH1_WAV_NUM = 
     SND_CH2_WAV_NUM = 0;
 }
@@ -3469,7 +3480,7 @@ void nextLevel_0a7c(void)
     // 0a8f  34        inc     (hl)
     //-------------------------------
     clearPillArrays_24c9();
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 
     //-------------------------------
     // 0a90  21134e    ld      hl,#4e13
@@ -3494,20 +3505,20 @@ void nextLevel_0a7c(void)
     P1_CURR_DIFFICULTY++;
 }
 
-void setupScreenGameOver_0aa0 (void)
+void gameOverOrNextPlayer_0aa0 (void)
 {
     //-------------------------------
     // 0aa0  c38809    jp      #0988
     //-------------------------------
-    setupScreenGameOver_0988();
+    gameOverOrNextPlayer_0988();
 }
 
-void advanceToLevelState3_0aa3 (void)
+void advanceToLevelStatePlayGame_0aa3 (void)
 {
     //-------------------------------
     // 0aa3  c3d209    jp      #09d2
     //-------------------------------
-    advanceToLevelState3_09d2();
+    advanceToLevelStatePlayGame_09d2();
 }
 
 void swapP1P2Difficulty_0aa6 (void)
@@ -3953,7 +3964,7 @@ void flashPowerups_0c0d (void)
     // 0c1a  fe03      cp      #03
     // 0c1c  2015      jr      nz,#0c33        ; (21)
     //-------------------------------
-    if (LEVEL_STATE_SUBR == 3)
+    if (LEVEL_STATE == 3)
     {
         //-------------------------------
         // 0c1e  216444    ld      hl,#4464
@@ -4038,7 +4049,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c53  c2900c    jp      nz,#0c90
     //-------------------------------
     // printf ("%s blinky-sub = %d\n", __func__, BLINKY_SUBSTATE);
-    if (BLINKY_SUBSTATE == 0)
+    if (BLINKY_SUBSTATE == SUBSTATE_IN_HOUSE)
     {
         //-------------------------------
         // 0c56  dd210533  ld      ix,#3305
@@ -4091,7 +4102,7 @@ void ghostsLeaveHouse_0c42 (void)
             // 0c8b  3e01      ld      a,#01
             // 0c8d  32a04d    ld      (#4da0),a
             //-------------------------------
-            BLINKY_SUBSTATE = 1;
+            BLINKY_SUBSTATE = SUBSTATE_CHASE;
         }
     }
 
@@ -4101,14 +4112,14 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c95  cafb0c    jp      z,#0cfb
     //-------------------------------
     // printf ("%s pinky-sub = %d\n", __func__, PINKY_SUBSTATE);
-    if (PINKY_SUBSTATE != 1)
+    if (PINKY_SUBSTATE != SUBSTATE_CHASE)
     {
         // printf ("pinky-y=%02x\n",PINKY_POS.y);
         //-------------------------------
         // 0c98  fe00      cp      #00
         // 0c9a  c2c10c    jp      nz,#0cc1
         //-------------------------------
-        if (PINKY_SUBSTATE == 0)
+        if (PINKY_SUBSTATE == SUBSTATE_IN_HOUSE)
         {
             //-------------------------------
             // 0c9d  3a024d    ld      a,(#4d02)
@@ -4188,7 +4199,7 @@ void ghostsLeaveHouse_0c42 (void)
                 // 0cf6  3e01      ld      a,#01
                 // 0cf8  32a14d    ld      (#4da1),a
                 //-------------------------------
-                PINKY_SUBSTATE = 1;
+                PINKY_SUBSTATE = SUBSTATE_CHASE;
             }
         }
     }
@@ -4199,14 +4210,14 @@ void ghostsLeaveHouse_0c42 (void)
     // 0d00  ca930d    jp      z,#0d93
     //-------------------------------
     // printf ("%s inky-sub = %d\n", __func__, INKY_SUBSTATE);
-    if (INKY_SUBSTATE != 1)
+    if (INKY_SUBSTATE != SUBSTATE_CHASE)
     {
         // printf ("%s inky-y=%02x\n", __func__, INKY_POS.y);
         //-------------------------------
         // 0d03  fe00      cp      #00
         // 0d05  c22c0d    jp      nz,#0d2c
         //-------------------------------
-        if (INKY_SUBSTATE == 0)
+        if (INKY_SUBSTATE == SUBSTATE_IN_HOUSE)
         {
             //-------------------------------
             // 0d08  3a044d    ld      a,(#4d04)
@@ -4246,7 +4257,7 @@ void ghostsLeaveHouse_0c42 (void)
             // 0d2f  fe03      cp      #03
             // 0d31  c2590d    jp      nz,#0d59
             //-------------------------------
-            if (INKY_SUBSTATE == 3)
+            if (INKY_SUBSTATE == SUBSTATE_HOUSE_MOVE)
             {
                 //-------------------------------
                 // 0d34  dd21ff32  ld      ix,#32ff
@@ -4275,7 +4286,7 @@ void ghostsLeaveHouse_0c42 (void)
                     // 0d53  32a24d    ld      (#4da2),a
                     // 0d56  c3930d    jp      #0d93
                     //-------------------------------
-                    INKY_SUBSTATE = 2;
+                    INKY_SUBSTATE = SUBSTATE_LEAVING_HOUSE;
                 }
             }
             else
@@ -4300,6 +4311,10 @@ void ghostsLeaveHouse_0c42 (void)
                 // 0d72  fe64      cp      #64
                 // 0d74  c2930d    jp      nz,#0d93
                 //-------------------------------
+
+                /*  Has inky finished his upward move to exit the house?  If so,
+                 *  set his vector to left and mode to chase */
+
                 if (INKY_POS.y == 0x64)
                 {
                     //-------------------------------
@@ -4328,7 +4343,7 @@ void ghostsLeaveHouse_0c42 (void)
                     // 0d8e  3e01      ld      a,#01
                     // 0d90  32a24d    ld      (#4da2),a
                     //-------------------------------
-                    INKY_SUBSTATE = 1;
+                    INKY_SUBSTATE = SUBSTATE_CHASE;
                 }
             }
         }
@@ -4338,14 +4353,14 @@ void ghostsLeaveHouse_0c42 (void)
     // 0d96  fe01      cp      #01
     // 0d98  c8        ret     z
     //-------------------------------
-    if (CLYDE_SUBSTATE == 1)
+    if (CLYDE_SUBSTATE == SUBSTATE_CHASE)
         return;
 
     //-------------------------------
     // 0d99  fe00      cp      #00
     // 0d9b  c2c00d    jp      nz,#0dc0
     //-------------------------------
-    if (CLYDE_SUBSTATE == 0)
+    if (CLYDE_SUBSTATE == SUBSTATE_IN_HOUSE)
     {
         //-------------------------------
         // 0d9e  3a064d    ld      a,(#4d06)
@@ -4378,7 +4393,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0dc3  fe03      cp      #03
     // 0dc5  c2ea0d    jp      nz,#0dea
     //-------------------------------
-    if (CLYDE_SUBSTATE == 3)
+    if (CLYDE_SUBSTATE == GHOST_STATE_HOUSE_MOVE)
     {
         //-------------------------------
         // 0dc8  dd210333  ld      ix,#3303
@@ -4408,7 +4423,7 @@ void ghostsLeaveHouse_0c42 (void)
         // 0de6  32a34d    ld      (#4da3),a
         // 0de9  c9        ret     
         //-------------------------------
-        CLYDE_SUBSTATE = 2;
+        CLYDE_SUBSTATE = SUBSTATE_LEAVING_HOUSE;
         return;
     }
 
@@ -4462,7 +4477,7 @@ void ghostsLeaveHouse_0c42 (void)
     // 0e1f  32a34d    ld      (#4da3),a
     // 0e22  c9        ret     
     //-------------------------------
-    CLYDE_SUBSTATE = 1;
+    CLYDE_SUBSTATE = SUBSTATE_CHASE;
 }
 
 void toggleGhostAnimation_0e23 (void)
@@ -4915,7 +4930,7 @@ void func_1017 (void)
     // 1056  fe03      cp      #03
     // 1058  c0        ret     nz
     //-------------------------------
-    if (LEVEL_STATE_SUBR != 3)
+    if (LEVEL_STATE != 3)
         return;
 
     //-------------------------------
@@ -4926,9 +4941,9 @@ void func_1017 (void)
     // 1065  c9        ret     
     //-------------------------------
     powerupOver_1376();
-    pinkyCheckLeaveHome_2069();
-    inkyCheckLeaveHome_208c();
-    clydeCheckLeaveHome_20af();
+    pinkyCheckLeaveHouse_2069();
+    inkyCheckLeaveHouse_208c();
+    clydeCheckLeaveHouse_20af();
 }
 
 void selectGhostState_1066 (void)
@@ -5016,7 +5031,7 @@ void blinkyStateMachine_1094 (void)
     {
         nothing_000c,
         blinkyStateDead_10c0,
-        blinkyStateEnterHome_10d2
+        blinkyStateEnterHouse_10d2
     };
     tableCall_0020 (func, BLINKY_STATE);
 }
@@ -5032,7 +5047,7 @@ void pinkyStateMachine_109e (void)
     {
         nothing_000c,
         pinkyStateDead_1118,
-        pinkyStateEnterHome_112a
+        pinkyStateEnterHouse_112a
     };
     tableCall_0020 (func, PINKY_STATE);
 }
@@ -5048,8 +5063,8 @@ void inkyStateMachine_10a8 (void)
     {
         nothing_000c,
         inkyStateDead_115c,
-        inkyStateEnterHome_116e,
-        inkyStateHomeMoveAside_118f
+        inkyStateEnterHouse_116e,
+        inkyStateHouseMoveAside_118f
     };
     tableCall_0020 (func, INKY_STATE);
 }
@@ -5065,8 +5080,8 @@ void clydeStateMachine_10b4 (void)
     {
         nothing_000c,
         clydeStateDead_11c9,
-        clydeStateEnterHome_11db,
-        clydeStateHomeMoveAside_11fc
+        clydeStateEnterHouse_11db,
+        clydeStateHouseMoveAside_11fc
     };
     tableCall_0020 (func, CLYDE_STATE);
 }
@@ -5093,7 +5108,7 @@ void blinkyStateDead_10c0 (void)
     BLINKY_STATE++;
 }
 
-void blinkyStateEnterHome_10d2 (void)
+void blinkyStateEnterHouse_10d2 (void)
 {
     //-------------------------------
     // 10d2  dd210133  ld      ix,#3301
@@ -5133,13 +5148,13 @@ void blinkyStateEnterHome_10d2 (void)
     // 10fb  32ac4d    ld      (#4dac),a
     // 10fe  32a74d    ld      (#4da7),a
     //-------------------------------
-    BLINKY_SUBSTATE = 0;
-    BLINKY_STATE = 0;
+    BLINKY_SUBSTATE = SUBSTATE_IN_HOUSE;
+    BLINKY_STATE = GHOST_STATE_ALIVE;
     BLINKY_EDIBLE = 0;
-    func_1101 ();
+    ghostsAnyDeadSoundOff_1101 ();
 }
 
-void func_1101 (void)
+void ghostsAnyDeadSoundOff_1101 (void)
 {
     //-------------------------------
     // 1101  dd21ac4d  ld      ix,#4dac
@@ -5182,7 +5197,7 @@ void pinkyStateDead_1118 (void)
     PINKY_STATE++;
 }
 
-void pinkyStateEnterHome_112a (void)
+void pinkyStateEnterHouse_112a (void)
 {
     //-------------------------------
     // 112a  dd210133  ld      ix,#3301
@@ -5221,14 +5236,14 @@ void pinkyStateEnterHome_112a (void)
     // 1153  32ad4d    ld      (#4dad),a
     // 1156  32a84d    ld      (#4da8),a
     //-------------------------------
-    PINKY_SUBSTATE = 
-    PINKY_STATE = 
+    PINKY_SUBSTATE = SUBSTATE_IN_HOUSE;
+    PINKY_STATE = GHOST_STATE_ALIVE;
     PINKY_EDIBLE = 0;
 
     //-------------------------------
     // 1159  c30111    jp      #1101
     //-------------------------------
-    func_1101();
+    ghostsAnyDeadSoundOff_1101();
 }
 
 void inkyStateDead_115c (void)
@@ -5256,7 +5271,7 @@ void inkyStateDead_115c (void)
     INKY_STATE++;
 }
 
-void inkyStateEnterHome_116e (void)
+void inkyStateEnterHouse_116e (void)
 {
     //-------------------------------
     // 116e  dd210133  ld      ix,#3301
@@ -5289,7 +5304,7 @@ void inkyStateEnterHome_116e (void)
     INKY_STATE++;
 }
 
-void inkyStateHomeMoveAside_118f (void)
+void inkyStateHouseMoveAside_118f (void)
 {
     //-------------------------------
     // 118f  dd210333  ld      ix,#3303
@@ -5335,14 +5350,14 @@ void inkyStateHomeMoveAside_118f (void)
     // 11c0  32ae4d    ld      (#4dae),a
     // 11c3  32a94d    ld      (#4da9),a
     //-------------------------------
-    INKY_SUBSTATE = 
-    INKY_STATE = 
+    INKY_SUBSTATE = SUBSTATE_IN_HOUSE;
+    INKY_STATE = GHOST_STATE_ALIVE;
     INKY_EDIBLE = 0;
 
     //-------------------------------
     // 11c6  c30111    jp      #1101
     //-------------------------------
-    func_1101();
+    ghostsAnyDeadSoundOff_1101();
 }
 
 void clydeStateDead_11c9 (void)
@@ -5370,7 +5385,7 @@ void clydeStateDead_11c9 (void)
     CLYDE_STATE++;
 }
 
-void clydeStateEnterHome_11db (void)
+void clydeStateEnterHouse_11db (void)
 {
     //-------------------------------
     // 11db  dd210133  ld      ix,#3301
@@ -5403,7 +5418,7 @@ void clydeStateEnterHome_11db (void)
     CLYDE_STATE++;
 }
 
-void clydeStateHomeMoveAside_11fc (void)
+void clydeStateHouseMoveAside_11fc (void)
 {
     //-------------------------------
     // 11fc  dd21ff32  ld      ix,#32ff
@@ -5449,14 +5464,14 @@ void clydeStateHomeMoveAside_11fc (void)
     // 122c  32af4d    ld      (#4daf),a
     // 122f  32aa4d    ld      (#4daa),a
     //-------------------------------
-    CLYDE_SUBSTATE = 
-    CLYDE_STATE = 
+    CLYDE_SUBSTATE = SUBSTATE_IN_HOUSE;
+    CLYDE_STATE = GHOST_STATE_ALIVE;
     CLYDE_EDIBLE = 0;
 
     //-------------------------------
     // 1232  c30111    jp      #1101
     //-------------------------------
-    func_1101();
+    ghostsAnyDeadSoundOff_1101();
 }
 
 void ghostKilledState_1235 (void)
@@ -5665,7 +5680,7 @@ void pacmanDeadAnimState5_12cb (void)
     // 12d1  3e34      ld      a,#34
     // 12d3  11b400    ld      de,#00b4
     //-------------------------------
-    resetGhostPosition_267e(0, 0);
+    setGhostPosition_267e(0, 0);
     pacmanDeadAnimation_12d6(0x34, 0xb4);
 }
 
@@ -5862,7 +5877,7 @@ void decrementLives_1353 (void)
     // 1374  34        inc     (hl)
     // 1375  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void powerupOver_1376 (void)
@@ -6029,9 +6044,9 @@ void checkInactivityCounter_13dd (void)
     // 140b  f1        pop     af
     // 140c  c8        ret     z
     //-------------------------------
-    if (PINKY_SUBSTATE == 0)
+    if (PINKY_SUBSTATE == SUBSTATE_IN_HOUSE)
     {
-        PINKY_SUBSTATE = STATE_LEAVING_HOME;
+        PINKY_SUBSTATE = SUBSTATE_LEAVING_HOUSE;
         return;
     }
 
@@ -6043,9 +6058,13 @@ void checkInactivityCounter_13dd (void)
     // 1415  f1        pop     af
     // 1416  c8        ret     z
     //-------------------------------
-    if (INKY_SUBSTATE == 0)
+
+    /*  Inky and clyde need to move sideways before they can leave the house so
+     *  have an extra substate for this */
+
+    if (INKY_SUBSTATE == SUBSTATE_IN_HOUSE)
     {
-        INKY_SUBSTATE = 3;
+        INKY_SUBSTATE = SUBSTATE_HOUSE_MOVE;
         return;
     }
 
@@ -6055,8 +6074,8 @@ void checkInactivityCounter_13dd (void)
     // 141b  ccd120    call    z,#20d1  ; tail call, sets substate==3
     // 141e  c9        ret     
     //-------------------------------
-    if (CLYDE_SUBSTATE == 0)
-        CLYDE_SUBSTATE = 3;
+    if (CLYDE_SUBSTATE == SUBSTATE_IN_HOUSE)
+        CLYDE_SUBSTATE = SUBSTATE_HOUSE_MOVE;
 }
 
 /*  This function checks if in upright mode and stores sprite positions with an
@@ -6303,7 +6322,7 @@ void spriteAnimation_14fe (void)
         //-------------------------------
         if (KILLED_GHOST_INDEX != 0)
         {
-            func_15b4 ();
+            ghostsCocktailMode_15b4 ();
             return;
         }
 
@@ -6501,10 +6520,10 @@ void spriteAnimation_14fe (void)
         }
     }
 
-    func_15b4 ();
+    ghostsCocktailMode_15b4 ();
 }
 
-void func_15b4 (void)
+void ghostsCocktailMode_15b4 (void)
 {
     //-------------------------------
     // 15b4  cde615    call    #15e6
@@ -6889,7 +6908,6 @@ void selectPacmanDownSprite_16b1 (void)
     PACMAN_SPRITE = 0x30;
 }
 
-/*  TODO confirm bit 7 is the mirror bit for sprites */
 void selectPacmanRightSprite_16d6 (void)
 {
     //-------------------------------
@@ -7138,7 +7156,7 @@ void pacmanGhostCoincide_1763 (int b)
     SND_CH3_EFF_NUM|= 0x8;
 }
 
-/*  I don't understand how this function works.  Just comparing x and y
+/*  TODO I don't understand how this function works.  Just comparing x and y
  *  differences to 4 and jumping if there is a carry will cause a false detetion
  *  of pacman eatng a ghost any time he is to the upper left of the ghost??? 
  *
@@ -7162,26 +7180,33 @@ void pacmanCheckEatGhost_1789 (void)
     if (PACMAN_POWEREDUP == 0)
         return;
 
-return;
+// return;
     //-------------------------------
     // 1793  0e04      ld      c,#04
     // 1795  0604      ld      b,#04
-    // 1797  dd21084d  ld      ix,#4d08
-    // 179b  3aaf4d    ld      a,(#4daf)
+    // 1797  dd21084d  ld      ix,#4d08         ; pacman_pos
+    // 179b  3aaf4d    ld      a,(#4daf)        ; clyde state
     // 179e  a7        and     a
     // 179f  2013      jr      nz,#17b4        ; (19)
-    // 17a1  3a064d    ld      a,(#4d06)
-    // 17a4  dd9600    sub     (ix+#00)
+    // 17a1  3a064d    ld      a,(#4d06)        ; clyde pos y
+    // 17a4  dd9600    sub     (ix+#00)         ; pacman y
     // 17a7  b9        cp      c
     // 17a8  300a      jr      nc,#17b4        ; (10)
-    // 17aa  3a074d    ld      a,(#4d07)
-    // 17ad  dd9601    sub     (ix+#01)
+    // 17aa  3a074d    ld      a,(#4d07)        ; clyde pos x
+    // 17ad  dd9601    sub     (ix+#01)         ; pacman x
     // 17b0  b9        cp      c
     // 17b1  da6317    jp      c,#1763
     //-------------------------------
+
+    /*  Subtract pacman's tile from clyde's tile and compare the result to 4.
+     *  Note that because the CP instruction does not set the carry flag unless
+     *  the sign changes, we have to compare to 4 but also to 0. */
+    uint8_t dx = CLYDE_POS.x - PACMAN_POS.x;
+    uint8_t dy = CLYDE_POS.y - PACMAN_POS.y;
+
     if (CLYDE_STATE == GHOST_STATE_ALIVE &&
-        CLYDE_POS.y - PACMAN_POS.y < 4 &&
-        CLYDE_POS.x - PACMAN_POS.x < 4)
+        dx >= 0 && dx < 4 &&
+        dy >= 0 && dy < 4)
     {
         printf ("%s pacman eats clyde\n", __func__);
         pacmanGhostCoincide_1763 (GHOST_CLYDE);
@@ -7202,9 +7227,12 @@ return;
     // 17ca  b9        cp      c
     // 17cb  da6317    jp      c,#1763
     //-------------------------------
+    dx = INKY_POS.x - PACMAN_POS.x;
+    dy = INKY_POS.y - PACMAN_POS.y;
+
     if (INKY_STATE == GHOST_STATE_ALIVE && 
-        INKY_POS.y - PACMAN_POS.y < 4 &&
-        INKY_POS.x - PACMAN_POS.x < 4)
+        dx >= 0 && dx < 4 &&
+        dy >= 0 && dy < 4)
     {
         printf ("%s pacman eats inky\n", __func__);
         pacmanGhostCoincide_1763 (GHOST_INKY);
@@ -7225,9 +7253,12 @@ return;
     // 17e4  b9        cp      c
     // 17e5  da6317    jp      c,#1763
     //-------------------------------
+    dx = PINKY_POS.x - PACMAN_POS.x;
+    dy = PINKY_POS.y - PACMAN_POS.y;
+
     if (PINKY_STATE == GHOST_STATE_ALIVE &&
-        PINKY_POS.y - PACMAN_POS.y < 4 &&
-        PINKY_POS.x - PACMAN_POS.x < 4)
+        dx >= 0 && dx < 4 &&
+        dy >= 0 && dy < 4)
     {
         printf ("%s pacman eats pinky\n", __func__);
         pacmanGhostCoincide_1763 (GHOST_PINKY);
@@ -7248,9 +7279,12 @@ return;
     // 17fe  b9        cp      c
     // 17ff  da6317    jp      c,#1763
     //-------------------------------
+    dx = BLINKY_POS.x - PACMAN_POS.x;
+    dy = BLINKY_POS.y - PACMAN_POS.y;
+
     if (BLINKY_STATE == GHOST_STATE_ALIVE &&
-        BLINKY_POS.y - PACMAN_POS.y < 4 &&
-        BLINKY_POS.x - PACMAN_POS.x < 4)
+        dx >= 0 && dx < 4 &&
+        dy >= 0 && dy < 4)
     {
         printf ("%s pacman eats blinky\n", __func__);
         pacmanGhostCoincide_1763 (GHOST_BLINKY);
@@ -7379,7 +7413,7 @@ void pacmanVectorFromJoystick_1806 (void)
         // 1874  fe10      cp      #10
         // 1876  d2191a    jp      nc,#1a19
         //-------------------------------
-        if (LEVEL_STATE_SUBR >= 0x10)
+        if (LEVEL_STATE >= 0x10)
         {
             pacmanMoveTile_1a19();
             return;
@@ -7468,7 +7502,7 @@ void pacmanVectorFromJoystick_1806 (void)
     // 18b6  fe10      cp      #10
     // 18b8  d2191a    jp      nc,#1a19
     //-------------------------------
-    if (LEVEL_STATE_SUBR >= 0x10)
+    if (LEVEL_STATE >= 0x10)
     {
         pacmanMoveTile_1a19();
         return;
@@ -7545,7 +7579,9 @@ void pacmanVectorFromJoystick_1806 (void)
     pacmanCheckMoveClear_18e4 (1);
 }
 
-void pacmanCheckMoveClear_18e4 (int b)
+/*  Check if pacman can move in the desired direction.  Parameter noInput is
+ *  zero if joystick input has been applied */
+void pacmanCheckMoveClear_18e4 (int noInput)
 {
     printf ("%s\n", __func__);
     //-------------------------------
@@ -7563,7 +7599,7 @@ void pacmanCheckMoveClear_18e4 (int b)
     // printf("%s a = %02x\n", __func__, a);
     if ((a & CHAR_MAZE_MASK) != CHAR_MAZE_MASK)
     {
-        pacmanHitMazeWall_1940(b);
+        pacmanHitMazeWall_1940(noInput);
         return;
     }
 
@@ -7571,7 +7607,7 @@ void pacmanCheckMoveClear_18e4 (int b)
     // 18f5  05        dec     b
     // 18f6  c21619    jp      nz,#1916
     //-------------------------------
-    if (b == 1)
+    if (noInput == 1)
     {
         //-------------------------------
         // 18f9  3a304d    ld      a,(#4d30)
@@ -7595,7 +7631,7 @@ void pacmanCheckMoveClear_18e4 (int b)
             //-------------------------------
             // 1908  c34019    jp      #1940
             //-------------------------------
-            pacmanHitMazeWall_1940 (b);
+            pacmanHitMazeWall_1940 (1);
             return;
         }
         else
@@ -7615,7 +7651,7 @@ void pacmanCheckMoveClear_18e4 (int b)
             //-------------------------------
             // 1913  c34019    jp      #1940
             //-------------------------------
-            pacmanHitMazeWall_1940 (b);
+            pacmanHitMazeWall_1940 (1);
             return;
         }
     }
@@ -7675,7 +7711,7 @@ void pacmanCheckMoveClear_18e4 (int b)
     pacmanMove_1950 ();
 }
 
-void pacmanHitMazeWall_1940 (int b)
+void pacmanHitMazeWall_1940 (int noInput)
 {
     // printf ("%s\n", __func__);
     //-------------------------------
@@ -7688,7 +7724,9 @@ void pacmanHitMazeWall_1940 (int b)
     //-------------------------------
     PACMAN_VECTOR = PACMAN_VECTOR2;
 
-    if (b != 1)
+    /*  If there has been a joystick input (!noInput) then change orientation */
+
+    if (noInput != 1)
         PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
     pacmanMove_1950 ();
@@ -7712,6 +7750,12 @@ void pacmanMove_1950 (void)
     printf ("%s xy=%d,%d, &7=%d,%d\n", __func__,
             pacmanXY.x,pacmanXY.y,
             pacmanXY.x&7,pacmanXY.y&7);
+
+    /*  In addition to the straight line move vector, also allow pacman to cut
+     *  corners by moving diagonally at intersections.  For example, if moving
+     *  horizontally but orientation is vertical then also allow up to 3 pixels
+     *  of vertical movement once at the midpoint of the tile before the
+     *  vector direction change */
 
     if ((PACMAN_ORIENTATION & ORIENT_VERTICAL) == 0)
     {
@@ -7910,7 +7954,7 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     // 1a03  cd6a1a    call    #1a6a
     //-------------------------------
     PACMAN_MOVE_DELAY = a;
-    updateLeaveHomeCounters_1b08();
+    updateLeaveHouseCounters_1b08();
     checkGhostsBecomeEdible_1a6a();
 
     //-------------------------------
@@ -8206,7 +8250,7 @@ void pacmanOrientDown_1af8 (void)
 /*  Update counters for ghosts to exit the house.  As each ghost leaves
  *  (substate!=0) increment the counter for the next ghost.  Pinky then Inky
  *  then Clyde */
-void updateLeaveHomeCounters_1b08 (void)
+void updateLeaveHouseCounters_1b08 (void)
 {
     //-------------------------------
     // 1b08  3a124e    ld      a,(#4e12)
@@ -8228,7 +8272,10 @@ void updateLeaveHomeCounters_1b08 (void)
     // 1b17  a7        and     a
     // 1b18  c0        ret     nz
     //-------------------------------
-    if (CLYDE_SUBSTATE)
+
+    /*  If Clyde has left then the house is empty so return */
+
+    if (CLYDE_SUBSTATE != SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -8236,7 +8283,7 @@ void updateLeaveHomeCounters_1b08 (void)
     // 1b1c  a7        and     a
     // 1b1d  ca251b    jp      z,#1b25
     //-------------------------------
-    if (INKY_SUBSTATE)
+    if (INKY_SUBSTATE != SUBSTATE_IN_HOUSE)
     {
         //-------------------------------
         // 1b20  21114e    ld      hl,#4e11
@@ -8252,7 +8299,7 @@ void updateLeaveHomeCounters_1b08 (void)
     // 1b28  a7        and     a
     // 1b29  ca311b    jp      z,#1b31
     //-------------------------------
-    if (PINKY_SUBSTATE)
+    if (PINKY_SUBSTATE != SUBSTATE_IN_HOUSE)
     {
         //-------------------------------
         // 1b2c  21104e    ld      hl,#4e10
@@ -8279,7 +8326,7 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b39  a7        and     a
     // 1b3a  c8        ret     z
     //-------------------------------
-    if (BLINKY_SUBSTATE == 0)
+    if (BLINKY_SUBSTATE == SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -8551,7 +8598,7 @@ void pinkyUpdateMovePat_1c4b (void)
     // 1c4e  fe01      cp      #01
     // 1c50  c0        ret     nz
     //-------------------------------
-    if (PINKY_SUBSTATE != 1)
+    if (PINKY_SUBSTATE != SUBSTATE_CHASE)
         return;
 
     //-------------------------------
@@ -8559,7 +8606,7 @@ void pinkyUpdateMovePat_1c4b (void)
     // 1c54  a7        and     a
     // 1c55  c0        ret     nz
     //-------------------------------
-    if (PINKY_STATE != 0)
+    if (PINKY_STATE != GHOST_STATE_ALIVE)
         return;
 
     //-------------------------------
@@ -8767,7 +8814,7 @@ void inkyUpdateMovePat_1d22 (void)
     // 1d25  fe01      cp      #01
     // 1d27  c0        ret     nz
     //-------------------------------
-    if (INKY_SUBSTATE != 1)
+    if (INKY_SUBSTATE != SUBSTATE_CHASE)
         return;
 
     //-------------------------------
@@ -8775,7 +8822,7 @@ void inkyUpdateMovePat_1d22 (void)
     // 1d2b  a7        and     a
     // 1d2c  c0        ret     nz
     //-------------------------------
-    if (INKY_STATE != 0)
+    if (INKY_STATE != GHOST_STATE_ALIVE)
         return;
 
     //-------------------------------
@@ -8977,7 +9024,7 @@ void clydeUpdateMovePat_1df9 (void)
     // 1dfc  fe01      cp      #01
     // 1dfe  c0        ret     nz
     //-------------------------------
-    if (CLYDE_SUBSTATE != 1)
+    if (CLYDE_SUBSTATE != SUBSTATE_CHASE)
         return;
 
     //-------------------------------
@@ -8985,7 +9032,7 @@ void clydeUpdateMovePat_1df9 (void)
     // 1e02  a7        and     a
     // 1e03  c0        ret     nz
     //-------------------------------
-    if (CLYDE_STATE != 0)
+    if (CLYDE_STATE != GHOST_STATE_ALIVE)
         return;
 
     //-------------------------------
@@ -9540,7 +9587,7 @@ XYPOS pixelToTile_2018 (XYPOS pos)
     return pos;
 }
 
-/*  Convert tile x y to screen address ? */
+/*  Convert tile x y to screen address */
 uint16_t getScreenOffset_202d (XYPOS hl)
 {
     printf ("%s convert %d,%d to ", __func__, hl.x, hl.y);
@@ -9630,14 +9677,14 @@ void checkGhostEnterTunnel_205a (XYPOS pos, uint8_t *aux)
     }
 }
 
-void pinkyCheckLeaveHome_2069 (void)
+void pinkyCheckLeaveHouse_2069 (void)
 {
     //-------------------------------
     // 2069  3aa14d    ld      a,(#4da1)
     // 206c  a7        and     a
     // 206d  c0        ret     nz
     //-------------------------------
-    if (PINKY_SUBSTATE != 0)
+    if (PINKY_SUBSTATE != SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -9674,17 +9721,17 @@ void pinkyCheckLeaveHome_2069 (void)
     // 2088  32a14d    ld      (#4da1),a
     // 208b  c9        ret     
     //-------------------------------
-    PINKY_SUBSTATE = 2;
+    PINKY_SUBSTATE = SUBSTATE_LEAVING_HOUSE;
 }
 
-void inkyCheckLeaveHome_208c (void)
+void inkyCheckLeaveHouse_208c (void)
 {
     //-------------------------------
     // 208c  3aa24d    ld      a,(#4da2)
     // 208f  a7        and     a
     // 2090  c0        ret     nz
     //-------------------------------
-    if (INKY_SUBSTATE != 0)
+    if (INKY_SUBSTATE != SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -9722,17 +9769,17 @@ void inkyCheckLeaveHome_208c (void)
     // 20ab  32a24d    ld      (#4da2),a
     // 20ae  c9        ret     
     //-------------------------------
-    INKY_SUBSTATE = 3;
+    INKY_SUBSTATE = SUBSTATE_HOUSE_MOVE;
 }
 
-void clydeCheckLeaveHome_20af (void)
+void clydeCheckLeaveHouse_20af (void)
 {
     //-------------------------------
     // 20af  3aa34d    ld      a,(#4da3)
     // 20b2  a7        and     a
     // 20b3  c0        ret     nz
     //-------------------------------
-    if (CLYDE_SUBSTATE != 0)
+    if (CLYDE_SUBSTATE != SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -9775,7 +9822,7 @@ void clydeCheckLeaveHome_20af (void)
     // 20d3  32a34d    ld      (#4da3),a
     // 20d6  c9        ret     
     //-------------------------------
-    CLYDE_SUBSTATE = 3;
+    CLYDE_SUBSTATE = SUBSTATE_HOUSE_MOVE;
 }
 
 void updateDifficultyTBD_20d7 (void)
@@ -9785,7 +9832,7 @@ void updateDifficultyTBD_20d7 (void)
     // 20da  a7        and     a
     // 20db  c8        ret     z
     //-------------------------------
-    if (CLYDE_SUBSTATE == 0)
+    if (CLYDE_SUBSTATE == SUBSTATE_IN_HOUSE)
         return;
 
     //-------------------------------
@@ -10048,7 +10095,7 @@ void scene1State6_2186 (void)
     // 219c  34        inc     (hl)
     // 219d  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void scene2StateMachine_219e (void)
@@ -10365,7 +10412,7 @@ void scene2State13_228d (uint16_t iy)
     // 2295  34        inc     (hl)
     // 2296  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR+= 2;
+    LEVEL_STATE+= 2;
 }
 
 void scene3StateMachine_2297 (void)
@@ -10536,7 +10583,7 @@ void scene3State5_22fe (void)
     // 2309  34        inc     (hl)
     // 230a  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void initSelfTest_230b (void)
@@ -10801,7 +10848,7 @@ void mainTaskLoop_234b (void)
             pacmanOrientationDemo_28e3, // 0x17 TASK_PACMAN_ORIENT
             clearScores_2ae0,           // 0x18 TASK_CLEAR_SCORES
             addToScore_2a5a,            // 0x19 TASK_ADD_TO_SCORE
-            func_2b6a,
+            bottomTextColourAndDisplayLives_2b6a, // 0x1A TASK_BOTTOM_COLOUR
             fruitHistoryLevelCheck_2bea,// 0x1b
             displayMsg_2c5e,            // 0x1c TASK_DISPLAY_MSG
             displayCredits_2ba1,
@@ -10821,7 +10868,7 @@ void advanceLevelState_23e8 (int param)
     // 23eb  34        inc     (hl)
     // 23ec  c9        ret     
     //-------------------------------
-    LEVEL_STATE_SUBR++;
+    LEVEL_STATE++;
 }
 
 void jumpClearScreen_23ed(int param)
@@ -11126,7 +11173,7 @@ void clearPillArrays_24c9 ()
     memset (P1_POWERUP_ARRAY, 0x14, 0x4);
 }
  
-void mazeColours_24d7(int param)
+void mazeColours_24d7 (int param)
 {
     //-------------------------------
     // 24d7  58        ld      e,b
@@ -11174,7 +11221,7 @@ void mazeColours_24d7(int param)
     // 24fe  dd21a045  ld      ix,#45a0
     //-------------------------------
 
-    /* Colour top and bottom of house? */
+    /* Colour top and bottom of house */
     uint8_t *ix = &COLOUR[0x1a0];
     for (int b = 0; b < 6; b++)
     {
@@ -11243,8 +11290,7 @@ void mazeColours_24d7(int param)
     COLOUR[0x20d] = 0x18;
 }
 
-/*  b ==1 means demo */
-void initialisePositions_25d3 (int b)
+void initialisePositions_25d3 (int demo)
 {
     //-------------------------------
     // 253d  dd21004c  ld      ix,#4c00
@@ -11282,7 +11328,7 @@ void initialisePositions_25d3 (int b)
     // 2572  a7        and     a
     // 2573  c20f26    jp      nz,#260f
     //-------------------------------
-    if (b == 0)
+    if (demo == 0)
     {
         //-------------------------------
         // 2576  216480    ld      hl,#8064
@@ -11438,13 +11484,14 @@ void initialisePositions_25d3 (int b)
         // 2618  22044d    ld      (#4d04),hl
         // 261b  22064d    ld      (#4d06),hl
         //-------------------------------
-        BLINKY_POS.y = 0x94;
-        BLINKY_POS.x = 0x00;
-        PINKY_POS.y = 0x94;
-        PINKY_POS.x = 0x00;
-        INKY_POS.y = 0x94;
-        INKY_POS.x = 0x00;
+        BLINKY_POS.y =
+        PINKY_POS.y =
+        INKY_POS.y =
         CLYDE_POS.y = 0x94;
+
+        BLINKY_POS.x =
+        PINKY_POS.x =
+        INKY_POS.x =
         CLYDE_POS.x = 0x00;
 
         //-------------------------------
@@ -11458,13 +11505,14 @@ void initialisePositions_25d3 (int b)
         // 2633  22354d    ld      (#4d35),hl
         // 2636  22374d    ld      (#4d37),hl
         //-------------------------------
-        BLINKY_TILE.y = BLINKY_TILE2.y = 0x32;
-        BLINKY_TILE.x = BLINKY_TILE2.x = 0x1e;
-        PINKY_TILE.y = PINKY_TILE2.y = 0x32;
-        PINKY_TILE.x = PINKY_TILE2.x = 0x1e;
-        INKY_TILE.y = INKY_TILE2.y = 0x32;
-        INKY_TILE.x = INKY_TILE2.x = 0x1e;
+        BLINKY_TILE.y = BLINKY_TILE2.y =
+        PINKY_TILE.y = PINKY_TILE2.y =
+        INKY_TILE.y = INKY_TILE2.y =
         CLYDE_TILE.y = CLYDE_TILE2.y = 0x32;
+
+        BLINKY_TILE.x = BLINKY_TILE2.x =
+        PINKY_TILE.x = PINKY_TILE2.x =
+        INKY_TILE.x = INKY_TILE2.x =
         CLYDE_TILE.x = CLYDE_TILE2.x = 0x1e;
 
         //-------------------------------
@@ -11480,15 +11528,16 @@ void initialisePositions_25d3 (int b)
         // 2654  221c4d    ld      (#4d1c),hl
         // 2657  22264d    ld      (#4d26),hl
         //-------------------------------
-        BLINKY_VECTOR.y = BLINKY_VECTOR2.y = 0x00;
-        BLINKY_VECTOR.x = BLINKY_VECTOR2.x = 0x01;
-        PINKY_VECTOR.y = PINKY_VECTOR2.y = 0x00;
-        PINKY_VECTOR.x = PINKY_VECTOR2.x = 0x01;
-        INKY_VECTOR.y = INKY_VECTOR2.y = 0x00;
-        INKY_VECTOR.x = INKY_VECTOR2.x = 0x01;
-        CLYDE_VECTOR.y = CLYDE_VECTOR2.y = 0x00;
-        CLYDE_VECTOR.x = CLYDE_VECTOR2.x = 0x01;
+        BLINKY_VECTOR.y = BLINKY_VECTOR2.y =
+        PINKY_VECTOR.y = PINKY_VECTOR2.y =
+        INKY_VECTOR.y = INKY_VECTOR2.y =
+        CLYDE_VECTOR.y = CLYDE_VECTOR2.y =
         PACMAN_VECTOR.y = PACMAN_VECTOR2.y = 0x00;
+
+        BLINKY_VECTOR.x = BLINKY_VECTOR2.x =
+        PINKY_VECTOR.x = PINKY_VECTOR2.x =
+        INKY_VECTOR.x = INKY_VECTOR2.x =
+        CLYDE_VECTOR.x = CLYDE_VECTOR2.x =
         PACMAN_VECTOR.x = PACMAN_VECTOR2.x = 0x01;
 
         //-------------------------------
@@ -11497,7 +11546,7 @@ void initialisePositions_25d3 (int b)
         // 265f  0609      ld      b,#09
         // 2661  cf        rst     #8
         //-------------------------------
-        memset (&BLINKY_PREV_ORIENTATION, ORIENT_LEFT, 0x9);
+        memset (&BLINKY_PREV_ORIENTATION, ORIENT_LEFT, 9);
 
         //-------------------------------
         // 2662  323c4d    ld      (#4d3c),a
@@ -11529,10 +11578,10 @@ void resetPositions_2675 ()
     //-------------------------------
     FRUIT_POS.y = FRUIT_POS.x = 0;
     PACMAN_POS.y = PACMAN_POS.x = 0;
-    resetGhostPosition_267e (0, 0);
+    setGhostPosition_267e (0, 0);
 }
 
-void resetGhostPosition_267e (int y, int x)
+void setGhostPosition_267e (int y, int x)
 {
     //-------------------------------
     // 267e  22004d    ld      (#4d00),hl
@@ -11541,10 +11590,14 @@ void resetGhostPosition_267e (int y, int x)
     // 2687  22064d    ld      (#4d06),hl
     // 268a  c9        ret     
     //-------------------------------
-    BLINKY_POS.y = BLINKY_POS.x = x;
-    PINKY_POS.y = PINKY_POS.x = y;
-    INKY_POS.y = INKY_POS.x = x;
-    CLYDE_POS.y = CLYDE_POS.x = y;
+    BLINKY_POS.x = x;
+    PINKY_POS.x = x;
+    INKY_POS.x = x;
+    CLYDE_POS.x = x;
+    BLINKY_POS.y = y;
+    PINKY_POS.y = y;
+    INKY_POS.y = y;
+    CLYDE_POS.y = y;
 }
 
 void blinkySubstateTBD_268b(int param)
@@ -11564,7 +11617,7 @@ void blinkySubstateTBD_268b(int param)
     // 2694  32a04d    ld      (#4da0),a
     // 2697  c9        ret     
     //-------------------------------
-    BLINKY_SUBSTATE = 1;
+    BLINKY_SUBSTATE = SUBSTATE_CHASE;
 }
 
 void resetGameState_2698 ()
@@ -11577,7 +11630,7 @@ void resetGameState_2698 ()
     // 26a1  c9        ret     
     //-------------------------------
     MAIN_STATE = MAIN_STATE_DEMO;
-    MAIN_STATE_SUB0 = 0;
+    RESET_STATE = RESET_STATE_RESET;
 }
 
 void clearGhostState_26a2 ()
@@ -11756,7 +11809,7 @@ void blinkyScatterOrChase_2730 (int param)
             // 2741  fe03      cp      #03
             // 2743  2013      jr      nz,#2758        ; (19)
             //-------------------------------
-            if (LEVEL_STATE_SUBR == 3)
+            if (LEVEL_STATE == 3)
             {
                 //-------------------------------
                 // 2745  2a0a4d    ld      hl,(#4d0a)
@@ -11804,7 +11857,7 @@ void pinkyScatterOrChase_276c (int param)
         // 2779  2013      jr      nz,#278e        ; (19)
         //-------------------------------
 
-        if (LEVEL_STATE_SUBR == 3)
+        if (LEVEL_STATE == 3)
         {
             //-------------------------------
             // 277b  2a0c4d    ld      hl,(#4d0c)
@@ -11863,7 +11916,7 @@ void inkyScatterOrChase_27a9 (int param)
         // 27b4  fe03      cp      #03
         // 27b6  2013      jr      nz,#27cb        ; (19)
         //-------------------------------
-        if (LEVEL_STATE_SUBR == 3)
+        if (LEVEL_STATE == 3)
         {
             //-------------------------------
             // 27b8  2a0e4d    ld      hl,(#4d0e)
@@ -11941,7 +11994,7 @@ void clydeScatterOrChase_27f1 (int param)
         // 27fc  fe03      cp      #03
         // 27fe  2013      jr      nz,#2813        ; (19)
         //-------------------------------
-        if (LEVEL_STATE_SUBR == 3)
+        if (LEVEL_STATE == 3)
         {
             random:
             //-------------------------------
@@ -12037,7 +12090,7 @@ void homeOrRandomPinky_2865 ()
     // 2868  a7        and     a
     // 2869  ca7f28    jp      z,#287f
     //-------------------------------
-    if (PINKY_STATE)
+    if (PINKY_STATE != GHOST_STATE_ALIVE)
     {
         //-------------------------------
         // 286c  112c2e    ld      de,#2e2c
@@ -12144,7 +12197,8 @@ void homeOrRandomClyde_28b9 ()
     showTarget (CLYDE_TILE, CLYDE_TILE, GHOST_CLYDE);
 }
 
-/*  Appears to choose pacman orientation in demo mode based on ghosts' locations
+/*  Choose pacman orientation in demo mode based on ghosts' locations.  If
+ *  blinky is edible, then chase pinky, otherwise run away from pinky.
  */
 void pacmanOrientationDemo_28e3 ()
 {
@@ -12164,6 +12218,7 @@ void pacmanOrientationDemo_28e3 ()
         // 28fa  323c4d    ld      (#4d3c),a
         // 28fd  c9        ret     
         //-------------------------------
+        printf ("%s chase pinky %d,%d\n", __func__, PINKY_TILE.x,PINKY_TILE.y);
         PACMAN_VECTOR2 = 
             findBestOrientation_2966 (PACMAN_TILE, PINKY_TILE, &PACMAN_DESIRED_ORIENTATION);
         showTarget (PACMAN_TILE, PINKY_TILE, 5);
@@ -12171,8 +12226,8 @@ void pacmanOrientationDemo_28e3 ()
     }
 
     //-------------------------------
-    // 28fe  2a394d    ld      hl,(#4d39)
-    // 2901  ed4b0c4d  ld      bc,(#4d0c)
+    // 28fe  2a394d    ld      hl,(#4d39)       ; pacman tile2
+    // 2901  ed4b0c4d  ld      bc,(#4d0c)       ; pinky tile
     // 2905  7d        ld      a,l
     // 2906  87        add     a,a
     // 2907  91        sub     c
@@ -12183,22 +12238,27 @@ void pacmanOrientationDemo_28e3 ()
     // 290c  67        ld      h,a
     //-------------------------------
 
-    /*  TODO appears to be trying to get away from pinky in demo mode by
-     *  creating a target tile that is in the opposite direction to pinky's
-     *  vector to pacman */
+    /*  Try to get away from pinky in demo mode by creating a target tile that
+     *  is in the opposite direction to pinky's vector to pacman */
+
     XYPOS target;
     target.y = PACMAN_TILE2.y * 2 - PINKY_TILE.y;
     target.x = PACMAN_TILE2.x * 2 - PINKY_TILE.x;
 
     //-------------------------------
     // 290d  eb        ex      de,hl
-    // 290e  2a124d    ld      hl,(#4d12)
-    // 2911  3a3c4d    ld      a,(#4d3c)
+    // 290e  2a124d    ld      hl,(#4d12)       ; pacman_tile
+    // 2911  3a3c4d    ld      a,(#4d3c)        ; pacman des orient
     // 2914  cd6629    call    #2966
-    // 2917  22264d    ld      (#4d26),hl
-    // 291a  323c4d    ld      (#4d3c),a
+    // 2917  22264d    ld      (#4d26),hl       ; pacman vector2
+    // 291a  323c4d    ld      (#4d3c),a        ; pacman des orient
     // 291d  c9        ret     
     //-------------------------------
+    printf ("%s run from pacman_tile2=%d,%d\n", __func__, PACMAN_TILE2.x,PACMAN_TILE.y);
+    printf ("%s run from pinky=%d,%d\n", __func__, PINKY_TILE2.x,PINKY_TILE.y);
+    printf ("%s run from pinky target=%d,%d\n", __func__, target.x,target.y);
+    printf ("%s dx,dy target %d,%d\n", __func__,
+        PACMAN_TILE.x-target.x,PACMAN_TILE.y-target.y);
     PACMAN_VECTOR2 = 
         findBestOrientation_2966 (PACMAN_TILE, target, &PACMAN_DESIRED_ORIENTATION);
     showTarget (PACMAN_TILE, target, 5);
@@ -13028,7 +13088,7 @@ uint16_t displayLives_2b4a (int lives)
     return hl;
 }
 
-void func_2b6a (int unused)
+void bottomTextColourAndDisplayLives_2b6a (int unused)
 {
     //-------------------------------
     // 2b6a  3a004e    ld      a,(#4e00)
@@ -13049,7 +13109,7 @@ void func_2b6a (int unused)
     // 2b7b  46        ld      b,(hl)
     // 2b7c  18cc      jr      #2b4a           ; (-52)
     //-------------------------------
-    displayLives_2b4a(P1_DISPLAY_LIVES);
+    displayLives_2b4a (P1_DISPLAY_LIVES);
 }
 
 void drawBlankSquare_2b7e(uint8_t *hl)
@@ -15078,7 +15138,7 @@ void serviceModeOrStartGame_3174 (void)
         // 318f  3c        inc     a		; 0x01->a
         // 3190  32014e    ld      (#4e01),a
         //-------------------------------
-        MAIN_STATE_SUB0 = 1;
+        RESET_STATE = RESET_STATE_DONE;
         //-------------------------------
         // 3193  320050    ld      (#5000),a	; enable interrupts
         // 3196  fb        ei			; enable interrupts
@@ -15638,12 +15698,14 @@ void delay_32ed (void)
     // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff
 
     // 340b  d5 6a d5 6a // pacman normal - 18 of 32 = 56%
-    // 340f  d5
+    // 340f  d5 6a d5 6a // pacman powered - 18
+    // 3413  b6 6d 6d db // diff2 - 21
+    // 3417  6d 6d 6d 6d // diff1 - 20
+    // 341b  d6 5a ad b5 // ghost normal - 19
+    // 341f  48 24 22 91 // ghost edible - 9
+    // 3423  92 24 92 24 // ghost tunnel - 10
 
-    // 3410  6a d5 6a b6 6d 6d db 
-    // 3417  6d 6d 6d 6d d6 5a ad b5 48
-    // 3420  24 22 91 92 24 92 24 2c  01 dc 05 08 07 b8 0b e4
-    // 3430  0c fe ff ff ff
+    // 3427  2c 01 dc 05 08 07 b8 0b  e4 0c fe ff ff ff
     //-------------------------------
 
     /*  Maze draw data */

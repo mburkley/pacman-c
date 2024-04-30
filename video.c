@@ -69,6 +69,7 @@ static struct _frameBuffer
 static int frameBufferXSize;
 static int frameBufferYSize;
 static int frameBufferScale;
+static bool drawTargetEnable = false;
 
 static inline struct _frameBuffer* pixel (int x, int y)
 {
@@ -91,16 +92,21 @@ static void videoPlotRaw (int x, int y, int col)
     pixel (x, y)->b = (col & 0xc0);
 }
 
-/*  Scaling plot, scales up x and y and draws a square of pixels */
-static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
+static uint8_t colourLookup (uint8_t col)
 {
-    int i, j;
-
     /*  Lookup the colour in the 128-entry colour table to find the 4-bit colour */
     col = rom_82s126_4a[col & 0x7f];
 
     /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */
     col = rom_82s123_7f[col & 0xf];
+
+    return col;
+}
+
+/*  Scaling plot, scales up x and y and draws a square of pixels */
+static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
+{
+    int i, j;
 
     if (x >= SCREEN_XSIZE || 
         y >= SCREEN_YSIZE)
@@ -144,6 +150,7 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
+            col = colourLookup (col);
             videoPlot ((cx << 3) + x, (cy << 3) + y, col, false);
         }
     }
@@ -178,13 +185,14 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
             uint8_t col = colour << 2;
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
+            col = colourLookup (col);
 
             if (px+x >= SCREEN_XSIZE || 
                 py+y >= SCREEN_YSIZE)
             {
                 // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
             }
-            else if (col > 0)
+            else
             {
                 int dx = x;
                 int dy = y;
@@ -205,20 +213,22 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
 
 static void drawLine (int x1, int y1, int x2, int y2, uint8_t col)
 {
-    double x = x1;
-    double y = y1;
-    double dx = x2-x1;
-    double dy = y2-y1;
+    double x = x1 * frameBufferScale;
+    double y = y1 * frameBufferScale;
+    double dx = (x2 - x1) * frameBufferScale;
+    double dy = (y2 - y1) * frameBufferScale;
     double len = sqrt (dx * dx + dy * dy);
 
     // rotate8 (&col, 2);
     col <<= 2;
     col += 3;
+    col = colourLookup (col);
 
     for (int i = 0; i < len; i++)
     {
-        if (x >0 && x < SCREEN_XSIZE && y>0 && y < SCREEN_YSIZE)
-            videoPlot (x, y, col, false);
+        if (x > 0 && x < SCREEN_XSIZE * frameBufferScale &&
+            y > 0 && y < SCREEN_YSIZE * frameBufferScale )
+            videoPlotRaw (x, y, col);
         x += (dx / len);
         y += (dy / len);
     }
@@ -286,7 +296,8 @@ static void videoRedraw (void)
     }
 
     // drawLine (0, 0, SCREEN_XSIZE-1, SCREEN_YSIZE-1, 9);
-    drawTargets ();
+    if (drawTargetEnable)
+        drawTargets ();
 }
 
 static bool videoThreadRunning = false;
