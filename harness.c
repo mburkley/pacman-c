@@ -54,7 +54,7 @@ int main (int argc, char *argv[])
     memcpy (&charset[0x0000], rom_pacman_5e, 0x1000);
     memcpy (&charset[0x1000], rom_pacman_5f, 0x1000);
 
-    #if 0
+    #if 1
     memcpy (&ROM[0x0000], rom_pacman_6e, 0x1000);
     memcpy (&ROM[0x1000], rom_pacman_6f, 0x1000);
     memcpy (&ROM[0x2000], rom_pacman_6h, 0x1000);
