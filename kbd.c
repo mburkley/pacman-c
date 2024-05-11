@@ -50,15 +50,16 @@ static struct _keyCode
 }
 keyCode[] =
 {
-    { 110, 0, 0x20 },  // Ins = coin
-    { 111, 1, 0x20 },  // Del = start
+    {   6, 0, 0x20 },  // 5 = coin
+    {   2, 1, 0x20 },  // 1 = 1-start
+    {   3, 1, 0x40 },  // 2 = 2-start
     {  75, 0, 0x02 },  // numpad 4 = left
     {  77, 0, 0x04 },  // numpad 6 = right
     {  80, 0, 0x08 },  // numpad 2 = down
     {  72, 0, 0x01 }   // numpad 8 = up
 };
 
-#define NUM_KEY 6
+#define NUM_KEY 7
 
 static void kbdReopen (void)
 {
