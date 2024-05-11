@@ -167,10 +167,10 @@ extern uint8_t dipSwitches;
 #define TASK_LIST_BEGIN         (*(uint16_t*)&memmap.mem[0x4c82])
 
 #define SOUND_COUNTER                   &memmap.mem[0x4c84]
-#define TIMER_SIXTIETHS                 memmap.mem[0x4c86]
+#define TIMER_SIXTIETHS                 &memmap.mem[0x4c86]
 #define TIMER_SECONDS                   memmap.mem[0x4c87]
 #define TIMER_MINUTES                   memmap.mem[0x4c88]
-#define TIMER_HOURS                     memmap.mem[0x4c89] // Actually a hundred mins?
+#define TIMER_HOURS                     memmap.mem[0x4c89]
 #define COUNTER_LIMITS_CHANGES          memmap.mem[0x4c8a]
 #define RND_NUM_GEN1                    memmap.mem[0x4c8b]
 #define RND_NUM_GEN2                    memmap.mem[0x4c8c]

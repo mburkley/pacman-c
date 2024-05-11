@@ -55,7 +55,7 @@ void introduceClyde_04bf (void);
 void introduceClyde_04cd (void);
 void selectDisplayClydeName_04d3 (void);
 void introducePoints_04d8 (void);
-void setupIntroScene_04e0 (void);
+void introSceneSetup_04e0 (void);
 void introStartMoveBlinky_051c (void);
 void introAdvanceState_0524 (uint8_t *hl, int b, int a);
 void introMain_052c (void);
@@ -105,7 +105,7 @@ void toggleGhostAnimation_0e23 (void);
 void ghostsChangeOrientation_0e36 (void);
 void resetFruit_1000 (void);
 void func_100b (void);
-void func_1017 (void);
+void updateGhostStates_1017 (void);
 void selectGhostState_1066 (void);
 void blinkyStateMachine_1094 (void);
 void pinkyStateMachine_109e (void);
@@ -144,7 +144,7 @@ void scene2Animation_162d (void);
 void pacmanCheckGhostCoincidence_171d (void);
 void pacmanGhostCoincide_1763 (int b);
 void pacmanCheckEatGhost_1789 (void);
-void pacmanVectorFromJoystick_1806 (void);
+void pacmanUpdateMovePat_1806 (void);
 void pacmanCheckMoveClear_18e4 (int b);
 void pacmanUpdatePos_1985(XYPOS pos);
 void pacmanMoveTile_1a19 (void);
@@ -165,8 +165,8 @@ void inkyCheckLeaveHouse_208c (void);
 void clydeCheckLeaveHouse_20af (void);
 void scene1StateMachine_2108 (void);
 void scene1State0_211a (void);
-void updateMoveVector_2130 (void);
-void updateBlinkyMoveVectorTwice_2136 (void);
+void updateMoveVectorPacmanBlinky_2130 (void);
+void updateMoveVectorBlinky_2136 (void);
 void scene1State1_2140 (void);
 void scene1State2_214b (void);
 void scene1State4_2170 (void);
@@ -251,8 +251,8 @@ void initLeaveHouseCounters_083a(uint8_t *hl);
 void isr_008d (void);
 void jumpClearScreen_23ed(int param);
 void nothing (void);
-void oneBlank (uint8_t *ix);
-void oneUp (uint8_t *ix);
+void oneBlank_0383 (uint8_t *ix);
+void oneUp_0369 (uint8_t *ix);
 void pacmanDeadAnimation_12d6(int ch, int count);
 void playerDied_090d (void);
 void playerUp (void);
@@ -276,8 +276,8 @@ void homeOrRandomBlinky_283b ();
 void homeOrRandomClyde_28b9 ();
 void homeOrRandomInky_288f ();
 void homeOrRandomPinky_2865 ();
-void twoBlank (uint8_t *iy);
-void twoUp (uint8_t *iy);
+void twoBlank_0390 (uint8_t *iy);
+void twoUp_0376 (uint8_t *iy);
 void updatePillsFromScreen_2487 (int param);
 void waitForever (void);
 void showStartNumPlayers_02fd (void);
@@ -523,12 +523,12 @@ void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
     // 0033  0610      ld      b,#10
     // 0035  c35100    jp      #0051
     //-------------------------------
-    uint8_t data[3];
-    data[0] = time;
-    data[1] = routine;
-    data[2] = param;
+    TASK task;
+    task.timer = time;
+    task.func = routine;
+    task.param = param;
     // printf ("%s t = %d f=%d p=%d\n", __func__, time, routine, param);
-    addISRTask_0051 (ISR_TASKS, 0x10, data);
+    addISRTask_0051 (ISR_TASKS, 0x10, (uint8_t*)&task);
 }
 
 /* Loop forever with interrupts disabled.  Continuously reset interrupt enable
@@ -939,30 +939,41 @@ void updateCounters_01dc (void)
     // 01e1  35        dec     (hl)
     // 01e2  23        inc     hl
     //-------------------------------
-    uint8_t *ptr = SOUND_COUNTER;
-    printf ("%s Counters %d,%d\n", __func__, ptr[0], ptr[1]);
-    ptr[0]++;
-    ptr[1]--;
-    ptr = &TIMER_SIXTIETHS;
+    uint8_t *counter = SOUND_COUNTER;
+    printf ("%s Counters %d,%d\n", __func__, counter[0], counter[1]);
+    counter[0]++;
+    counter[1]--;
+    counter = TIMER_SIXTIETHS;
 
     //-------------------------------
     // 01e3  111902    ld      de,#0219
     // 01e6  010104    ld      bc,#0401
     //-------------------------------
-    uint8_t *data = DATA_0219;
+    uint8_t *limit = DATA_0219;
     int c = 1;
 
     /*  Walk through 4 BCD bytes which hold timer info.  Each increasing byte is
-     *  a clock order of magnitude, sixtieths, seconds, minutes and hours (or is
-     *  that 100 minutes?).  Do two comparisons for each half, high nybble and
-     *  low nybble.  If they don't match, break, otherwise increment the next
-     *  digit. */
+     *  a clock order of magnitude, sixtieths, seconds, minutes and hours.  Do
+     *  two comparisons for each byte, high nybble and low nybble.  If a nybble
+     *  doesn't match the limit, break, otherwise increment the next digit.  The value c
+     *  counts how many digits have changed.  This gives us counter limits of
+     *
+     *  every 6/60ths (0.1 seconds)
+     *  every 60/60ths (1 second)
+     *  every 10 seconds
+     *  every minute
+     *  evert 10 minutes
+     *  every hour
+     *  every 10 hours
+     *
+     *  The counter is 4 bytes but the limits are 8 bytes.  Presumably because
+     *  RAM space is expensive but ROM not as much */
     for (int b = 0; b < 4; b++)
     {
         //-------------------------------
         // 01e9  34        inc     (hl)
         //-------------------------------
-        ptr[b]++;
+        counter[b]++;
 
         //-------------------------------
         // 01ea  7e        ld      a,(hl)
@@ -971,10 +982,8 @@ void updateCounters_01dc (void)
         // 01ee  be        cp      (hl)
         // 01ef  2013      jr      nz,#0204        ; (19)
         //-------------------------------
-        int a = ptr[b] & 0x0f;
-
-        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, a, data[b]);
-        if (a != data[b])
+        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, counter[b], *limit);
+        if ((counter[b] & 0x0f) != *limit)
             break;
 
         //-------------------------------
@@ -985,15 +994,16 @@ void updateCounters_01dc (void)
         // 01f7  12        ld      (de),a
         //-------------------------------
         c++;
-        ptr[b] = (ptr[b] + 0x10) & 0xf0;
+        counter[b] = (counter[b] + 0x10) & 0xf0;
 
         //-------------------------------
         // 01f8  23        inc     hl
         // 01f9  be        cp      (hl)
         // 01fa  2008      jr      nz,#0204        ; (8)
         //-------------------------------
-        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, ptr[b], data[b+1]);
-        if (ptr[b] != data[b+1])
+        limit++;
+        printf ("%s digit=%d a=%02x cmp=%02x\n", __func__, b, counter[b], *limit);
+        if ((counter[b] & 0xf0) != *limit)
             break;
 
         //-------------------------------
@@ -1005,15 +1015,15 @@ void updateCounters_01dc (void)
         // 0202  10e5      djnz    #01e9           ; (-27)
         //-------------------------------
         c++;
-        // *ptr++= 0;
-        ptr[b] = 0;
-        // data++;
+        counter[b] = 0;
+        limit++;
     }
 
     //-------------------------------
     // 0204  218a4c    ld      hl,#4c8a
     // 0207  71        ld      (hl),c
     //-------------------------------
+    printf ("%s %d digits updated\n", __func__, c);
     COUNTER_LIMITS_CHANGES = c;
 
     //-------------------------------
@@ -1042,12 +1052,15 @@ void updateCounters_01dc (void)
     RND_NUM_GEN2 = RND_NUM_GEN2 * 5 + 1;
 }
  
-    /*  Data related to timer counts, seconds, minutes, hours */ 
+    /*  Data related to timer counts, sixtieths of a second, seconds, minutes, hours */ 
 
     //-------------------------------
     // 0219  06 a0 0a 60 0a 60 0a a0 
     //-------------------------------
 
+/*  Dispatch tasks in the queue once their timer expires.  The time value is the
+ *  lower 6 bits of the delay value.  The upper 2 bits are the units
+ *  (tenths of a second, seconds, 10 seconds or 1 minute) */
 void dispatchISRTasks_0221 (void)
 {
     //-------------------------------
@@ -1056,8 +1069,7 @@ void dispatchISRTasks_0221 (void)
     // 0227  4f        ld      c,a
     // 0228  0610      ld      b,#10
     //-------------------------------
-    int c = COUNTER_LIMITS_CHANGES;
-    uint8_t *hl = ISR_TASKS;
+    TASK *task = (TASK*) ISR_TASKS;
 
     for (int b = 0; b < 0x10; b++)
     {
@@ -1066,8 +1078,7 @@ void dispatchISRTasks_0221 (void)
         // 022b  a7        and     a
         // 022c  282f      jr      z,#025d         ; (47)
         //-------------------------------
-        int a = hl[0];
-        if (a != 0)
+        if (task->timer != 0)
         {
             //-------------------------------
             // 022e  e6c0      and     #c0
@@ -1076,10 +1087,7 @@ void dispatchISRTasks_0221 (void)
             // 0232  b9        cp      c
             // 0233  3028      jr      nc,#025d        ; (40)
             //-------------------------------
-            a &= 0xc0;
-            a >>= 6;
-            printf ("%s limits = %d timer=%d val=%d\n", __func__, c, a, hl[0]);
-            if(a<c)
+            if ((task->timer >> 6) < COUNTER_LIMITS_CHANGES)
             {
                 //-------------------------------
                 // 0235  35        dec     (hl)
@@ -1087,8 +1095,10 @@ void dispatchISRTasks_0221 (void)
                 // 0237  e63f      and     #3f
                 // 0239  2022      jr      nz,#025d        ; (34)
                 //-------------------------------
-                hl[0]--;
-                if ((hl[0] & 0x3f) == 0)
+                printf ("%s task=%d limits=%d timer=%d units=%d\n", __func__,
+                        task->func, COUNTER_LIMITS_CHANGES, task->timer & 0x3f, task->timer >> 6);
+                task->timer--;
+                if ((task->timer & 0x3f) == 0)
                 {
                     //-------------------------------
                     // 023b  77        ld      (hl),a
@@ -1101,9 +1111,11 @@ void dispatchISRTasks_0221 (void)
                     // 0242  215b02    ld      hl,#025b         ; return to 025b
                     // 0245  e5        push    hl
                     //-------------------------------
-                    hl[0] = 0;
-                    a = hl[1];
-                    b = hl[2];
+                    /*  The parameter byte is fetched into register b but it
+                     *  doesn't look like any of the dispatchable tasks look at
+                     *  the value of b and it is never set to anything other
+                     *  than 0x00 anyway so I'm ignoring it */
+                    task->timer = 0;
 
                     //-------------------------------
                     // 0246  e7        rst     #20
@@ -1115,8 +1127,8 @@ void dispatchISRTasks_0221 (void)
                     // 025b  e1        pop     hl
                     // 025c  c1        pop     bc
                     //-------------------------------
-                    printf("%s disp tsk %d\n", __func__, a);
-                    ASSERT (a < 10);
+                    printf("%s disp tsk %d\n", __func__, task->func);
+                    ASSERT (task->func < 10);
                     void (*func[])() = 
                     {
                         incLevelStateSubr_0894,
@@ -1130,7 +1142,7 @@ void dispatchISRTasks_0221 (void)
                         incScene2State_212b,
                         incScene3State_22b9
                     };
-                    tableCall_0020 (func, a);
+                    tableCall_0020 (func, task->func);
                     /*  No return as this addr was pushed as ret addr */
                 }
             }
@@ -1142,7 +1154,7 @@ void dispatchISRTasks_0221 (void)
         // 025f  2c        inc     l
         // 0260  10c8      djnz    #022a           ; (-56)
         //-------------------------------
-        hl+= 3;
+        task++;
     }
     //-------------------------------
     // 0262  c9        ret     
@@ -1418,15 +1430,15 @@ void showStartNumPlayers_02fd (void)
         // 0338  fe02      cp      #02
         // 033a  d24403    jp      nc,#0344
         //-------------------------------
-        if (CREDIT_STATE >= CREDIT_STATE_PLAYER1_READY)
+        if (CREDIT_STATE < CREDIT_STATE_PLAYER1_READY)
         {
             //-------------------------------
             // 033d  cd6903    call    #0369
             // 0340  cd7603    call    #0376
             // 0343  c9        ret     
             //-------------------------------
-            oneUp (ix);
-            twoUp (iy);
+            oneUp_0369 (ix);
+            twoUp_0376 (iy);
             return;
         }
     }
@@ -1446,9 +1458,9 @@ void showStartNumPlayers_02fd (void)
         // 0356  c36103    jp      #0361
         //-------------------------------
         if ((COIN_TIMER & 0x10) == 0)
-            oneUp (ix);
+            oneUp_0369 (ix);
         else
-            oneBlank (ix);
+            oneBlank_0383 (ix);
     }
     else
     {
@@ -1458,9 +1470,9 @@ void showStartNumPlayers_02fd (void)
         // 035e  c49003    call    nz,#0390
         //-------------------------------
         if ((COIN_TIMER & 0x10) == 0)
-            twoUp (iy);
+            twoUp_0376 (iy);
         else
-            twoBlank (iy);
+            twoBlank_0390 (iy);
     }
 
     //-------------------------------
@@ -1470,11 +1482,11 @@ void showStartNumPlayers_02fd (void)
     // 0368  c9        ret     
     //-------------------------------
     if (!TWO_PLAYERS)
-        twoBlank (iy);
+        twoBlank_0390 (iy);
 }
 
 /* Display "1UP" */
-void oneUp (uint8_t *ix)
+void oneUp_0369 (uint8_t *ix)
 {
     //-------------------------------
     // 0369  dd360050  ld      (ix+#00),#50
@@ -1488,7 +1500,7 @@ void oneUp (uint8_t *ix)
 }
 
 /* Display "2UP" */
-void twoUp (uint8_t *iy)
+void twoUp_0376 (uint8_t *iy)
 {
     //-------------------------------
     // 0376  fd360050  ld      (iy+#00),#50
@@ -1501,7 +1513,7 @@ void twoUp (uint8_t *iy)
     *(iy+2) = 0x31;
 }
 
-void oneBlank (uint8_t *ix)
+void oneBlank_0383 (uint8_t *ix)
 {
     //-------------------------------
     // 0383  dd360040  ld      (ix+#00),#40
@@ -1512,7 +1524,7 @@ void oneBlank (uint8_t *ix)
     *ix = *(ix+1) = *(ix+2) = 0x40;
 }
 
-void twoBlank (uint8_t *iy)
+void twoBlank_0390 (uint8_t *iy)
 {
     //-------------------------------
     // 0390  fd360040  ld      (iy+#00),#40
@@ -1706,7 +1718,7 @@ void introStateMachine_03fe (void)
         introduceClyde_04cd, nothing_000c,    // 22
         selectDisplayClydeName_04d3, nothing_000c,
         introducePoints_04d8, nothing_000c,
-        setupIntroScene_04e0, nothing_000c,              // 28
+        introSceneSetup_04e0, nothing_000c,              // 28
         introStartMoveBlinky_051c,            // 30
         introStartMovePinky_054b,             // 31
         introStartMoveInky_0556,              // 32
@@ -1892,7 +1904,7 @@ void introducePoints_04d8 (void)
     displayIntroMsg_0585 (MSG_50PTS);
 }
 
-void setupIntroScene_04e0 (void)
+void introSceneSetup_04e0 (void)
 {
     //-------------------------------
     // 04e0  0e13      ld      c,#13
@@ -1919,7 +1931,7 @@ void setupIntroScene_04e0 (void)
     //-------------------------------
     schedTask (TASK_CLEAR_GHOST_STATE, 0);
     schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_CHASE);
-    schedTask (TASK_SETUP_GHOST_TIMERS, 0x14);
+    schedTask (TASK_SETUP_GHOST_TIMERS, 20);
     schedTask (TASK_INIT_POSITIONS, 1);
 
     //-------------------------------
@@ -1979,7 +1991,9 @@ void introStartMoveBlinky_051c (void)
     introAdvanceState_0524 (&BLINKY_SUBSTATE, 0x21, PACMAN_TILE2.x);
 }
 
-void introAdvanceState_0524 (uint8_t *hl, int b, int a)
+/*  Advance the intro state and update the ghost substate to chase when a ghost
+ *  (or pacman) reaches a specified x tile. */
+void introAdvanceState_0524 (uint8_t *ghostSubstate, int target, int tile)
 {
     //-------------------------------
     // 0524  90        sub     b
@@ -1988,14 +2002,14 @@ void introAdvanceState_0524 (uint8_t *hl, int b, int a)
     // 0529  c38e05    jp      #058e
     //-------------------------------
     // printf ("%s a = %d b=%d\n", __func__, a, b);
-    if (a != b)
+    if (tile != target)
     {
         introMain_052c();
         return;
     }
 
     // printf ("%s %04lx = 1\n", __func__, hl-MEM);
-    *hl = 1;
+    *ghostSubstate = SUBSTATE_CHASE;
     incMainStateIntro_058e();
     return;
 }
@@ -2015,8 +2029,8 @@ void introMain_052c (void)
     // 0547  cd731f    call    #1f73
     // 054a  c9        ret     
     //-------------------------------
-    func_1017(); 
-    func_1017(); 
+    updateGhostStates_1017(); 
+    updateGhostStates_1017(); 
     toggleGhostAnimation_0e23();
     flashPowerups_0c0d();
     setGhostColour_0bd6();
@@ -2606,22 +2620,16 @@ void setupGhostTimers_070e (int b)
 
     //-------------------------------
     // 0724  dd7e00    ld      a,(ix+#00)
-    // 0727  87        add     a,a
+    // 0727  87        add     a,a              ; a*2
     // 0728  47        ld      b,a
     // 0729  87        add     a,a
     // 072a  87        add     a,a
-    // 072b  4f        ld      c,a
+    // 072b  4f        ld      c,a              ; c = a*8
     // 072c  87        add     a,a
-    // 072d  87        add     a,a
-    // 072e  81        add     a,c
-    // 072f  80        add     a,b
-    // 0730  5f        ld      e,a
-
-    /* b = 2a */
-    /* c = 8a */
-    /* e = 32a + b + c */
-    /* e = 32a+8a+2a = 42 = 0x2a*/
-
+    // 072d  87        add     a,a              ; a*4
+    // 072e  81        add     a,c              ; + a*32
+    // 072f  80        add     a,b              ; + a*2
+    // 0730  5f        ld      e,a              ; e = a*32 + a*8 + a*2 = a*42
     // 0731  1600      ld      d,#00
     // 0733  210f33    ld      hl,#330f
     // 0736  19        add     hl,de
@@ -2643,8 +2651,8 @@ void setupGhostTimers_070e (int b)
     // 0740  dd7e02    ld      a,(ix+#02)
     // 0743  47        ld      b,a
     // 0744  87        add     a,a
-    // 0745  80        add     a,b
-    // 0746  5f        ld      e,a
+    // 0745  80        add     a,b   
+    // 0746  5f        ld      e,a              ; e = a*3
     // 0747  1600      ld      d,#00
     // 0749  214308    ld      hl,#0843
     // 074c  19        add     hl,de
@@ -2669,6 +2677,7 @@ void setupGhostTimers_070e (int b)
     // 0760  fd6601    ld      h,(iy+#01)
     // 0763  22bb4d    ld      (#4dbb),hl
     //-------------------------------
+    printf ("%s pills rem diff=%lx\n", __func__, iy-ROM);
     PILLS_REM_DIFF_1 = iy[0];
     PILLS_REM_DIFF_2 = iy[1];
 
@@ -2687,6 +2696,7 @@ void setupGhostTimers_070e (int b)
     // 0776  fd6601    ld      h,(iy+#01)
     // 0779  22bd4d    ld      (#4dbd),hl
     //-------------------------------
+    printf ("%s ghost edible time=[%lx]=%04x\n", __func__, iy-ROM, *(uint16_t*)iy);
     GHOST_EDIBLE_TIME = *(uint16_t*)iy;
 
     //-------------------------------
@@ -2963,8 +2973,8 @@ void playGameMain_08cd (void)
     // 0909  cdad0e    call    #0ead
     // 090c  c9        ret     
     //-------------------------------
-    func_1017();
-    func_1017();
+    updateGhostStates_1017();
+    updateGhostStates_1017();
     checkInactivityCounter_13dd();
     ghostsLeaveHouse_0c42();
     toggleGhostAnimation_0e23();
@@ -3363,7 +3373,7 @@ void func_0a0e (void)
     schedTask (TASK_CLEAR_PILLS_SCREEN, 0);
     schedTask (TASK_INIT_POSITIONS, 1);
     schedTask (TASK_BLINKY_SUBSTATE, SUBSTATE_CHASE);
-    schedTask (TASK_SETUP_GHOST_TIMERS, 0x13);
+    schedTask (TASK_SETUP_GHOST_TIMERS, 19);
     schedISRTask (0x43, ISRTASK_INC_LEVEL_STATE, 0);
 
     //-------------------------------
@@ -4783,7 +4793,7 @@ void selectFruit_0ead (void)
     // 0ef8  f7        rst     #30
     // 0ef9  8a0400
     //-------------------------------
-    schedISRTask (0x8a, ISRTASK_RESET_FRUIT, 0x00);
+    schedISRTask (0x8a, ISRTASK_RESET_FRUIT, 0);
 
     //-------------------------------
     // 0efc  c9        ret     
@@ -4855,7 +4865,7 @@ void func_100b (void)
     schedTask (TASK_DISPLAY_MSG, 0x80 | MSG_5000PTS);
 }
 
-void func_1017 (void)
+void updateGhostStates_1017 (void)
 {
     //-------------------------------
     // 1017  cd9112    call    #1291
@@ -4919,7 +4929,7 @@ void func_1017 (void)
     // 104d  cd221d    call    #1d22
     // 1050  cdf91d    call    #1df9
     //-------------------------------
-    pacmanVectorFromJoystick_1806();
+    pacmanUpdateMovePat_1806();
     blinkyUpdateMovePat_1b36();
     pinkyUpdateMovePat_1c4b();
     inkyUpdateMovePat_1d22();
@@ -6596,9 +6606,9 @@ void scene1Animation_15e6 (void)
     // 15f1  fe0c      cp      #0c
     // 15f3  3804      jr      c,#15f9         ; (4)
     //-------------------------------
-    int a = PACMAN_POS.x &0xf;
+    int a = PACMAN_POS.x & 0xf;
     int d;
-    if (a>= 0xc)
+    if (a >= 0xc)
     {
         //-------------------------------
         // 15f5  1618      ld      d,#18
@@ -6611,7 +6621,7 @@ void scene1Animation_15e6 (void)
     // 15f9  fe08      cp      #08
     // 15fb  3804      jr      c,#1601         ; (4)
     //-------------------------------
-    else if (a>= 8)
+    else if (a >= 8)
     {
         //-------------------------------
         // 15fd  1614      ld      d,#14
@@ -6624,7 +6634,7 @@ void scene1Animation_15e6 (void)
     // 1601  fe04      cp      #04
     // 1603  3804      jr      c,#1609         ; (4)
     //-------------------------------
-    else if (a>= 4)
+    else if (a >= 4)
     {
         //-------------------------------
         // 1605  1610      ld      d,#10
@@ -6714,7 +6724,7 @@ void scene2Animation_162d (void)
     // 164a  fe0c      cp      #0c
     // 164c  d8        ret     c
     //-------------------------------
-    if (SCENE2_STATE<0xc)
+    if (SCENE2_STATE < 0xc)
         return;
     
     //-------------------------------
@@ -7298,7 +7308,7 @@ void pacmanCheckEatGhost_1789 (void)
     pacmanGhostCoincide_1763 (0);
 }
 
-void pacmanVectorFromJoystick_1806 (void)
+void pacmanUpdateMovePat_1806 (void)
 {
     printf ("%s\n", __func__);
     //-------------------------------
@@ -7599,7 +7609,7 @@ void pacmanCheckMoveClear_18e4 (int noInput)
     // printf("%s a = %02x\n", __func__, a);
     if ((a & CHAR_MAZE_MASK) != CHAR_MAZE_MASK)
     {
-        pacmanHitMazeWall_1940(noInput);
+        pacmanHitMazeWall_1940 (noInput);
         return;
     }
 
@@ -9916,16 +9926,15 @@ void scene1State0_211a (void)
     // 211d  d621      sub     #21
     // 211f  200f      jr      nz,#2130        ; (15)
     //-------------------------------
-    int a = PACMAN_TILE2.x;
-    if (a == 0x21)
+    if (PACMAN_TILE2.x == 0x21)
     {
         //-------------------------------
         // 2121  3c        inc     a
         // 2122  32a04d    ld      (#4da0),a
         // 2125  32b74d    ld      (#4db7),a
         //-------------------------------
-        BLINKY_SUBSTATE = 
-        DIFF_FLAG_2 = a + 1;
+        BLINKY_SUBSTATE = SUBSTATE_CHASE;
+        DIFF_FLAG_2 = 1;
 
         //-------------------------------
         // 2128  cd0605    call    #0506
@@ -9938,7 +9947,7 @@ void scene1State0_211a (void)
         return;
     }
 
-    updateMoveVector_2130();
+    updateMoveVectorPacmanBlinky_2130();
 }
 
 void incScene1State_212b (void)
@@ -9946,18 +9955,18 @@ void incScene1State_212b (void)
     SCENE1_STATE++;
 }
 
-void updateMoveVector_2130 (void)
+void updateMoveVectorPacmanBlinky_2130 (void)
 {
     //-------------------------------
     // 2130  cd0618    call    #1806
     // 2133  cd0618    call    #1806
     //-------------------------------
-    pacmanVectorFromJoystick_1806();
-    pacmanVectorFromJoystick_1806();
-    updateBlinkyMoveVectorTwice_2136();
+    pacmanUpdateMovePat_1806();
+    pacmanUpdateMovePat_1806();
+    updateMoveVectorBlinky_2136();
 }
 
-void updateBlinkyMoveVectorTwice_2136 (void)
+void updateMoveVectorBlinky_2136 (void)
 {
     //-------------------------------
     // 2136  cd361b    call    #1b36
@@ -9976,10 +9985,10 @@ void scene1State1_2140 (void)
     // 2140  3a3a4d    ld      a,(#4d3a)
     // 2143  d61e      sub     #1e
     // 2145  c23021    jp      nz,#2130
-    // 2148  c32b21    jp      #212b
+    // 2148  c32b21    jp      #212b    ; tail call to inc (#4e06) and ret
     //-------------------------------
     if (PACMAN_TILE2.x != 0x1e)
-        updateMoveVector_2130();
+        updateMoveVectorPacmanBlinky_2130();
     else
         SCENE1_STATE++;
 }
@@ -9993,7 +10002,7 @@ void scene1State2_214b (void)
     //-------------------------------
     if (BLINKY_TILE2.x != 0x1e)
     {
-        updateBlinkyMoveVectorTwice_2136();
+        updateMoveVectorBlinky_2136();
         return;
     }
 
@@ -10038,7 +10047,7 @@ void scene1State4_2170 (void)
     //-------------------------------
     if (BLINKY_TILE2.x != 0x2f)
     {
-        updateBlinkyMoveVectorTwice_2136();
+        updateMoveVectorBlinky_2136 ();
         return;
     }
     //-------------------------------
@@ -10056,7 +10065,7 @@ void scene1State5_217b (void)
     //-------------------------------
     if (BLINKY_TILE2.x != 0x3d)
     {
-        updateMoveVector_2130();
+        updateMoveVectorPacmanBlinky_2130 ();
         return;
     }
     //-------------------------------
@@ -10071,8 +10080,8 @@ void scene1State6_2186 (void)
     // 2186  cd0618    call    #1806
     // 2189  cd0618    call    #1806
     //-------------------------------
-    pacmanVectorFromJoystick_1806();
-    pacmanVectorFromJoystick_1806();
+    pacmanUpdateMovePat_1806();
+    pacmanUpdateMovePat_1806();
 
     //-------------------------------
     // 218c  3a3a4d    ld      a,(#4d3a)
@@ -10087,7 +10096,7 @@ void scene1State6_2186 (void)
     // 2195  f7        rst     #30
     // 2196  450000
     //-------------------------------
-    SCENE1_STATE = 0x3d;
+    SCENE1_STATE = 0;
     schedISRTask (0x45, ISRTASK_INC_LEVEL_STATE, 0x00);
 
     //-------------------------------
@@ -10175,7 +10184,7 @@ void scene2State2_21e1(uint16_t iy)
     //-------------------------------
     if (PACMAN_TILE2.x != 0x2c)
     {
-        updateMoveVector_2130();
+        updateMoveVectorPacmanBlinky_2130();
         return;
     }
 
@@ -10185,7 +10194,7 @@ void scene2State2_21e1(uint16_t iy)
     // 21ed  32b74d    ld      (#4db7),a
     //-------------------------------
     BLINKY_SUBSTATE = 
-    DIFF_FLAG_2 = 0x2d; // PACMAN_TILE2.x + 1;
+    DIFF_FLAG_2 = 1;
     incScene2State_212b();
 }
 
@@ -10214,7 +10223,7 @@ void scene2State3_21f5 (uint16_t iy)
         //-------------------------------
         if (BLINKY_POS.x != 0x78)
         {
-            updateMoveVector_2130();
+            updateMoveVectorPacmanBlinky_2130();
             return;
         }
     }
@@ -10288,7 +10297,7 @@ void scene2State5_221e (uint16_t iy)
     incScene2State_212b();
 }
 
-/*  This is very simliar to 2136 but only updates blinky's move patter once */
+/*  This is very simliar to 2136 but only updates blinky's move pattern once */
 void updateMoveVector_2237 (void)
 {
     //-------------------------------
@@ -10298,8 +10307,8 @@ void updateMoveVector_2237 (void)
     // 2240  cd230e    call    #0e23
     // 2243  c9        ret     
     //-------------------------------
-    pacmanVectorFromJoystick_1806();
-    pacmanVectorFromJoystick_1806();
+    pacmanUpdateMovePat_1806();
+    pacmanUpdateMovePat_1806();
     blinkyUpdateMovePat_1b36();
     toggleGhostAnimation_0e23();
 }
@@ -10445,7 +10454,7 @@ void scene3State0_22a7 (void)
     //-------------------------------
     if (PACMAN_TILE2.x != 0x25)
     {
-        updateMoveVector_2130();
+        updateMoveVectorPacmanBlinky_2130();
         return;
     }
 
@@ -10455,7 +10464,7 @@ void scene3State0_22a7 (void)
     // 22b3  32b74d    ld      (#4db7),a
     // 22b6  cd0605    call    #0506
     //-------------------------------
-    BLINKY_SUBSTATE = DIFF_FLAG_2 = 0x26;
+    BLINKY_SUBSTATE = DIFF_FLAG_2 = 1;
     demoMazeHorizontal_0506();
     incScene3State_22b9();
 }
@@ -10481,7 +10490,7 @@ void scene3State1_22be (void)
     //-------------------------------
     if (BLINKY_POS.x != 0xff && BLINKY_POS.x != 0xfe)
     {
-        updateMoveVector_2130 ();
+        updateMoveVectorPacmanBlinky_2130 ();
         return;
     }
 
@@ -10545,7 +10554,7 @@ void scene3FruitPos_22e4 (void)
     //-------------------------------
     // 22f2  c33021    jp      #2130
     //-------------------------------
-    updateMoveVector_2130();
+    updateMoveVectorPacmanBlinky_2130();
 }
 
 void scene3State4_22f5 (void)
@@ -11290,7 +11299,7 @@ void mazeColours_24d7 (int param)
     COLOUR[0x20d] = 0x18;
 }
 
-void initialisePositions_25d3 (int demo)
+void initialisePositions_25d3 (int intro)
 {
     //-------------------------------
     // 253d  dd21004c  ld      ix,#4c00
@@ -11328,7 +11337,7 @@ void initialisePositions_25d3 (int demo)
     // 2572  a7        and     a
     // 2573  c20f26    jp      nz,#260f
     //-------------------------------
-    if (demo == 0)
+    if (intro == 0)
     {
         //-------------------------------
         // 2576  216480    ld      hl,#8064

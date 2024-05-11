@@ -16,4 +16,12 @@ typedef struct // union
 }
 XYPOS;
 
+typedef struct
+{
+    uint8_t timer;
+    uint8_t func;
+    uint8_t param;
+}
+TASK;
+
 #endif

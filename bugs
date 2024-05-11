@@ -16,9 +16,14 @@ FIX clyde goes too fast on powerup
 FIX highscore doesn't follow score
 FIX ready/game over doesn't go away
 FIX remaining lives graphic is wrong
+FIX demo pacman doesn't stay within walls
+FIX 1up flashes before game starts
 
+1up flashes before game starts
+scene1 ghost spacing is wrong
 eat fruit says bad rom
 first fruit strawberry wrong colour
-demo pacman doesn't stay within walls
-pacman stays big after scene1
+pacman stays big after scene2
 pacman demo doesn't turn up and eat bottom right powerup like mame does
+pacman can move vertically in tunnel
+in demo mode when inky eats pacman, pacman's sprite appears over inky
