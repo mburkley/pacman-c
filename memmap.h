@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct
+typedef union
 {
     struct
     {
@@ -40,33 +40,33 @@ typedef struct
         uint8_t colour[0x400]; // starts at 0x4400
         uint8_t ram[0x7f0];  // starts at 0x4800
         uint8_t spriteAttrib[0x10];  // starts at 0x4ff0
+        union
+        {
+            struct
+            {
+                uint8_t in0[0x40]; // 0x5000-0x503f
+                uint8_t in1[0x40]; // 0x5040-0x507f
+                uint8_t dipSwitches[0x40]; // 0x5080-0x50bf
+            } read;
+            struct
+            {
+                uint8_t intEnable;  // 0x5000
+                uint8_t soundEnable; // 0x5001
+                uint8_t auxEnable; // 0x5002
+                uint8_t flipScreen; // 0x5003
+                uint8_t player1Start; // 0x5004
+                uint8_t player2Start; // 0x5005
+                uint8_t coinLockout; // 0x5006
+                uint8_t coinCounter; // 0x5007
+                uint8_t outputs[8]; // 0x5000-0x5007
+                uint8_t __unused1[0x38];
+                uint8_t soundRegs[0x20]; // 0x5040
+                uint8_t spriteCoords[0x10]; // 0x5060
+                uint8_t __unused2[0x50];
+                uint8_t watchdog[0x40]; // 0x50c0-0x50ff
+            } write;
+        } regs;
     };
-    union
-    {
-        struct
-        {
-            uint8_t in0[0x40]; // 0x5000-0x503f
-            uint8_t in1[0x40]; // 0x5040-0x507f
-            uint8_t dipSwitches[0x40]; // 0x5080-0x50bf
-        } read;
-        struct
-        {
-            uint8_t intEnable;  // 0x5000
-            uint8_t soundEnable; // 0x5001
-            uint8_t auxEnable; // 0x5002
-            uint8_t flipScreen; // 0x5003
-            uint8_t player1Start; // 0x5004
-            uint8_t player2Start; // 0x5005
-            uint8_t coinLockout; // 0x5006
-            uint8_t coinCounter; // 0x5007
-            uint8_t outputs[8]; // 0x5000-0x5007
-            uint8_t __unused1[0x38];
-            uint8_t soundRegs[0x20]; // 0x5040
-            uint8_t spriteCoords[0x10]; // 0x5060
-            uint8_t __unused2[0x50];
-            uint8_t watchdog[0x40]; // 0x50c0-0x50ff
-        } write;
-    } regs;
     uint8_t mem[0x5100];
 }
 CPU_MEMMAP;
@@ -167,7 +167,7 @@ extern uint8_t dipSwitches;
 #define TASK_LIST_BEGIN         (*(uint16_t*)&memmap.mem[0x4c82])
 
 #define SOUND_COUNTER                   &memmap.mem[0x4c84]
-#define TIMER_HUNDREDTHS                memmap.mem[0x4c86]
+#define TIMER_SIXTIETHS                 &memmap.mem[0x4c86]
 #define TIMER_SECONDS                   memmap.mem[0x4c87]
 #define TIMER_MINUTES                   memmap.mem[0x4c88]
 #define TIMER_HOURS                     memmap.mem[0x4c89]
@@ -193,17 +193,17 @@ extern uint8_t dipSwitches;
 #define CLYDE_TILE      (*(XYPOS*)(&memmap.mem[0x4d10]))
 #define PACMAN_TILE     (*(XYPOS*)(&memmap.mem[0x4d12]))
 
-#define BLINKY_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d14]))
-#define PINKY_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d16]))
-#define INKY_TILE_CHANGE   (*(XYPOS*)(&memmap.mem[0x4d18]))
-#define CLYDE_TILE_CHANGE  (*(XYPOS*)(&memmap.mem[0x4d1a]))
-#define PACMAN_TILE_CHANGE (*(XYPOS*)(&memmap.mem[0x4d1c]))
+#define BLINKY_VECTOR (*(XYPOS*)(&memmap.mem[0x4d14]))
+#define PINKY_VECTOR  (*(XYPOS*)(&memmap.mem[0x4d16]))
+#define INKY_VECTOR   (*(XYPOS*)(&memmap.mem[0x4d18]))
+#define CLYDE_VECTOR  (*(XYPOS*)(&memmap.mem[0x4d1a]))
+#define PACMAN_VECTOR (*(XYPOS*)(&memmap.mem[0x4d1c]))
 
-#define BLINKY_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d1e]))
-#define PINKY_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d20]))
-#define INKY_TILE_CHANGE2   (*(XYPOS*)(&memmap.mem[0x4d22]))
-#define CLYDE_TILE_CHANGE2  (*(XYPOS*)(&memmap.mem[0x4d24]))
-#define PACMAN_TILE_CHANGE2 (*(XYPOS*)(&memmap.mem[0x4d26]))
+#define BLINKY_VECTOR2 (*(XYPOS*)(&memmap.mem[0x4d1e]))
+#define PINKY_VECTOR2  (*(XYPOS*)(&memmap.mem[0x4d20]))
+#define INKY_VECTOR2   (*(XYPOS*)(&memmap.mem[0x4d22]))
+#define CLYDE_VECTOR2  (*(XYPOS*)(&memmap.mem[0x4d24]))
+#define PACMAN_VECTOR2 (*(XYPOS*)(&memmap.mem[0x4d26]))
 
 #define BLINKY_PREV_ORIENTATION memmap.mem[0x4d28]
 #define PINKY_PREV_ORIENTATION  memmap.mem[0x4d29]
@@ -251,10 +251,10 @@ extern uint8_t dipSwitches;
 #define GHOST_HOUSE_MOVE_COUNT          memmap.mem[0x4d94]
 #define UNITS_B4_GHOST_LEAVES_HOME      (*(uint16_t*)&memmap.mem[0x4d95])
 #define UNITS_INACTIVITY_COUNTER        (*(uint16_t*)&memmap.mem[0x4d97])
-#define BLINKY_AUX_POS                  memmap.mem[0x4d99]
-#define PINKY_AUX_POS                   memmap.mem[0x4d9a]
-#define INKY_AUX_POS                    memmap.mem[0x4d9b]
-#define CLYDE_AUX_POS                   memmap.mem[0x4d9c]
+#define BLINKY_IN_TUNNEL                  memmap.mem[0x4d99]
+#define PINKY_IN_TUNNEL                   memmap.mem[0x4d9a]
+#define INKY_IN_TUNNEL                    memmap.mem[0x4d9b]
+#define CLYDE_IN_TUNNEL                   memmap.mem[0x4d9c]
 #define PACMAN_MOVE_DELAY               memmap.mem[0x4d9d]
 #define EATEN_SINCE_MOVE                memmap.mem[0x4d9e]
 #define EATEN_PILLS_COUNT               memmap.mem[0x4d9f]
@@ -313,10 +313,10 @@ extern uint8_t dipSwitches;
 #define WAIT_START_BUTTON               memmap.mem[0x4dd6]
 
 #define MAIN_STATE                      memmap.mem[0x4e00]
-#define MAIN_STATE_SUB0                 memmap.mem[0x4e01]
+#define RESET_STATE                     memmap.mem[0x4e01]
 #define INTRO_STATE                     memmap.mem[0x4e02]
-#define MAIN_STATE_SUB2                 memmap.mem[0x4e03]
-#define LEVEL_STATE_SUBR                memmap.mem[0x4e04]
+#define CREDIT_STATE                    memmap.mem[0x4e03] // coin inserted
+#define LEVEL_STATE                     memmap.mem[0x4e04]
 #define SCENE1_STATE                    memmap.mem[0x4e06]
 #define SCENE2_STATE                    memmap.mem[0x4e07]
 #define SCENE3_STATE                    memmap.mem[0x4e08]
@@ -454,3 +454,6 @@ static inline void assert (bool cond, char *file, int line)
 }
 
 #define ASSERT(cond) assert(cond,__FILE__,__LINE__)
+
+#include "structs.h"
+extern void showTarget (XYPOS a, XYPOS b, int col);

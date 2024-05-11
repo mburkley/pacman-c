@@ -56,25 +56,38 @@
 #define TASK_PACMAN_ORIENT              0x17
 #define TASK_CLEAR_SCORES               0x18
 #define TASK_ADD_TO_SCORE               0x19
+#define TASK_BOTTOM_COLOUR              0x1a
 #define TASK_FRUIT_HISTORY              0x1b
 #define TASK_DISPLAY_MSG 0x1c
 #define TASK_DISPLAY_CREDITS 0x1d
 #define TASK_RESET_POSITIONS 0x1e
 #define TASK_SHOW_BONUS_LIFE_SCORE 0x1f
 
-#define MSG_HIGHSCORE   0
-#define MSG_CREDIT      1
-#define MSG_FREEPLAY    2
-#define MSG_PLAYER1     3
-#define MSG_PLAYER2     4
-#define MSG_GAMEOVER    5
-#define MSG_READY       6
-#define MSG_BADROMRAM    0x24
-#define MSG_PACMAN       0x29
-#define MSG_BONUS_NONE   0x2a
-#define MSG_BONUS        0x2b
-#define MSG_TABLE        0x2c
-#define MSG_000          0x2e
+#define MSG_HIGHSCORE           0
+#define MSG_CREDIT              1
+#define MSG_FREEPLAY            2
+#define MSG_PLAYER1             3
+#define MSG_PLAYER2             4
+#define MSG_GAMEOVER            5
+#define MSG_READY               6
+#define MSG_PUSHSTART           7
+#define MSG_ONEPLAYER           8
+#define MSG_ONEORTWOPLAYER      9
+#define MSG_BONUS_PACMAN        0x0a
+#define MSG_COPYRIGHT1          0x0b
+#define MSG_NICKNAME            0x0c
+#define MSG_10PTS               0x11
+#define MSG_50PTS               0x12
+#define MSG_COPYRIGHT2          0x0b
+#define MSG_100PTS              0x1b
+#define MSG_5000PTS             0x22
+#define MSG_BADROMRAM           0x24
+#define MSG_NOCOINS             0x25
+#define MSG_PACMAN              0x29
+#define MSG_BONUS_NONE          0x2a
+#define MSG_BONUS               0x2b
+#define MSG_TABLE               0x2c
+#define MSG_000                 0x2e
 
 #define CHAR_PILL       0x10
 #define CHAR_POWERUP    0x14
@@ -83,8 +96,8 @@
 
 #define GHOST_STATE_ALIVE               0
 #define GHOST_STATE_DEAD                1 // eyes?
-#define GHOST_STATE_ENTER_HOME          2
-#define GHOST_STATE_HOME_MOVE           3 // move left (inky) or right (clyde)
+#define GHOST_STATE_ENTER_HOUSE         2
+#define GHOST_STATE_HOUSE_MOVE          3 // move left (inky) or right (clyde)
 
 #define GHOST_BLINKY    1
 #define GHOST_PINKY     2
@@ -96,16 +109,37 @@
 #define ORIENT_LEFT     2
 #define ORIENT_UP       3
 
+#define ORIENT_VERTICAL 1  // mask, 1 and 3 are vertical, 0 and 2 are horizontal
+
 #define IMG_MIRROR 0x80
 #define IMG_INVERT 0x40
 
-#define STATE_AT_HOME           0
-#define STATE_LEAVING_HOME      2
+#define SUBSTATE_IN_HOUSE          0
+#define SUBSTATE_CHASE             1
+#define SUBSTATE_LEAVING_HOUSE     2
+#define SUBSTATE_HOUSE_MOVE        3
 
 #define MAIN_STATE_INIT         0
 #define MAIN_STATE_DEMO         1
 #define MAIN_STATE_CREDIT       2
 #define MAIN_STATE_PLAY         3
+
+#define RESET_STATE_RESET   0
+#define RESET_STATE_DONE    1
+
+#define CREDIT_STATE_PUSH_START_MSG  0
+#define CREDIT_STATE_CHECK_START     1
+#define CREDIT_STATE_PLAYER1_READY   2
+#define CREDIT_STATE_RESET           4
+
+#define LEVEL_STATE_PLAY_GAME 3
+#define LEVEL_STATE_GAME_OVER 9
+#define LEVEL_STATE_x 12
+#define LEVEL_STATE_x2 14
+
+/*  Values used by schedISRTask */
+#define TIMER_TENTHS    0x40
+#define TIMER_SECONDS   0x80
 
 /* sprites:
 

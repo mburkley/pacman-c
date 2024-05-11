@@ -31,13 +31,18 @@
 #include "video.h"
 #include "kbd.h"
 
-#include "p5e.h"
-#include "p5f.h"
+#include "pacman.5e.h"
+#include "pacman.5f.h"
 
-#include "p6e.h"
-#include "p6f.h"
-#include "p6h.h"
-#include "p6j.h"
+#include "pacman.6e.h"
+#include "pacman.6f.h"
+#include "pacman.6h.h"
+#include "pacman.6j.h"
+
+#include "namcopac.6e.h"
+#include "namcopac.6f.h"
+#include "namcopac.6h.h"
+#include "namcopac.6j.h"
 
 CPU_MEMMAP memmap;
 uint8_t input0;
@@ -49,10 +54,17 @@ int main (int argc, char *argv[])
     memcpy (&charset[0x0000], rom_pacman_5e, 0x1000);
     memcpy (&charset[0x1000], rom_pacman_5f, 0x1000);
 
+    #if 1
     memcpy (&ROM[0x0000], rom_pacman_6e, 0x1000);
     memcpy (&ROM[0x1000], rom_pacman_6f, 0x1000);
     memcpy (&ROM[0x2000], rom_pacman_6h, 0x1000);
     memcpy (&ROM[0x3000], rom_pacman_6j, 0x1000);
+    #else
+    memcpy (&ROM[0x0000], rom_namcopac_6e, 0x1000);
+    memcpy (&ROM[0x1000], rom_namcopac_6f, 0x1000);
+    memcpy (&ROM[0x2000], rom_namcopac_6h, 0x1000);
+    memcpy (&ROM[0x3000], rom_namcopac_6j, 0x1000);
+    #endif
 
     /*  Input switches are active low */
     IO_INPUT0 = 0xff;
