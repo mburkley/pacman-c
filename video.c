@@ -57,42 +57,30 @@ uint8_t charset[0x2000];
  *  factor.  Since this is
  *  configurable, the framebuffer is allocated at runtime.
  */
-static struct _frameBuffer
+typedef struct _pixel
 {
     uint8_t r;
     uint8_t g;
     uint8_t b;
     uint8_t unused;
 }
-*frameBuffer;
+pixel;
+
+static pixel *frameBuffer;
 
 static int frameBufferXSize;
 static int frameBufferYSize;
 static int frameBufferScale;
 static bool drawTargetEnable = false;
 
-static inline struct _frameBuffer* pixel (int x, int y)
-{
-    return &frameBuffer[y*frameBufferXSize+x];
-}
-
-static void videoRefresh (void)
-{
-    glDrawPixels (frameBufferXSize, frameBufferYSize, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer);
-    glutSwapBuffers();
-}
-
 /*  Raw plot, doesn't do any scaling, expects absolute coords */
-static void videoPlotRaw (int x, int y, int col)
+static void videoPlotRaw (int x, int y, pixel p)
 {
     y = frameBufferYSize - y - 1;
-
-    pixel (x, y)->r = (col & 0x07) << 5;
-    pixel (x, y)->g = (col & 0x31) << 2;
-    pixel (x, y)->b = (col & 0xc0);
+    frameBuffer[y*frameBufferXSize+x] = p;
 }
 
-static uint8_t colourLookup (uint8_t col)
+static pixel colourLookup (uint8_t col)
 {
     /*  Lookup the colour in the 128-entry colour table to find the 4-bit colour */
     col = rom_82s126_4a[col & 0x7f];
@@ -100,11 +88,15 @@ static uint8_t colourLookup (uint8_t col)
     /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */
     col = rom_82s123_7f[col & 0xf];
 
-    return col;
+    pixel p;
+    p.r = (col & 0x07) << 5;
+    p.g = (col & 0x31) << 2;
+    p.b = (col & 0xc0);
+    return p;
 }
 
 /*  Scaling plot, scales up x and y and draws a square of pixels */
-static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
+static void videoPlot (unsigned x, unsigned y, pixel p)
 {
     int i, j;
 
@@ -115,13 +107,10 @@ static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
         // exit(1);
     }
 
-    if (col == 0 && noBlack)
-        return;
-
     /*  Draw a square block of pixels of size (scale x scale) */
     for (i = 0; i < frameBufferScale; i++)
         for (j = 0; j < frameBufferScale; j++)
-            videoPlotRaw (x*frameBufferScale+i, y*frameBufferScale+j, col);
+            videoPlotRaw (x*frameBufferScale+i, y*frameBufferScale+j, p);
 }
 
 /*  Draw an 8x8 character on screen.  cx and cy are the column (0 to 27) and row
@@ -132,7 +121,9 @@ static void videoPlot (unsigned x, unsigned y, int col, bool noBlack)
  *
  *      https://www.walkofmind.com/programming/pie/char_defs.htm
  *
- *  and colour info here: https://aarongiles.com/old/mamemem/part3.html
+ *  and colour info here:
+ *
+ *      https://aarongiles.com/old/mamemem/part3.html
  */
 static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
 {
@@ -150,9 +141,9 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
-            col = colourLookup (col);
             // TODO flipscreen
-            videoPlot ((cx << 3) + x, (cy << 3) + y, col, false);
+            pixel p = colourLookup (col);
+            videoPlot ((cx << 3) + x, (cy << 3) + y, p);
         }
     }
 }
@@ -186,85 +177,56 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
             uint8_t col = colour << 2;
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
-            col = colourLookup (col);
+            pixel p = colourLookup (col);
 
-            if (px+x >= SCREEN_XSIZE || 
-                py+y >= SCREEN_YSIZE)
+            /*  Black sprite pixels are transparent, so only plot if any component is
+             *  non zero */
+            if (p.r > 0 || p.g > 0 || p.b > 0)
             {
-                // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
-            }
-            else
-            {
-                int dx = x;
-                int dy = y;
+                if (px+x >= SCREEN_XSIZE || 
+                    py+y >= SCREEN_YSIZE)
+                {
+                    // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
+                }
+                else
+                {
+                    int dx = x;
+                    int dy = y;
 
-                /* Mirror */
-                if (mode & 2)
-                    dx = 15-dx;
+                    /* Mirror */
+                    if (mode & 2)
+                        dx = 15-dx;
 
-                /* Invert */
-                if (mode & 1)
-                    dy = 15-dy;
+                    /* Invert */
+                    if (mode & 1)
+                        dy = 15-dy;
 
-                videoPlot (px + dx, py + dy, col, true);
+                    videoPlot (px + dx, py + dy, p);
+                }
             }
         }
     }
 }
 
-static void drawLine (int x1, int y1, int x2, int y2, uint8_t col)
-{
-    double x = x1 * frameBufferScale;
-    double y = y1 * frameBufferScale;
-    double dx = (x2 - x1) * frameBufferScale;
-    double dy = (y2 - y1) * frameBufferScale;
-    double len = sqrt (dx * dx + dy * dy);
-
-    // rotate8 (&col, 2);
-    col <<= 2;
-    col += 3;
-    col = colourLookup (col);
-
-    for (int i = 0; i < len; i++)
-    {
-        if (x > 0 && x < SCREEN_XSIZE * frameBufferScale &&
-            y > 0 && y < SCREEN_YSIZE * frameBufferScale )
-            videoPlotRaw (x, y, col);
-        x += (dx / len);
-        y += (dy / len);
-    }
-}
-
 static struct
 {
-    int x1;
-    int y1;
-    int x2;
-    int y2;
+    GLint vertex[4];
     int col;
 }
 targets[5];
 
 void showTarget (XYPOS a, XYPOS b, int ghost)
 {
-    targets[ghost-1].x1 = 490 - a.x * 8 - 10,
-    targets[ghost-1].y1 = a.y * 8 - 224 - 10,
-    targets[ghost-1].x2 = 490 - b.x * 8 - 10,
-    targets[ghost-1].y2 = b.y * 8 - 224 - 10,
-    targets[ghost-1].col = ghost*2-1;
-}
+    /*  Translate tile to pixel and scale */
+    targets[ghost-1].vertex[0] = (476 - a.x * 8) * frameBufferScale;
+    targets[ghost-1].vertex[1] = (524 - a.y * 8) * frameBufferScale;
+    targets[ghost-1].vertex[2] = (476 - b.x * 8) * frameBufferScale;
+    targets[ghost-1].vertex[3] = (524 - b.y * 8) * frameBufferScale;
 
-static void drawTargets (void)
-{
-    for (int i = 0; i < 5; i++)
-    {
-        if (targets[i].col != 0)
-            drawLine (targets[i].x1,
-                        targets[i].y1,
-                        targets[i].x2,
-                        targets[i].y2,
-                        targets[i].col);
-    }
+    /*  Draw the line the colour of the ghost which is 1,3,5,7 or 9.  Shift
+     *  right by 2 and or with 3 to ensure it gets the highest colour of the
+     *  palette */
+    targets[ghost-1].col = (((ghost*2-1) << 2) | 3);
 }
 
 static void videoRedraw (void)
@@ -295,10 +257,36 @@ static void videoRedraw (void)
                          SPRITEATTRIB[sprite * 2] >> 2, SPRITEATTRIB[sprite * 2] & 3,
                          SPRITEATTRIB[sprite * 2 + 1]);
     }
+}
 
-    // drawLine (0, 0, SCREEN_XSIZE-1, SCREEN_YSIZE-1, 9);
+static void drawTargets (void)
+{
+    for (int i = 0; i < 5; i++)
+    {
+        glLineWidth(4);
+
+        /*  Use the ghost colour but at half intensity so instead of div 255 we
+         *  div 511 */
+        pixel p = colourLookup (targets[i].col);
+        glColor4f (p.r / 511.0, p.g / 511.0, p.b / 511.0, 0.1);
+
+        glBegin(GL_LINE_LOOP);
+        glVertex2iv(&targets[i].vertex[0]);
+        glVertex2iv(&targets[i].vertex[2]);
+        glEnd();
+    }
+}
+
+static void displayFunc (void)
+{
+    videoRedraw ();
+    glDrawPixels (frameBufferXSize, frameBufferYSize, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer);
+
     if (drawTargetEnable)
         drawTargets ();
+
+    glFlush();
+    glutSwapBuffers();
 }
 
 static bool videoThreadRunning = false;
@@ -315,14 +303,24 @@ static void *videoThread (void *arg)
     glutInitWindowSize(frameBufferXSize, frameBufferYSize);
     #define VERSION "0.7"
     glutCreateWindow("Pacman-c v" VERSION);
+    glViewport(0, 0, frameBufferXSize, frameBufferYSize);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
 
-    while (videoThreadRunning)
-    {
-        usleep (16667);
-        // printf ("vid refr\n");
-        videoRedraw ();
-        videoRefresh();
-    }
+    glOrtho(0, frameBufferXSize, 0, frameBufferYSize, 1, -1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    #if 0
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_LINE_SMOOTH );
+    glEnable( GL_POLYGON_SMOOTH );
+    glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
+    #endif
+
+    glutDisplayFunc(displayFunc);
+    glutIdleFunc(glutPostRedisplay); // keep redrawing
+    glutMainLoop(); 
 
     return NULL;
 }
@@ -334,7 +332,7 @@ void videoInit (int scale)
     frameBufferScale = scale;
 
     frameBuffer = calloc (frameBufferXSize * frameBufferYSize,
-                          sizeof (struct _frameBuffer));
+                          sizeof (pixel));
 
     if (frameBuffer == NULL)
     {
@@ -344,14 +342,11 @@ void videoInit (int scale)
 
     printf ("FB size is %d x %d\n", frameBufferXSize, frameBufferYSize);
 
-    #if 1
     videoThreadRunning = true;
     if (pthread_create (&thVideoThread, NULL, videoThread, NULL) != 0)
     {
-        // halt ("create video thread");
         fprintf (stderr, "!! thread\n");
         exit (1);
     }
-    #endif
 }
 

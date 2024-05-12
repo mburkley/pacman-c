@@ -138,8 +138,8 @@
 #define LEVEL_STATE_x2 14
 
 /*  Values used by schedISRTask */
-#define TIMER_TENTHS    0x40
-#define TIMER_SECONDS   0x80
+// #define TIMER_TENTHS    0x40
+// #define TIMER_SECONDS   0x80
 
 /* sprites:
 
