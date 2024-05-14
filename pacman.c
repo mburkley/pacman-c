@@ -12352,7 +12352,7 @@ XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation)
         // 2962  77        ld      (hl),a
         // 2963  c33d29    jp      #293d
         //-------------------------------
-        BEST_ORIENTATION_FOUND = (BEST_ORIENTATION_FOUND+1)&3;
+        BEST_ORIENTATION_FOUND = (BEST_ORIENTATION_FOUND + 1) & 3;
     }
 
     /*  Unreachable but must return something */
@@ -12603,24 +12603,23 @@ uint16_t calcSquare_2a12 (uint8_t a)
  *  NOTE : this will generate different movement unless original ROM data is used */
 uint8_t random_2a23 (void)
 {
+    //-------------------------------
     // 2a23  2ac94d    ld      hl,(#4dc9)
-    uint16_t hl = RND_VAL_PTR;
     // 2a26  54        ld      d,h
     // 2a27  5d        ld      e,l
     // 2a28  29        add     hl,hl
     // 2a29  29        add     hl,hl
     // 2a2a  19        add     hl,de
     // 2a2b  23        inc     hl
-    hl *= 5;
-    hl++;
     // 2a2c  7c        ld      a,h
     // 2a2d  e61f      and     #1f
     // 2a2f  67        ld      h,a
-    hl &= 0x1f00;
     // 2a30  7e        ld      a,(hl)
     // 2a31  22c94d    ld      (#4dc9),hl
     // 2a34  c9        ret     
-    return MEM[hl];
+    //-------------------------------
+    RND_VAL_PTR = (RND_VAL_PTR * 5 + 1) & 0x1fff;
+    return MEM[RND_VAL_PTR];
 }
 
 void clearPillsScreen_2a35 ()
