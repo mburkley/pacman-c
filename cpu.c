@@ -66,23 +66,25 @@ void interruptHalt (void)
     printf ("\nsprite-co: ");
     for (int i = 0; i < 16; i++)
         printf ("%02x ", SPRITECOORDS[i]);
-    printf ("\nstates: main=%d 0=%d intro=%d 2=%d l=%d s1=%d s2=%d s3=%d\n",
+    printf ("\nstmain=%d in=%d dem=%d cr=%d lv=%d s1=%d s2=%d s3=%d",
             MAIN_STATE, RESET_STATE, 
             INTRO_STATE, CREDIT_STATE, 
             LEVEL_STATE,
             SCENE1_STATE,
             SCENE2_STATE,
             SCENE3_STATE);
-    printf ("ghost states: b=%d p=%d i=%d c=%d\n",
+    printf (" ghost=[%d,%d,%d,%d]",
             BLINKY_STATE,
             PINKY_STATE,
             INKY_STATE,
             CLYDE_STATE);
-    printf ("ghost sub-states: %d %d %d %d\n",
+    printf (" sub=[%d,%d,%d,%d]",
             BLINKY_SUBSTATE,
             PINKY_SUBSTATE,
             INKY_SUBSTATE,
             CLYDE_SUBSTATE);
+    printf (" p1l=%d p2l=%d two=%d\n",
+            P1_REAL_LIVES, P2_REAL_LIVES, TWO_PLAYERS);
     printf ("pacman-tile %d,%d blinky-tile %d,%d\n",
             PACMAN_TILE2.x,
             PACMAN_TILE2.y,

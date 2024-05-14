@@ -22,9 +22,9 @@ FIX scene1 ghost spacing is wrong
 FIX pacman stays big after scene2
 FIX pacman demo doesn't turn up and eat bottom right powerup like mame does
 
-1up flashes before game starts
-scene1 ghost spacing is wrong
 eat fruit says bad rom
 first fruit strawberry wrong colour
 pacman can move vertically in tunnel
 in demo mode when inky eats pacman, pacman's sprite appears over inky
+demo pacman stutters in tunnel
+pacman appears left screen at start of demo
