@@ -69,10 +69,10 @@ int main (int argc, char *argv[])
 
     /*  Input switches are active low */
     IO_INPUT0 = 0xff;
-    // IO_INPUT1 = 0xff;
-    IO_INPUT1 = 0x7f;
-    // DIP_INPUT = 0xff;
-    DIP_INPUT = 0x49;
+    IO_INPUT1 = 0xff;
+    // IO_INPUT1 = 0x7f; cocktail mode
+    // DIP_INPUT = 0xff; default, 5 lives, 2 coins per game, etc
+    DIP_INPUT = 0x49; 
     printf ("IN0=%02x\n", IO_INPUT0);
     if (argc > 1)
         DIP_INPUT = atoi (argv[1]);

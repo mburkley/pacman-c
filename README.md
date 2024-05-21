@@ -5,13 +5,21 @@ comments.  Assembly that has been translated is boxed off with //----
 
 The main file is pacman.c.  Others are just support.
 
-I haven't gone near audio yet - just focusing on video for now
+build
+=====
+Builds under debian / ubuntu Linux.  Should build under other distros too but
+hasn't been tested.  Uses the "glut" and "pulse[-simple]" libraries to provide video
+using openGL and audio using pulseaudio.
 
 Goals
 =====
 Create a full functional working version of pacman that behaves identically to
 the original (patterns work as they would on mame, etc) but the code is compiled
 C instead of emulated Z80.
+
+Why?  To gain understanding of the original game mostly.  Being able to add
+printfs has been very useful.  Also I can use gdb to examine and modify RAM
+locations.
 
 Notes
 =====
@@ -48,8 +56,7 @@ inserted the action into the caller code instead of creating a function.
 bugs
 ====
 
-Still quite a few.  The oversized pacman after scene1 doesn't return to normal
-size - might not fix that one ;-)
+Still a few.  See bugs
 
 Screenshots
 ===========

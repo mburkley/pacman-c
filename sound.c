@@ -30,11 +30,8 @@
 
 #include "memmap.h"
 
-// 82s126.1m = audio data
-// 82s126.3m = audio data
-
-#include "82s126.1m.h"
-#include "82s126.3m.h"
+#include "82s126.1m.h"  // audio rom 0
+#include "82s126.3m.h"  // audio rom 1
 
 uint8_t soundRom[0x200];
 
@@ -46,7 +43,6 @@ uint8_t soundRom[0x200];
  * 20msec.
  */
 #define SAMPLE_COUNT 480
-// #define SAMPLE_COUNT 1
 
 /*  Move to memmap? */
 typedef struct
@@ -82,28 +78,9 @@ uint8_t waveForm, int bytes)
         if (i < bytes)
         {
             freq |= (freqPtr[i] & 0xf) << 16;
-            // printf ("%s AUD nyb=%d out=%x\n", __func__, freqPtr[i]&0xf, freq);
             freqCounter |= (freqCountPtr[i] & 0xf) << 16;
         }
     }
-
-    /*  To avoid pops in the audio, we only make changes to amplitude at the
-     *  beginning or end of a cycle.  If a change in amplitude or frequency have
-     *  been requested, do this only when counter is zero so we don't do it in
-     *  the middle of a cycle
-     */
-    #if 0
-    if (tone->counter == 0)
-    {
-        tone->amplitude = tone->requestedAmplitude;
-        tone->period = tone->requestedPeriod;
-    }
-    #endif
-
-    // if (volume == 0 || freq == 0)
-    //     return 0;
-
-    // double angle = (2 * M_PI * tone->counter) / tone->period;
 
     freqCounter += freq;
     freqCounter &= 0xfffff;
@@ -111,8 +88,6 @@ uint8_t waveForm, int bytes)
     /*  soundRom has 512 bytes.  32B x 16 */
     waveForm&=0xf;
     sample = soundRom[(freqCounter>>15) | (waveForm << 5)];
-    // printf ("%s AUD v=%d w=%d f=%d fc=%d[%d] smp=%d\n", __func__, volume,
-    // waveForm, freq, freqCounter, freqCounter>>15, sample);
 
     for (int i = 0; i < 5; i++)
     {
@@ -126,16 +101,6 @@ uint8_t waveForm, int bytes)
     /*  Convert 0-225 to -8192 to +8191 */
     return sample; //  * 72 - 8192;
 }
-
-#if 0
-static bool updateActiveToneGenerators (toneInfo *tone)
-{
-    if (tone->requestedAmplitude == 0 && tone->amplitude == 0)
-        return false;
-
-    return true;
-}
-#endif
 
 #define TEST_SMP 192 // generate a 250hz wave (48khz => 192 samples)
 #define TEST_AMP 128 // 128 / 32768 = 1/2^8 = -24dB ?
@@ -176,35 +141,15 @@ static void dump16 (uint8_t *data)
 static bool soundUpdate (pa_simple *pulseAudioHandle)
 {
     int i;
-    #if 0
-    bool anyActive = false;
-
-    for (i = 0; i < 3; i++)
-    {
-        anyActive = updateActiveToneGenerators (&tones[i]) || anyActive;
-    }
-
-    if (!anyActive)
-    {
-        return false;
-    }
-    #endif
 
     /*  Create an array of samples to play to pulse audio.    The values are
      *  signed 16-bit so for one channels we have 2 bytes for sample.
      */
     int16_t sampleData[SAMPLE_COUNT];
     printf ("%s AUDX REG= ", __func__); dump16 (&SOUND[16]); printf ("\n");
-    // printf ("%s AUDX gen %d samps\n", __func__, SAMPLE_COUNT);
+
     for (i = 0; i < SAMPLE_COUNT; i++)
-    {
-        int16_t sample;
-
-        sample = generateSample ();
-
-        sampleData[i] = sample;
-    }
-    // return false; // delete me
+        sampleData[i] = generateSample ();
 
     pa_simple_write (pulseAudioHandle, sampleData, 2*SAMPLE_COUNT, NULL);
 
