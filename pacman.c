@@ -79,20 +79,20 @@ void setupMovePat_0814(uint8_t *hl);
 void levelStatePlayerReady_0899 (void);
 void playGameMain_08cd (void);
 void switchPlayers_0940 (void);
-void func_0972 (void);
+void stateDemoInit_0972 (void);
 void gameOverOrNextPlayer_0988 (void);
-void func_09ea (int param);
+void mazeColour_09ea (int param);
 void advanceToLevelStatePlayGame_09d2 (void);
 void playGameSoundOff_09d8 (void);
-void func_09e8 (void);
-void func_09fe (void);
-void func_0a02 (void);
-void func_0a04 (void);
-void func_0a06 (void);
-void func_0a08 (void);
-void func_0a0a (void);
-void func_0a0c (void);
-void func_0a0e (void);
+void mazeColourWhite_09e8 (void);
+void mazeColourBlue_09fe (void);
+void mazeColourWhite_0a02 (void);
+void mazeColourBlue_0a04 (void);
+void mazeColourWhite_0a06 (void);
+void mazeColourBlue_0a08 (void);
+void mazeColourWhite_0a0a (void);
+void mazeColourBlue_0a0c (void);
+void mazeReset_0a0e (void);
 void nextLevelStateMachine_0a2c (void);
 void nextLevel_0a7c (void);
 void gameOverOrNextPlayer_0aa0 (void);
@@ -137,8 +137,8 @@ void decrementLives_1353 (void);
 void powerupOver_1376 (void);
 void spriteAnimationUpright_141f (void);
 void spriteAnimationCocktail_1490 (void);
-void spriteAnimation_14fe (void);
-void ghostsCocktailMode_15b4 (void);
+void spriteAnimation_14fe (bool invert);
+void ghostsCocktailMode_15b4 (bool invert);
 void scene1Animation_15e6 (void);
 void scene2Animation_162d (void);
 void pacmanCheckGhostCoincidence_171d (void);
@@ -212,26 +212,26 @@ void drawFruit_2b8f (uint8_t *hl, int a);
 void bottomTextColourAndDisplayLives_2b6a (int unused);
 void displayFruitHistory_2bfd (uint8_t *table, int level);
 void func_2c44(uint8_t a);
-void func_2cc1 (void);
+void playSongsAllChannels_2cc1 (void);
 void displayMsg_2c5e (int b);
-uint8_t func_2d44(uint8_t *ix, uint8_t *iy, uint8_t data[]);
-void func_2da5(int a);
-uint8_t func_2df4(uint8_t *ix, uint8_t *iy);
-uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c);
-void func_2ee4 (uint16_t *hl, uint8_t a);
-uint8_t func_2f22 (uint8_t *ix);
-uint8_t func_2f26 (uint8_t *ix);
-uint8_t func_2f2b (uint8_t *ix);
-uint8_t func_2f30 (uint8_t *ix, uint8_t a);
-uint8_t func_2f34 (uint8_t *ix, uint8_t a);
-uint8_t func_2f3c (uint8_t *ix);
-uint8_t func_2f43 (uint8_t *ix);
-uint8_t func_2f55 (uint8_t *ix, uint8_t *iy);
-uint8_t func_2f65 (uint8_t *ix, uint8_t *iy);
-uint8_t func_2f77 (uint8_t *ix, uint8_t *iy);
-uint8_t func_2f89 (uint8_t *ix, uint8_t *iy);
-uint8_t func_2f9b (uint8_t *ix, uint8_t *iy);
-uint8_t func_2fad (uint8_t *ix, uint8_t *iy);
+uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8_t *table);
+uint8_t soundEffectClear_2df4 (SOUND_EFFECT *effect, uint8_t *frequency);
+uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
+uint8_t *table, int chan);
+uint8_t frequencyScaledWithVolume_2ee4 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue, uint8_t a);
+uint8_t volumeDecayNone_2f22 (SOUND_EFFECT *effect);
+uint8_t volumeDecay_2f26 (SOUND_EFFECT *effect);
+uint8_t volumeDecayHalfTime_2f2b (SOUND_EFFECT *effect);
+uint8_t volumeDecreaseConditional_2f30 (SOUND_EFFECT *effect, int condition);
+uint8_t volumeDecrease_2f34 (SOUND_EFFECT *effect, uint8_t a);
+uint8_t volumeDecayQuarterTime_2f3c (SOUND_EFFECT *effect);
+uint8_t volumeDecayEighthTime_2f43 (SOUND_EFFECT *effect);
+void soundEffectIndirect_2f55 (SOUND_EFFECT *effect, uint8_t *frequency);
+void soundEffectSelect_2f65 (SOUND_EFFECT *effect, uint8_t *frequency);
+void soundEffectInitialFrequency_2f77 (SOUND_EFFECT *effect, uint8_t *frequency);
+void soundEffectInitialVolume_2f89 (SOUND_EFFECT *effect, uint8_t *frequency);
+void soundEffectType_2f9b (SOUND_EFFECT *effect, uint8_t *frequency);
+void soundEffectMarkDone_2fad (SOUND_EFFECT *effect, uint8_t *frequency);
 
 void kickWatchdog (void);
 void mainStateMachine_03c8  (void);
@@ -281,7 +281,7 @@ void twoUp_0376 (uint8_t *iy);
 void updatePillsFromScreen_2487 (int param);
 void waitForever (void);
 void showStartNumPlayers_02fd (void);
-void updateSoundVolume_2d0c (void);
+void soundEffectsAllChannels_2d0c (void);
 void incMainStateIntro_058e(void);
 void addTask_0042 (uint8_t task, uint8_t param);
 void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data);
@@ -339,10 +339,11 @@ uint16_t scoreTable_2b17[];
 int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks);
 uint16_t displayLives_2b4a (int lives);
 void fruitHistoryLevelHigherThan8_2c2e (int level);
-uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl);
+uint8_t soundEffectOneChannel_2dee (SOUND_EFFECT *effect, uint8_t *frequency,
+uint8_t *table, int chan);
 void func_2dd7 (void);
-uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val);
-uint8_t func_2f4a (uint8_t *ix);
+uint8_t frequencyWithVolume_2ee8 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue);
+uint8_t soundEffectDoNothing_2f4a (SOUND_EFFECT *effect);
 void isr_3000 (void);
 void romChecksumBad_3031 (uint8_t h, uint8_t checksum);
 void ramTest_3042 (void);
@@ -370,16 +371,16 @@ void madeByNamco_3af4 (void);
 #define MOVE_DATA_330f (&ROM[0x330f])
 #define DATA_3435 &ROM[0x3435]
 #define DATA_35b5 (&ROM[0x35b5])
-#define DATA_3b80 (&ROM[0x3b80])
-#define DATA_3b30 (&ROM[0x3b30])
-#define DATA_3b40 (&ROM[0x3b40])
+#define EFFECT_TABLE_CH3_3b80 (&ROM[0x3b80])
+#define EFFECT_TABLE_CH1_3b30 (&ROM[0x3b30])
+#define EFFECT_TABLE_CH2_3b40 (&ROM[0x3b40])
 #define FRUIT_TABLE (&ROM[0x3b08])
 #define DATA_MSG_TABLE (&ROM[0x36a5])
-#define DATA_3bc8 (&ROM[0x3bc8])
-#define DATA_3bb0 (&ROM[0x3bb0])
-#define DATA_3bb8 (&ROM[0x3bb8])
-#define DATA_3bcc (&ROM[0x3bcc])
-#define DATA_3bd0 (&ROM[0x3bd0])
+#define SONG_TABLE_CH1_3bc8 (&ROM[0x3bc8])
+#define POWER_OF_2_3bb0 (&ROM[0x3bb0])
+#define FREQ_TABLE_3bb8 (&ROM[0x3bb8])
+#define SONG_TABLE_CH2_3bcc (&ROM[0x3bcc])
+#define SONG_TABLE_CH3_3bd0 (&ROM[0x3bd0])
 #define DATA_3154 ((uint16_t *)(&ROM[0x3154]))
 #define BAD_ROM_316c (&ROM[0x316c])
 #define BAD_W_RAM_316e (&ROM[0x316e])
@@ -414,7 +415,7 @@ void setMemory_0008 (uint8_t *hl, uint8_t b, uint8_t a)
 
 /*  Memory location 000c is referenced in several tables.  It is just a return
  *  so define an empty function to add to the jump tables */
-void nothing_000c (void)
+void nothing_000c ()
 {
 }
 
@@ -424,7 +425,7 @@ void nothingParam_000c (uint16_t unused)
 }
 
 /*  Same as above but takes a parameter and returns a uint8 */
-uint8_t nothingReturnParam_000c (uint8_t *unused1, uint8_t *unused2)
+uint8_t nothingReturnParam_000c (SOUND_EFFECT *unused1, uint8_t *unused2)
 {
     return 0;
 }
@@ -668,7 +669,7 @@ void isr_008d (void)
     memcpy (&SOUND[0x10], &CH1_FREQ0, 0x10);
 
     //-------------------------------
-    // 00a8  3acc4e    ld      a,(#4ecc)	; Useless read 
+    // 00a8  3acc4e    ld      a,(#4ecc)
     // 00ab  a7        and     a
     // 
     // 	;; Write sound waveforms
@@ -677,12 +678,14 @@ void isr_008d (void)
     // 00b1  3a9f4e    ld      a,(#4e9f)
     // 00b4  324550    ld      (#5045),a
     //-------------------------------
-    int a = SND_CH1_WAV_SEL;
+    int a;
 
-    if (SND_CH1_WAV_NUM == 0)
-        a = *SND_CH1_EFF_TABLE;
+    if (CH1_SOUND_WAVE->mask != 0)
+        a = CH1_SOUND_WAVE->selected;
+    else
+        a = CH1_SOUND_EFFECT->selected;
 
-    SOUND[5] = a;
+    SOUND[5] = a; // voice 1 wave form
 
     //-------------------------------
     // 00b7  3adc4e    ld      a,(#4edc)
@@ -692,12 +695,13 @@ void isr_008d (void)
     // 00c0  3aaf4e    ld      a,(#4eaf)
     // 00c3  324a50    ld      (#504a),a
     //-------------------------------
-    a = SND_CH2_WAV_SEL;
 
-    if ((a = SND_CH2_WAV_NUM) == 0)
-        a = *SND_CH2_EFF_TABLE;
+    if (CH2_SOUND_WAVE->mask != 0)
+        a = CH2_SOUND_WAVE->selected;
+    else
+        a = CH2_SOUND_EFFECT->selected;
 
-    SOUND[0xa] = a;
+    SOUND[0xa] = a; // voice 2 wave form
 
     //-------------------------------
     // 00c6  3aec4e    ld      a,(#4eec)
@@ -707,12 +711,13 @@ void isr_008d (void)
     // 00cf  3abf4e    ld      a,(#4ebf)
     // 00d2  324f50    ld      (#504f),a
     //-------------------------------
-    a = SND_CH3_WAV_SEL;
 
-    if ((a = SND_CH3_WAV_NUM) == 0)
-        a = *SND_CH3_EFF_TABLE;
+    if (CH3_SOUND_WAVE->mask != 0)
+        a = CH3_SOUND_WAVE->selected;
+    else
+        a = CH3_SOUND_EFFECT->selected;
 
-    SOUND[0xf] = a;
+    SOUND[0xf] = a; // voice 3 wave form
 
     //-------------------------------
     // 00d5  21024c    ld      hl,#4c02
@@ -885,8 +890,8 @@ void isr_008d (void)
         // 01b3  32ac4e    ld      (#4eac),a
         // 01b6  32bc4e    ld      (#4ebc),a
         //-------------------------------
-        SND_CH2_EFF_NUM = 0;
-        SND_CH3_EFF_NUM = 0;
+        CH2_SOUND_EFFECT->mask = 0;
+        CH3_SOUND_EFFECT->mask = 0;
     }
 
     //-------------------------------
@@ -898,11 +903,9 @@ void isr_008d (void)
     // 01c4  d1        pop     de
     // 01c5  c1        pop     bc
     //-------------------------------
-    updateSoundVolume_2d0c();
-    /* TODO this function segfaults - something to do with sound - remove for
-     * now */
-    // func_2cc1();
-    //     printf ("2cc1 done\n");
+    soundEffectsAllChannels_2d0c();
+    playSongsAllChannels_2cc1();
+    printf ("2cc1 done\n");
 
     //-------------------------------
     // 01c6  3a004e    ld      a,(#4e00)
@@ -1350,7 +1353,7 @@ void checkCoinCredit_02df (void)
     // 02fa  cbce      set     1,(hl)		; set bit 1 of 4e9c 
     // 02fc  c9        ret     
     //-------------------------------
-    SND_CH1_EFF_NUM |= 1;
+    CH1_SOUND_EFFECT->mask |= 2;
 }
 
 void showStartNumPlayers_02fd (void)
@@ -2414,7 +2417,8 @@ void checkStartButtons (void)
 
         /*  Note - to maintain BCD encoding, if lowest digit is zero,
          *  subtract 7 instead of 1 to make 0x10 become 0x09.  Do this twice
-         *  if TWO_PLAYERS.  We use a for loop where original used a jump */
+         *  if TWO_PLAYERS.  We use a for loop where original used a jump TODO
+         *  use bcd function */
         for (int i = 0; i <= TWO_PLAYERS; i++)
         {
             //-------------------------------
@@ -2451,8 +2455,8 @@ void checkStartButtons (void)
     // 0673  c9        ret     
     //-------------------------------
     WAIT_START_BUTTON = 0;
-    SND_CH1_WAV_NUM = 
-    SND_CH2_WAV_NUM = 1;
+    CH1_SOUND_WAVE->mask = 
+    CH2_SOUND_WAVE->mask = 1;
 }
 
 void player1ReadyMsg_0674 (void)
@@ -2566,19 +2570,19 @@ void playGameStateMachine_06be (void)
         playGameMain_08cd,
         playerDied_090d, nothing_000c,
         switchPlayers_0940, nothing_000c,
-        func_0972,
+        stateDemoInit_0972,
         gameOverOrNextPlayer_0988, nothing_000c,
         advanceToLevelStatePlayGame_09d2,
         playGameSoundOff_09d8, nothing_000c,
-        func_09e8, nothing_000c,     
-        func_09fe, nothing_000c,
-        func_0a02, nothing_000c,
-        func_0a04, nothing_000c,
-        func_0a06, nothing_000c,
-        func_0a08, nothing_000c,
-        func_0a0a, nothing_000c,
-        func_0a0c, nothing_000c,
-        func_0a0e, nothing_000c,
+        mazeColourWhite_09e8, nothing_000c,     
+        mazeColourBlue_09fe, nothing_000c,
+        mazeColourWhite_0a02, nothing_000c,
+        mazeColourBlue_0a04, nothing_000c,
+        mazeColourWhite_0a06, nothing_000c,
+        mazeColourBlue_0a08, nothing_000c,
+        mazeColourWhite_0a0a, nothing_000c,
+        mazeColourBlue_0a0c, nothing_000c,
+        mazeReset_0a0e, nothing_000c,
         nextLevelStateMachine_0a2c, nothing_000c,
         nextLevel_0a7c,
         gameOverOrNextPlayer_0aa0, nothing_000c,
@@ -3115,7 +3119,7 @@ void switchPlayers_0940 (void)
     LEVEL_STATE = LEVEL_STATE_GAME_OVER;
 }
 
-void func_0972 (void)
+void stateDemoInit_0972 (void)
 {
     //-------------------------------
     // 0972  af        xor     a
@@ -3253,19 +3257,19 @@ void playGameSoundOff_09d8 (void)
     // 09e4  32bc4e    ld      (#4ebc),a
     // 09e7  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM = 
-    SND_CH3_EFF_NUM = 0;
+    CH2_SOUND_EFFECT->mask = 
+    CH3_SOUND_EFFECT->mask = 0;
 }
 
-void func_09e8 (void)
+void mazeColourWhite_09e8 (void)
 {
     //-------------------------------
     // 09e8  0e02      ld      c,#02
     //-------------------------------
-    func_09ea (2);
+    mazeColour_09ea (2);
 }
 
-void func_09ea (int param)
+void mazeColour_09ea (int param)
 {
     //-------------------------------
     // 09ea  0601      ld      b,#01
@@ -3290,64 +3294,64 @@ void func_09ea (int param)
     LEVEL_STATE++;
 }
 
-void func_09fe (void)
+void mazeColourBlue_09fe (void)
 {
     //-------------------------------
     // 09fe  0e00      ld      c,#00
     // 0a00  18e8      jr      #09ea           ; (-24)
     //-------------------------------
-    func_09ea (0);
+    mazeColour_09ea (0);
 }
 
-void func_0a02 (void)
+void mazeColourWhite_0a02 (void)
 {
     //-------------------------------
     // 0a02  18e4      jr      #09e8           ; (-28)
     //-------------------------------
-    func_09e8();
+    mazeColourWhite_09e8();
 }
 
-void func_0a04 (void)
+void mazeColourBlue_0a04 (void)
 {
     //-------------------------------
     // 0a04  18f8      jr      #09fe           ; (-8)
     //-------------------------------
-    func_09fe();
+    mazeColourBlue_09fe();
 }
 
-void func_0a06 (void)
+void mazeColourWhite_0a06 (void)
 {
     //-------------------------------
     // 0a06  18e0      jr      #09e8           ; (-32)
     //-------------------------------
-    func_09e8();
+    mazeColourWhite_09e8();
 }
 
-void func_0a08 (void)
+void mazeColourBlue_0a08 (void)
 {
     //-------------------------------
     // 0a08  18f4      jr      #09fe           ; (-12)
     //-------------------------------
-    func_09fe();
+    mazeColourBlue_09fe();
 }
 
-void func_0a0a (void)
+void mazeColourWhite_0a0a (void)
 {
     //-------------------------------
     // 0a0a  18dc      jr      #09e8           ; (-36)
     //-------------------------------
-    func_09e8();
+    mazeColourWhite_09e8();
 }
 
-void func_0a0c (void)
+void mazeColourBlue_0a0c (void)
 {
     //-------------------------------
     // 0a0c  18f0      jr      #09fe           ; (-16)
-    func_09fe();
     //-------------------------------
+    mazeColourBlue_09fe();
 }
 
-void func_0a0e (void)
+void mazeReset_0a0e (void)
 {
     //-------------------------------
     // 0a0e  ef        rst     #28
@@ -3394,16 +3398,16 @@ void nextLevelStateMachine_0a2c (void)
     // 0a2d  32ac4e    ld      (#4eac),a
     // 0a30  32bc4e    ld      (#4ebc),a
     //-------------------------------
-    SND_CH2_EFF_NUM = 
-    SND_CH3_EFF_NUM = 0;
+    CH2_SOUND_EFFECT->mask = 
+    CH3_SOUND_EFFECT->mask = 0;
 
     //-------------------------------
     // 0a33  3e02      ld      a,#02
     // 0a35  32cc4e    ld      (#4ecc),a
     // 0a38  32dc4e    ld      (#4edc),a
     //-------------------------------
-    SND_CH1_WAV_NUM = 
-    SND_CH2_WAV_NUM = 2;
+    CH1_SOUND_WAVE->mask = 
+    CH2_SOUND_WAVE->mask = 2;
 
     //-------------------------------
     // 0a3b  3a134e    ld      a,(#4e13)
@@ -3424,8 +3428,9 @@ void nextLevelStateMachine_0a2c (void)
     //-------------------------------
     void (*func[])() =
     {
+        scene3StateMachine_2297,
         incLevelState_0a6f,
-        scene1StateMachine_2108,
+        // scene1StateMachine_2108,
         incLevelState_0a6f,
         incLevelState_0a6f,
         scene2StateMachine_219e,
@@ -3462,8 +3467,8 @@ void incLevelState_0a6f (void)
     // 0a7b  c9        ret     
     //-------------------------------
     LEVEL_STATE += 2;
-    SND_CH1_WAV_NUM = 
-    SND_CH2_WAV_NUM = 0;
+    CH1_SOUND_WAVE->mask = 
+    CH2_SOUND_WAVE->mask = 0;
 }
 
 void nextLevel_0a7c(void)
@@ -3474,8 +3479,8 @@ void nextLevel_0a7c(void)
     // 0a80  32dc4e    ld      (#4edc),a
     //-------------------------------
     clearPillArrays_24c9();
-    SND_CH1_WAV_NUM = 
-    SND_CH2_WAV_NUM = 0;
+    CH1_SOUND_WAVE->mask = 
+    CH2_SOUND_WAVE->mask = 0;
 
     //-------------------------------
     // 0a83  0607      ld      b,#07
@@ -3604,14 +3609,14 @@ void ghostsFlashBecomingInedible_0ac3 (void)
                 // 0af2  ddbe0b    cp      (ix+#0b)
                 // 0af5  2004      jr      nz,#0afb        ; (4)
                 //-------------------------------
-                SND_CH2_EFF_NUM|= 0x80;
+                CH2_SOUND_EFFECT->mask |= 0x80;
                 if (PACMAN_COLOUR == 9)
                 {
                     //-------------------------------
                     // 0af7  cbbe      res     7,(hl)
                     // 0af9  3e09      ld      a,#09
                     //-------------------------------
-                    SND_CH2_EFF_NUM &= ~0x80;
+                    CH2_SOUND_EFFECT->mask &= ~0x80;
                 }
 
                 //-------------------------------
@@ -4592,7 +4597,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
         // 0e73  32ac4e    ld      (#4eac),a
         // 0e76  c9        ret     
         //-------------------------------
-        SND_CH2_EFF_NUM = 0;
+        CH2_SOUND_EFFECT->mask = 0;
         return;
     }
 
@@ -4603,7 +4608,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
     // 0e7f  fee4      cp      #e4
     // 0e81  3806      jr      c,#0e89         ; (6)
     //-------------------------------
-    if (P1_PILLS_EATEN_LEVEL == 0xe4)
+    if (P1_PILLS_EATEN_LEVEL >= 0xe4)
     {
         //-------------------------------
         // 0e83  78        ld      a,b
@@ -4612,7 +4617,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
         // 0e87  77        ld      (hl),a
         // 0e88  c9        ret     
         //-------------------------------
-        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM & 0xe0) | 0x10;
+        CH2_SOUND_EFFECT->mask = (CH2_SOUND_EFFECT->mask & 0xe0) | 0x10;
         return;
     }
 
@@ -4620,7 +4625,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
     // 0e89  fed4      cp      #d4
     // 0e8b  3806      jr      c,#0e93         ; (6)
     //-------------------------------
-    if (P1_PILLS_EATEN_LEVEL == 0xd4)
+    if (P1_PILLS_EATEN_LEVEL >= 0xd4)
     {
         //-------------------------------
         // 0e8d  78        ld      a,b
@@ -4629,7 +4634,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
         // 0e91  77        ld      (hl),a
         // 0e92  c9        ret     
         //-------------------------------
-        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM & 0xe0) | 0x08;
+        CH2_SOUND_EFFECT->mask = (CH2_SOUND_EFFECT->mask & 0xe0) | 0x08;
         return;
     }
 
@@ -4637,7 +4642,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
     // 0e93  feb4      cp      #b4
     // 0e95  3806      jr      c,#0e9d         ; (6)
     //-------------------------------
-    if (P1_PILLS_EATEN_LEVEL == 0xb4)
+    if (P1_PILLS_EATEN_LEVEL >= 0xb4)
     {
         //-------------------------------
         // 0e97  78        ld      a,b
@@ -4646,7 +4651,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
         // 0e9b  77        ld      (hl),a
         // 0e9c  c9        ret     
         //-------------------------------
-        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM & 0xe0) | 0x04;
+        CH2_SOUND_EFFECT->mask = (CH2_SOUND_EFFECT->mask & 0xe0) | 0x04;
         return;
     }
 
@@ -4654,7 +4659,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
     // 0e9d  fe74      cp      #74
     // 0e9f  3806      jr      c,#0ea7         ; (6)
     //-------------------------------
-    if (P1_PILLS_EATEN_LEVEL == 0x74)
+    if (P1_PILLS_EATEN_LEVEL >= 0x74)
     {
         //-------------------------------
         // 0ea1  78        ld      a,b
@@ -4663,7 +4668,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
         // 0ea5  77        ld      (hl),a
         // 0ea6  c9        ret     
         //-------------------------------
-        SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM & 0xe0) | 0x02;
+        CH2_SOUND_EFFECT->mask = (CH2_SOUND_EFFECT->mask & 0xe0) | 0x02;
         return;
     }
 
@@ -4674,7 +4679,7 @@ void updatePillsEatenSoundEffect_0e6c (void)
     // 0eab  77        ld      (hl),a
     // 0eac  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM = (SND_CH2_EFF_NUM & 0xe0) | 0x01;
+    CH2_SOUND_EFFECT->mask = (CH2_SOUND_EFFECT->mask & 0xe0) | 0x01;
 }
 
 void selectFruit_0ead (void)
@@ -5182,7 +5187,7 @@ void ghostsAnyDeadSoundOff_1101 (void)
     // 1115  cbb6      res     6,(hl)
     // 1117  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM &= ~0x40;
+    CH2_SOUND_EFFECT->mask &= ~0x40;
 }
 
 void pinkyStateDead_1118 (void)
@@ -5617,7 +5622,7 @@ void showKillPoints_123f (void)
     // 128e  cbf6      set     6,(hl)
     // 1290  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM |= 0x40;
+    CH2_SOUND_EFFECT->mask |= 0x40;
 }
 
 void pacmanDeadAnimState_1291 (void)
@@ -5745,7 +5750,7 @@ void pacmanDeadAnimState6_12f9 (void)
     // 12f9  21bc4e    ld      hl,#4ebc
     // 12fc  cbe6      set     4,(hl)
     //-------------------------------
-    SND_CH3_EFF_NUM |= 0x10;
+    CH3_SOUND_EFFECT->mask |= 0x10;
 
     //-------------------------------
     // 12fe  3e35      ld      a,#35
@@ -5841,7 +5846,7 @@ void pacmanDeadAnimState15_1346 (void)
     // 1346  21bc4e    ld      hl,#4ebc
     // 1349  3620      ld      (hl),#20
     //-------------------------------
-    SND_CH3_EFF_NUM = 0x20;
+    CH3_SOUND_EFFECT->mask = 0x20;
 
     //-------------------------------
     // 134b  3e3e      ld      a,#3e
@@ -6000,7 +6005,7 @@ void powerupOver_1376 (void)
     // 13da  cbbe      res     7,(hl)
     // 13dc  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM &= 0x5f;
+    CH2_SOUND_EFFECT->mask &= 0x5f;
 }
 
 void checkInactivityCounter_13dd (void)
@@ -6198,7 +6203,7 @@ void spriteAnimationUpright_141f (void)
     // 148d  c3fe14    jp      #14fe
     //-------------------------------
     MEM[0x4c1c] = 8-FRUIT_POS.x;
-    spriteAnimation_14fe();
+    spriteAnimation_14fe (true);
 }
 
 /*  This function checks if in cocktail mode and stores sprite positions with an
@@ -6311,10 +6316,10 @@ void spriteAnimationCocktail_1490 (void)
     //-------------------------------
     MEM[0x4c1c] = FRUIT_POS.x+6;
 
-    spriteAnimation_14fe ();
+    spriteAnimation_14fe (false);
 }
 
-void spriteAnimation_14fe (void)
+void spriteAnimation_14fe (bool invert)
 {
     // printf ("%s anim = %d killed=%d\n", __func__,
     //         PAC_DEAD_ANIM_STATE, KILLED_GHOST_INDEX);
@@ -6332,7 +6337,7 @@ void spriteAnimation_14fe (void)
         //-------------------------------
         if (KILLED_GHOST_INDEX != 0)
         {
-            ghostsCocktailMode_15b4 ();
+            ghostsCocktailMode_15b4 (invert);
             return;
         }
 
@@ -6354,13 +6359,12 @@ void spriteAnimation_14fe (void)
 
         printf ("%s pac-sprite=%02x\n", __func__, PACMAN_SPRITE);
 
-        /*  TODO assume b is still 0x4e72 */
         //-------------------------------
         // 151c  78        ld      a,b
         // 151d  a7        and     a
         // 151e  282b      jr      z,#154b         ; (43)
         //-------------------------------
-        if (COCKTAIL_MODE)
+        if (invert)
         {
             //-------------------------------
             // 1520  0ec0      ld      c,#c0
@@ -6530,10 +6534,10 @@ void spriteAnimation_14fe (void)
         }
     }
 
-    ghostsCocktailMode_15b4 ();
+    ghostsCocktailMode_15b4 (invert);
 }
 
-void ghostsCocktailMode_15b4 (void)
+void ghostsCocktailMode_15b4 (bool invert)
 {
     //-------------------------------
     // 15b4  cde615    call    #15e6
@@ -6549,7 +6553,7 @@ void ghostsCocktailMode_15b4 (void)
     // 15be  a7        and     a
     // 15bf  c8        ret     z
     //-------------------------------
-    if (!COCKTAIL_MODE)
+    if (!invert)
         return;
 
     //-------------------------------
@@ -7163,7 +7167,7 @@ void pacmanGhostCoincide_1763 (int b)
     // 1786  cbde      set     3,(hl)
     // 1788  c9        ret     
     //-------------------------------
-    SND_CH3_EFF_NUM|= 0x8;
+    CH3_SOUND_EFFECT->mask |= 0x8;
 }
 
 /*  TODO I don't understand how this function works.  Just comparing x and y
@@ -7893,7 +7897,7 @@ void pacmanUpdatePos_1985 (XYPOS pos)
                 // 19c8  21bc4e    ld      hl,#4ebc
                 // 19cb  cbd6      set     2,(hl)
                 //-------------------------------
-                SND_CH3_EFF_NUM |= 0x4;
+                CH3_SOUND_EFFECT->mask |= 0x4;
             }
         }
     }
@@ -7980,8 +7984,8 @@ void pacmanUpdatePos_1985 (XYPOS pos)
         // 1a11  cb8e      res     1,(hl)
         // 1a13  c9        ret     
         //-------------------------------
-        SND_CH3_EFF_NUM|= 1;
-        SND_CH3_EFF_NUM&= 0xfd;
+        CH3_SOUND_EFFECT->mask |= 1;
+        CH3_SOUND_EFFECT->mask &= 0xfd;
         return;
     }
     else
@@ -7991,8 +7995,8 @@ void pacmanUpdatePos_1985 (XYPOS pos)
         // 1a16  cbce      set     1,(hl)
         // 1a18  c9        ret     
         //-------------------------------
-        SND_CH3_EFF_NUM &= 0xfe;
-        SND_CH3_EFF_NUM|= 2;
+        CH3_SOUND_EFFECT->mask &= 0xfe;
+        CH3_SOUND_EFFECT->mask |= 2;
         return;
     }
 }
@@ -8181,8 +8185,8 @@ void ghostsBecomeEdible_1a70 (void)
     // 1ac6  cbbe      res     7,(hl)
     // 1ac8  c9        ret     
     //-------------------------------
-    SND_CH2_EFF_NUM|= 0x20;
-    SND_CH2_EFF_NUM &= ~0x80;
+    CH2_SOUND_EFFECT->mask |= 0x20;
+    CH2_SOUND_EFFECT->mask &= ~0x80;
 }
 
 void pacmanOrientLeft_1ac9 (void)
@@ -10013,8 +10017,8 @@ void scene1State2_214b (void)
     // 215a  32bc4e    ld      (#4ebc),a
     //-------------------------------
     ghostsBecomeEdible_1a70();
-    SND_CH2_EFF_NUM = 
-    SND_CH3_EFF_NUM = 0;
+    CH2_SOUND_EFFECT->mask = 
+    CH3_SOUND_EFFECT->mask = 0;
 
     //-------------------------------
     // 215d  cda505    call    #05a5
@@ -13025,7 +13029,7 @@ void extraLife_2b33 (uint8_t *score)
     // 2b3f  cbc6      set     0,(hl)
     //-------------------------------
     score[1] |= 1;
-    SND_CH1_EFF_NUM|= 1;
+    CH1_SOUND_EFFECT->mask |= 1;
 
     //-------------------------------
     // 2b41  21144e    ld      hl,#4e14
@@ -13662,7 +13666,7 @@ jump_2c93:
     }
 }
 
-void func_2cc1 (void)
+void playSongsAllChannels_2cc1 (void)
 {
     //-------------------------------
     // 2cc1  21c83b    ld      hl,#3bc8
@@ -13670,7 +13674,7 @@ void func_2cc1 (void)
     // 2cc8  fd218c4e  ld      iy,#4e8c
     // 2ccc  cd442d    call    #2d44
     //-------------------------------
-    int a = func_2d44(&SND_CH1_WAV_NUM, &CH1_FREQ0, DATA_3bc8);
+    int volume = playSongOneChannel_2d44 (CH1_SOUND_WAVE, &CH1_FREQ0, SONG_TABLE_CH1_3bc8);
 
     //-------------------------------
     // 2ccf  47        ld      b,a
@@ -13678,21 +13682,22 @@ void func_2cc1 (void)
     // 2cd3  a7        and     a
     // 2cd4  2804      jr      z,#2cda         ; (4)
     //-------------------------------
-    if ((a & SND_CH1_WAV_NUM) != 0)
+    if (CH1_SOUND_WAVE->mask != 0)
     {
         //-------------------------------
         // 2cd6  78        ld      a,b
         // 2cd7  32914e    ld      (#4e91),a
         //-------------------------------
-        CH1_VOL = a;
+        CH1_VOL = volume;
     }
+
     //-------------------------------
     // 2cda  21cc3b    ld      hl,#3bcc
     // 2cdd  dd21dc4e  ld      ix,#4edc
     // 2ce1  fd21924e  ld      iy,#4e92
     // 2ce5  cd442d    call    #2d44
     //-------------------------------
-    a = func_2d44(&SND_CH2_WAV_NUM, &CH2_FREQ1, DATA_3bcc);
+    volume = playSongOneChannel_2d44 (CH2_SOUND_WAVE, &CH2_FREQ1, SONG_TABLE_CH2_3bcc);
 
     //-------------------------------
     // 2ce8  47        ld      b,a
@@ -13700,13 +13705,13 @@ void func_2cc1 (void)
     // 2cec  a7        and     a
     // 2ced  2804      jr      z,#2cf3         ; (4)
     //-------------------------------
-    if ((a & SND_CH2_WAV_NUM) != 0)
+    if (CH2_SOUND_WAVE->mask != 0)
     {
         //-------------------------------
         // 2cef  78        ld      a,b
         // 2cf0  32964e    ld      (#4e96),a
         //-------------------------------
-        CH2_VOL = a;
+        CH2_VOL = volume;
     }
 
     //-------------------------------
@@ -13715,7 +13720,7 @@ void func_2cc1 (void)
     // 2cfa  fd21974e  ld      iy,#4e97
     // 2cfe  cd442d    call    #2d44
     //-------------------------------
-    a = func_2d44(&SND_CH3_WAV_NUM, &CH3_FREQ1, DATA_3bd0);
+    volume = playSongOneChannel_2d44 (CH3_SOUND_WAVE, &CH3_FREQ1, SONG_TABLE_CH3_3bd0);
 
     //-------------------------------
     // 2d01  47        ld      b,a
@@ -13723,7 +13728,7 @@ void func_2cc1 (void)
     // 2d05  a7        and     a
     // 2d06  c8        ret     z
     //-------------------------------
-    if ((a & SND_CH3_WAV_NUM) == 0)
+    if (CH3_SOUND_WAVE->mask == 0)
         return;
 
     //-------------------------------
@@ -13731,10 +13736,10 @@ void func_2cc1 (void)
     // 2d08  329b4e    ld      (#4e9b),a
     // 2d0b  c9        ret     
     //-------------------------------
-    CH3_VOL = a;
+    CH3_VOL = volume;
 }
 
-void updateSoundVolume_2d0c (void)
+void soundEffectsAllChannels_2d0c (void)
 {
     //-------------------------------
     // 2d0c  21303b    ld      hl,#3b30
@@ -13743,7 +13748,7 @@ void updateSoundVolume_2d0c (void)
     // 2d17  cdee2d    call    #2dee
     // 2d1a  32914e    ld      (#4e91),a
     //-------------------------------
-    CH1_VOL = func_2dee(&SND_CH1_EFF_NUM, &CH1_FREQ0, DATA_3b30);
+    CH1_VOL = soundEffectOneChannel_2dee (CH1_SOUND_EFFECT, &CH1_FREQ0, EFFECT_TABLE_CH1_3b30, 1);
 
     //-------------------------------
     // 2d1d  21403b    ld      hl,#3b40
@@ -13752,7 +13757,7 @@ void updateSoundVolume_2d0c (void)
     // 2d28  cdee2d    call    #2dee
     // 2d2b  32964e    ld      (#4e96),a
     //-------------------------------
-    CH2_VOL = func_2dee(&SND_CH2_EFF_NUM, &CH2_FREQ1, DATA_3b40);
+    CH2_VOL = soundEffectOneChannel_2dee (CH2_SOUND_EFFECT, &CH2_FREQ1, EFFECT_TABLE_CH2_3b40, 2);
 
     //-------------------------------
     // 2d2e  21803b    ld      hl,#3b80
@@ -13761,7 +13766,7 @@ void updateSoundVolume_2d0c (void)
     // 2d39  cdee2d    call    #2dee
     // 2d3c  329b4e    ld      (#4e9b),a
     //-------------------------------
-    CH3_VOL = func_2dee(&SND_CH3_EFF_NUM, &CH3_FREQ1, DATA_3b80);
+    CH3_VOL = soundEffectOneChannel_2dee (CH3_SOUND_EFFECT, &CH3_FREQ1, EFFECT_TABLE_CH3_3b80, 3);
 
     //-------------------------------
     // 2d3f  af        xor     a
@@ -13771,26 +13776,26 @@ void updateSoundVolume_2d0c (void)
     CH1_FREQ4 = 0;
 }
 
-uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
+/* *  Returns volume */
+uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8_t *table)
 {
     //-------------------------------
     // 2d44  dd7e00    ld      a,(ix+#00)
     // 2d47  a7        and     a
     // 2d48  caf42d    jp      z,#2df4
     //-------------------------------
-    if (ix[0] == 0)
-    {
-        return func_2df4 (ix, iy);
-    }
+    if (effect->mask == 0)
+        return soundEffectClear_2df4 (effect, frequency);
 
     //-------------------------------
     // 2d4b  4f        ld      c,a
     // 2d4c  0608      ld      b,#08
     // 2d4e  1e80      ld      e,#80
     //-------------------------------
+    printf ("%s process mask %02x\n", __func__, effect->mask);
     uint8_t e = 0x80;
     int b;
-    for (b = 0; b < 8; b++)
+    for (b = 8; b > 0; b--)
     {
         //-------------------------------
         // 2d50  7b        ld      a,e
@@ -13800,7 +13805,7 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
         // 2d56  10f8      djnz    #2d50           ; (-8)
         //-------------------------------
 
-        if ((ix[0] & e) != 0)
+        if ((effect->mask & e) != 0)
             break;
 
         e >>= 1;
@@ -13809,7 +13814,7 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     //-------------------------------
     // 2d58  c9        ret     
     //-------------------------------
-    if (b == 8)
+    if (b == 0)
         return 0;
 
     //-------------------------------
@@ -13818,35 +13823,41 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     // 2d5d  2007      jr      nz,#2d66        ; (7)
     //-------------------------------
     uint16_t addr;
-    if ((ix[2] & e) == 0)
+    if ((effect->current & e) == 0)
     {
         //-------------------------------
         // 2d5f  dd7302    ld      (ix+#02),e
         // 2d62  05        dec     b
         //-------------------------------
-        ix[2] = e;
+        effect->current = e;
+        printf ("%s new note %02x\n", __func__, effect->current);
         b--;
         //-------------------------------
         // 2d63  df        rst     #18
         // 2d64  180c      jr      #2d72
         //-------------------------------
-        addr = tableLookup_0018 (hl, b);
+        addr = tableLookup_0018 (table, b);
+        printf ("%s fetched addr %04x\n", __func__, addr);
     }
     else
     {
         //-------------------------------
-        // 2d66  dd350c    dec     (ix+#0c)
+        // 2d66  dd350c    dec     (ix+#0c)     ; duration
         // 2d69  c2d72d    jp      nz,#2dd7
         //-------------------------------
-        if (--ix[0xc])
+        printf ("%s continue note %02x dur=%d\n", __func__, effect->current,
+                effect->duration);
+        if (--effect->duration)
             goto jump_2dd7;
 
         //-------------------------------
-        // 2d6c  dd6e06    ld      l,(ix+#06)
+        // 2d6c  dd6e06    ld      l,(ix+#06)   ; offset
         // 2d6f  dd6607    ld      h,(ix+#07)
         //-------------------------------
-        addr = ix[6] | (ix[7] << 8);
+jump_2d6c:
+        addr = effect->offset;
     }
+
     //-------------------------------
     // 2d72  7e        ld      a,(hl)
     // 2d73  23        inc     hl
@@ -13854,12 +13865,13 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     // 2d77  dd7407    ld      (ix+#07),h
     //-------------------------------
     int a = MEM[addr++];
-    ix[6] = addr >> 8;
-    ix[7] = addr & 0xff;
+    effect->offset = addr;
+
     //-------------------------------
     // 2d7a  fef0      cp      #f0
     // 2d7c  3827      jr      c,#2da5         ; (39)
     //-------------------------------
+    printf ("%s process %02x\n", __func__, a);
     if (a >= 0xf0)
     {
         //-------------------------------
@@ -13867,6 +13879,7 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
         // 2d81  e5        push    hl
         // 2d82  e60f      and     #0f
         //-------------------------------
+        printf ("%s a=%2x, jump\n", __func__, a);
         a &= 0xf;
 
         //-------------------------------
@@ -13875,22 +13888,23 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
         // 2d90  00 0c 00 0c 00 0c 00 0c  00 0c 00 0c 00 0c 00 0c
         // 2da0  00 0c 00 ad 2f                                 
         //-------------------------------
-        uint8_t (*func[])(uint8_t *, uint8_t *) = 
+        void (*func[])(SOUND_EFFECT*, uint8_t *) = 
         {
-            func_2f55,
-            func_2f65,
-            func_2f77,
-            func_2f89,
-            func_2f9b,
-            nothingReturnParam_000c,
-            nothingReturnParam_000c,
-            nothingReturnParam_000c, nothingReturnParam_000c,
-            nothingReturnParam_000c, nothingReturnParam_000c, 
-            nothingReturnParam_000c, nothingReturnParam_000c,
-            nothingReturnParam_000c, nothingReturnParam_000c,
-            func_2fad
+            soundEffectIndirect_2f55,
+            soundEffectSelect_2f65,
+            soundEffectInitialFrequency_2f77,
+            soundEffectInitialVolume_2f89,
+            soundEffectType_2f9b,
+            nothing_000c,
+            nothing_000c,
+            nothing_000c, nothing_000c,
+            nothing_000c, nothing_000c, 
+            nothing_000c, nothing_000c,
+            nothing_000c, nothing_000c,
+            soundEffectMarkDone_2fad
         };
-        a = func[a] (ix, iy);
+        func[a] (effect, frequency);
+        goto jump_2d6c;
     }
 
     //-------------------------------
@@ -13901,10 +13915,11 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     if ((a & 0x1f) != 0)
     {
         //-------------------------------
-        // 2daa  dd700d    ld      (ix+#0d),b
+        // 2daa  dd700d    ld      (ix+#0d),b   ; dir?
         //-------------------------------
-        ix[0xd] = a;
+        effect->dir = a;
     }
+
     //-------------------------------
     // 2dad  dd4e09    ld      c,(ix+#09)
     // 2db0  dd7e0b    ld      a,(ix+#0b)
@@ -13912,15 +13927,17 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     // 2db5  2802      jr      z,#2db9         ; (2)
     // 2db7  0e00      ld      c,#00
     //-------------------------------
-    int c = ix[0x9];
-    if ((ix[0xb] & 8) != 0)
+    int c = effect->volumeInitial;
+    if ((effect->type & 8) != 0)
     {
         c = 0;
     }
+
     //-------------------------------
     // 2db9  dd710f    ld      (ix+#0f),c
     //-------------------------------
-    ix[0xf] = c;
+    effect->volume = c;
+
     //-------------------------------
     // 2dbc  78        ld      a,b
     // 2dbd  07        rlca    
@@ -13931,7 +13948,8 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
     // 2dc5  d7        rst     #10
     // 2dc6  dd770c    ld      (ix+#0c),a
     //-------------------------------
-    ix[0xc] = DATA_3bb0[(a>>3) & 7];
+    effect->duration = POWER_OF_2_3bb0[(a>>5) & 7];
+
     //-------------------------------
     // 2dc9  78        ld      a,b
     // 2dca  e61f      and     #1f
@@ -13945,7 +13963,7 @@ uint8_t func_2d44 (uint8_t *ix, uint8_t *iy, uint8_t *hl)
         // 2dd3  d7        rst     #10
         // 2dd4  dd770e    ld      (ix+#0e),a
         //-------------------------------
-        ix[0xe] = DATA_3bb8[a & 0x0f];
+        effect->frequency = FREQ_TABLE_3bb8[a & 0x0f];
     }
 
 jump_2dd7:
@@ -13953,13 +13971,14 @@ jump_2dd7:
     // 2dd7  dd6e0e    ld      l,(ix+#0e)
     // 2dda  2600      ld      h,#00
     //-------------------------------
-    uint16_t val = ix[0xe];
+    // uint8_t frequencyValue = effect->frequency;
+
     //-------------------------------
     // 2ddc  dd7e0d    ld      a,(ix+#0d)
     // 2ddf  e610      and     #10
     // 2de1  2802      jr      z,#2de5         ; (2)
     //-------------------------------
-    a = ix[0xd] & 0x10;
+    a = effect->dir & 0x10;
     if (a != 0)
     {
         //-------------------------------
@@ -13970,42 +13989,42 @@ jump_2dd7:
 
     //-------------------------------
     // 2de5  dd8604    add     a,(ix+#04)
-    // 2de8  cae82e    jp      z,#2ee8
-    //-------------------------------
-    a += ix[4];
-    if (a != 0)
-    {
-        return func_2ee8(ix, iy, val);
-    }
-
-    //-------------------------------
+    // 2de8  cae82e    jp      z,#2ee8          ; comput enew freq?
     // 2deb  c3e42e    jp      #2ee4
     //-------------------------------
-    func_2ee4 (&val, a);
-    return a;
+    a += effect->frequencyInitial;
+
+    printf ("%s new freq=%d scale=%d (f=%d) vol=%d\n", __func__, effect->frequency, a,
+            effect->frequency<<a, effect->volume);
+
+    if (a == 0)
+        return frequencyWithVolume_2ee8 (effect, frequency, effect->frequency);
+    else
+        return frequencyScaledWithVolume_2ee4 (effect, frequency,
+                                              effect->frequency, a);
 }
 
-uint8_t func_2dee (uint8_t *ix, uint8_t *iy, uint8_t *hl)
+uint8_t soundEffectOneChannel_2dee (SOUND_EFFECT *effect, uint8_t *frequency, uint8_t *table,int chan)
 {
     //-------------------------------
     // 2dee  dd7e00    ld      a,(ix+#00)
     // 2df1  a7        and     a
-    // 2df2  2027      jr      nz,#2e1b        ; (39)
+    // 2df2  2027      jr      nz,#2e1b        ; (39) ; find effect?
     //-------------------------------
-    if (ix[0] != 0)
-        return func_2e1b (ix, iy, hl, 0);
+    if (effect->mask != 0)
+        return soundEffectProcess_2e1b (effect, frequency, table, chan);
     else
-        return func_2df4 (ix, iy);
+        return soundEffectClear_2df4 (effect, frequency);
 }
 
-uint8_t func_2df4(uint8_t *ix, uint8_t *iy)
+uint8_t soundEffectClear_2df4(SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2df4  dd7e02    ld      a,(ix+#02)
     // 2df7  a7        and     a
     // 2df8  c8        ret     z
     //-------------------------------
-    if (ix[2] == 0)
+    if (effect->current == 0)
         return 0;
 
     //-------------------------------
@@ -14020,29 +14039,32 @@ uint8_t func_2df4(uint8_t *ix, uint8_t *iy)
     // 2e19  af        xor     a
     // 2e1a  c9        ret     
     //-------------------------------
-    ix[2] = 
-    ix[0xd] = 
-    ix[0xe] = 
-    ix[0xf] = 0;
+    effect->current = 
+    effect->dir = 
+    effect->frequency = 
+    effect->volume = 0;
 
-    iy[0] = 
-    iy[1] = 
-    iy[2] = 
-    iy[3] = 0;
+    frequency[0] = 
+    frequency[1] = 
+    frequency[2] = 
+    frequency[3] = 0;
 
     return 0;
 }
 
-uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
+uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
+                                 uint8_t *table, int chan)
 {
     //-------------------------------
     // 2e1b  4f        ld      c,a
     // 2e1c  0608      ld      b,#08
     // 2e1e  1e80      ld      e,#80
     //-------------------------------
-    int e = 0x80;
-    int b;
-    for (b = 0; b < 8; b++)
+    printf ("\n%s EFF BEGIN ch=%d mask %02x\n", __func__,
+            chan, effect->mask);
+    uint8_t mask = 0x80;
+    int bit;
+    for (bit = 8; bit > 0; bit--)
     {
         //-------------------------------
         // 2e20  7b        ld      a,e
@@ -14052,21 +14074,22 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e26  10f8      djnz    #2e20           ; (-8)
         // 2e28  c9        ret     
         //-------------------------------
-        if ((c & e) != 0)
+        if ((effect->mask & mask) != 0)
             break;
 
-        e >>= 1;
+        mask >>= 1;
     }
 
-    if (b ==8)
-        return e<<1;
+    if (bit == 0)
+        // return e << 1;
+        return 0;
  
     //-------------------------------
     // 2e29  dd7e02    ld      a,(ix+#02)
     // 2e2c  a3        and     e
     // 2e2d  203f      jr      nz,#2e6e        ; (63)
     //-------------------------------
-    if ((ix[2] & e) == 0)
+    if ((effect->current & mask) == 0)
     {
         //-------------------------------
         // 2e2f  dd7302    ld      (ix+#02),e
@@ -14080,8 +14103,9 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e3a  e5        push    hl
         // 2e3b  09        add     hl,bc
         //-------------------------------
-        ix[2] = e;
-        hl+= (b-1)*8;
+        effect->current = mask;
+        printf ("%s EFF new effect %02x\n", __func__, effect->current);
+        table += (bit - 1) * 8;
 
         //-------------------------------
         // 2e3c  dde5      push    ix
@@ -14092,7 +14116,17 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e42  010800    ld      bc,#0008
         // 2e45  edb0      ldir    
         //-------------------------------
-        memcpy (&ix[3], hl, 8);
+        memcpy (&effect->selected, table, 8);
+        printf ("%s EFF memcpy %04lx sel=%02x fri=%02x frd=%d off=%02x%02x "
+                "repeat=%02x volinit=%d vold=%d\n",
+                __func__, table-ROM,
+                table[0],
+                table[1],
+                table[2],
+                table[4], table[3], // little endian
+                table[5],
+                table[6],
+                table[7]);
 
         //-------------------------------
         // 2e47  e1        pop     hl
@@ -14102,8 +14136,8 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e50  dd7e04    ld      a,(ix+#04)
         // 2e53  dd770e    ld      (ix+#0e),a
         //-------------------------------
-        ix[0xc] = ix[6] & 0x7f;
-        ix[0xe] = ix[4];
+        effect->duration = effect->offset & 0x7f;
+        effect->frequency = effect->frequencyInitial;
 
         //-------------------------------
         // 2e56  dd7e09    ld      a,(ix+#09)
@@ -14115,20 +14149,21 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e5e  e60f      and     #0f
         // 2e60  dd770b    ld      (ix+#0b),a
         //-------------------------------
-        ix[0xb] = ix[9] >> 4;
+        effect->type = effect->volumeInitial >> 4;
+        printf ("%s EFF effect type set to %02x\n", __func__, effect->type);
 
         //-------------------------------
         // 2e63  e608      and     #08
         // 2e65  2007      jr      nz,#2e6e        ; (7)
         //-------------------------------
-        if ((ix[0xb] & 8) == 0)
+        if ((effect->type & 8) == 0)
         {
             //-------------------------------
             // 2e67  dd700f    ld      (ix+#0f),b
             // 2e6a  dd360d00  ld      (ix+#0d),#00
             //-------------------------------
-            ix[0xf] = b;
-            ix[0xd] = 0;
+            effect->volume = effect->volumeInitial;
+            effect->dir = 0;
         }
     }
 
@@ -14136,32 +14171,32 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
     // 2e6e  dd350c    dec     (ix+#0c)
     // 2e71  205a      jr      nz,#2ecd        ; (90)
     //-------------------------------
-    if (--ix[0xc] == 0)
+    printf ("%s EFF continue sound %02x dur=%d\n", __func__, effect->current,
+            effect->duration);
+
+    if (--effect->duration != 0)
+        goto jump_2ecd;
+
+    //-------------------------------
+    // 2e73  dd7e08    ld      a,(ix+#08)
+    // 2e76  a7        and     a
+    // 2e77  2810      jr      z,#2e89         ; (16)
+    // 2e79  dd3508    dec     (ix+#08)
+    // 2e7c  200b      jr      nz,#2e89        ; (11)
+    //-------------------------------
+    if (effect->repeat != 0 && --effect->repeat == 0)
     {
         //-------------------------------
-        // 2e73  dd7e08    ld      a,(ix+#08)
-        // 2e76  a7        and     a
-        // 2e77  2810      jr      z,#2e89         ; (16)
+        // 2e7e  7b        ld      a,e
+        // 2e7f  2f        cpl     
+        // 2e80  dda600    and     (ix+#00)
+        // 2e83  dd7700    ld      (ix+#00),a
+        // 2e86  c3ee2d    jp      #2dee
         //-------------------------------
-        if (ix[8] != 0)
-        {
-            //-------------------------------
-            // 2e79  dd3508    dec     (ix+#08)
-            // 2e7c  200b      jr      nz,#2e89        ; (11)
-            //-------------------------------
-            if (--ix[8] == 0)
-            {
-                //-------------------------------
-                // 2e7e  7b        ld      a,e
-                // 2e7f  2f        cpl     
-                // 2e80  dda600    and     (ix+#00)
-                // 2e83  dd7700    ld      (ix+#00),a
-                // 2e86  c3ee2d    jp      #2dee
-                //-------------------------------
-                ix[0] &= ~e;
-                return func_2dee (ix, iy, hl);
-            }
-        }
+        printf ("%s EFF repeat is %d, clear %02x\n", __func__, effect->repeat,
+        mask);
+        effect->mask &= ~mask;
+        return soundEffectOneChannel_2dee (effect, frequency, table, chan);
     }
     else
     {
@@ -14170,20 +14205,21 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2e8c  e67f      and     #7f
         // 2e8e  dd770c    ld      (ix+#0c),a
         //-------------------------------
-        ix[0xc] = ix[0x6] & 0x7f;
+        printf ("%s EFF rep=%d, get dur, off&7f=%02x\n", __func__, effect->repeat, effect->offset);
+        effect->duration = effect->offset & 0x7f;
 
         //-------------------------------
         // 2e91  ddcb067e  bit     7,(ix+#06)
         // 2e95  2816      jr      z,#2ead         ; (22)
         //-------------------------------
-        if ((ix[6] & 0x80) != 0)
+        if ((effect->offset & 0x80) != 0)
         {
             //-------------------------------
             // 2e97  dd7e05    ld      a,(ix+#05)
             // 2e9a  ed44      neg     
             // 2e9c  dd7705    ld      (ix+#05),a
             //-------------------------------
-            ix[5] = -ix[5];
+            effect->frequencyDelta = -effect->frequencyDelta;
 
             //-------------------------------
             // 2e9f  ddcb0d46  bit     0,(ix+#0d)
@@ -14191,25 +14227,34 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
             // 2ea7  2824      jr      z,#2ecd         ; (36)
             // 2ea9  ddcb0d86  res     0,(ix+#0d)
             //-------------------------------
-            ix[0xd] ^= 1;
-            if ((ix[0xd] & 1) == 0)
+            printf ("%s EFF dir=%02x\n", __func__, effect->dir);
+            effect->dir ^= 1;
+            if ((effect->dir & 1) != 0)
                 goto jump_2ecd;
         }
+
         //-------------------------------
         // 2ead  dd7e04    ld      a,(ix+#04)
         // 2eb0  dd8607    add     a,(ix+#07)
         // 2eb3  dd7704    ld      (ix+#04),a
         // 2eb6  dd770e    ld      (ix+#0e),a
         //-------------------------------
+        printf ("%s EFF off=%04x fri=%04x voli=%02x vold=%02x\n", __func__,
+            effect->offset,
+            effect->frequencyInitial, 
+            effect->volumeInitial, 
+            effect->volumeDelta);
 
-        ix[4] = ix[0xe] = ix[4] + ix[7];
+        effect->frequencyInitial += effect->offset >> 8;
+        effect->frequency = effect->frequencyInitial;
+
         //-------------------------------
         // 2eb9  dd7e09    ld      a,(ix+#09)
         // 2ebc  dd860a    add     a,(ix+#0a)
         // 2ebf  dd7709    ld      (ix+#09),a
         //-------------------------------
+        effect->volumeInitial += effect->volumeDelta;
 
-        ix[9] = ix[9]+ix[0xa];
         //-------------------------------
         // 2ec2  47        ld      b,a
         // 2ec3  dd7e0b    ld      a,(ix+#0b)
@@ -14217,16 +14262,17 @@ uint8_t func_2e1b (uint8_t *ix, uint8_t *iy, uint8_t *hl, uint8_t c)
         // 2ec8  2003      jr      nz,#2ecd        ; (3)
         // 2eca  dd700f    ld      (ix+#0f),b
         //-------------------------------
-        if ((ix[0xb] & 8) == 0)
-            ix[0xf] = ix[9];
+        if ((effect->type & 8) == 0)
+            effect->volume = effect->volumeInitial;
     }
+
 jump_2ecd:
     //-------------------------------
     // 2ecd  dd7e0e    ld      a,(ix+#0e)
     // 2ed0  dd8605    add     a,(ix+#05)
     // 2ed3  dd770e    ld      (ix+#0e),a
     //-------------------------------
-    ix[0xe] += ix[5];
+    effect->frequency += effect->frequencyDelta;
 
     //-------------------------------
     // 2ed6  6f        ld      l,a
@@ -14234,37 +14280,38 @@ jump_2ecd:
     // 2ed9  dd7e03    ld      a,(ix+#03)
     // 2edc  e670      and     #70
     // 2ede  2808      jr      z,#2ee8         ; (8)
-    //-------------------------------
-    uint16_t val = ix[0xe];
-    uint8_t a = ix[3];
-
-    if ((a & 0x70) == 0)
-        return func_2ee8 (ix, iy, val);
-
-    //-------------------------------
     // 2ee0  0f        rrca    
     // 2ee1  0f        rrca    
     // 2ee2  0f        rrca    
     // 2ee3  0f        rrca    
     //-------------------------------
+    // uint8_t frequencyValue = effect->frequency;
+    // uint8_t selected = effect->selected;
 
-    a >>= 4;
-    func_2ee4 (&val, a);
-    return a;
+    if ((effect->selected & 0x70) == 0)
+        return frequencyWithVolume_2ee8 (effect, frequency, effect->frequency);
+    else
+        return frequencyScaledWithVolume_2ee4 (effect, frequency,
+                                              effect->frequency, effect->selected >> 4);
 }
 
-void func_2ee4 (uint16_t *hl, uint8_t a)
+uint8_t frequencyScaledWithVolume_2ee4 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue, uint8_t scale)
 {
     //-------------------------------
     // 2ee4  47        ld      b,a
     // 2ee5  29        add     hl,hl
     // 2ee6  10fd      djnz    #2ee5           ; (-3)
     //-------------------------------
-    while (a--)
-        *hl *= 2;
+    printf ("%s EFF scale freq by %d from %d to %d\n", __func__, scale,
+    frequencyValue, frequencyValue<<scale);
+    // while (scale--)
+    //     frequencyValue *= 2;
+    frequencyValue <<= scale;
+
+    return frequencyWithVolume_2ee8 (effect, frequency, frequencyValue);
 }
 
-uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val)
+uint8_t frequencyWithVolume_2ee8 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue)
 {
     //-------------------------------
     // 2ee8  fd7500    ld      (iy+#00),l
@@ -14282,10 +14329,10 @@ uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val)
     // 2efa  0f        rrca    
     // 2efb  fd7703    ld      (iy+#03),a
     //-------------------------------
-    iy[0] = val & 0xff;
-    iy[1] = val >> 4;
-    iy[2] = val >> 8;
-    iy[3] = val >> 12;
+    frequency[0] = frequencyValue & 0xff;
+    frequency[1] = (frequencyValue >> 4) & 0xf;
+    frequency[2] = (frequencyValue >> 8) & 0xff;
+    frequency[3] = (frequencyValue >> 12) & 0xf;
 
     //-------------------------------
     // 2efe  dd7e0b    ld      a,(ix+#0b)
@@ -14298,65 +14345,79 @@ uint8_t func_2ee8 (uint8_t *ix, uint8_t *iy, uint16_t val)
     //-------------------------------
 
     /*  Addresses 0x2f4a thru 0x2f43 are just a ret, so insert the same for each */
-    uint8_t a = ix[0xb];
-    uint8_t (*func[])(uint8_t *) = 
+    uint8_t (*func[])(SOUND_EFFECT*) = 
     {
-        func_2f22, func_2f26, func_2f2b, func_2f3c,
-        func_2f43, func_2f4a, func_2f4a, func_2f4a, 
-        func_2f4a, func_2f4a, func_2f4a, func_2f4a,
-        func_2f4a, func_2f4a, func_2f4a, func_2f4a
+        volumeDecayNone_2f22,
+        volumeDecay_2f26,
+        volumeDecayHalfTime_2f2b,
+        volumeDecayQuarterTime_2f3c,
+        volumeDecayEighthTime_2f43,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a, 
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a,
+        soundEffectDoNothing_2f4a
     };
-    return func[a] (ix);
+    int vol = func[effect->type] (effect);
+    printf ("%s volume-effect %d freq %d ret vol %d\n", __func__, effect->type,
+        frequencyValue, vol);
+    return vol;
 }
 
-uint8_t func_2f22 (uint8_t *ix)
+uint8_t volumeDecayNone_2f22 (SOUND_EFFECT *effect)
 {
     //-------------------------------
     // 2f22  dd7e0f    ld      a,(ix+#0f)
     // 2f25  c9        ret     
     //-------------------------------
-    return ix[0xf];
+    return effect->volume;
 }
 
-uint8_t func_2f26 (uint8_t *ix)
+uint8_t volumeDecay_2f26 (SOUND_EFFECT *effect)
 {
     //-------------------------------
     // 2f26  dd7e0f    ld      a,(ix+#0f)
     // 2f29  1809      jr      #2f34           ; (9)
     //-------------------------------
-    return func_2f34 (ix, ix[0xf]);
+    return volumeDecrease_2f34 (effect, effect->volume);
 }
 
-uint8_t func_2f2b (uint8_t *ix)
+uint8_t volumeDecayHalfTime_2f2b (SOUND_EFFECT *effect)
 {
     //-------------------------------
     // 2f2b  3a844c    ld      a,(#4c84)
     // 2f2e  e601      and     #01
     //-------------------------------
-    return func_2f30 (ix, *SOUND_COUNTER & 1);
+    return volumeDecreaseConditional_2f30 (effect, *SOUND_COUNTER & 1);
 }
 
-uint8_t func_2f30 (uint8_t *ix, uint8_t a)
+uint8_t volumeDecreaseConditional_2f30 (SOUND_EFFECT *effect, int condition)
 {
     //-------------------------------
     // 2f30  dd7e0f    ld      a,(ix+#0f)
     // 2f33  c0        ret     nz
     //-------------------------------
-    if (ix[0xf] != 0)
-        return ix[0xf];
+    if (condition != 0)
+        return effect->volume;
 
-    return func_2f34 (ix, ix[0xf]);
+    return volumeDecrease_2f34 (effect, effect->volume);
 }
 
-uint8_t func_2f34 (uint8_t *ix, uint8_t a)
+uint8_t volumeDecrease_2f34 (SOUND_EFFECT *effect, uint8_t volume)
 {
     //-------------------------------
     // 2f34  e60f      and     #0f
     // 2f36  c8        ret     z
     //-------------------------------
-    a &= 0xf;
+    volume &= 0xf;
 
-    if (a == 0)
+    if (volume == 0)
         return 0;
 
     //-------------------------------
@@ -14364,31 +14425,35 @@ uint8_t func_2f34 (uint8_t *ix, uint8_t a)
     // 2f38  dd770f    ld      (ix+#0f),a
     // 2f3b  c9        ret     
     //-------------------------------
-    ix[0x0f] = --a;
-    return a;
+    effect->volume = --volume;
+    return volume;
 }
 
-uint8_t func_2f3c (uint8_t *ix)
+/*  Decrease volume if lowest 2-bits of sound counter are zero, i.e. every
+ *  fourth interval */
+uint8_t volumeDecayQuarterTime_2f3c (SOUND_EFFECT *effect)
 {
     //-------------------------------
     // 2f3c  3a844c    ld      a,(#4c84)
     // 2f3f  e603      and     #03
     // 2f41  18ed      jr      #2f30           ; (-19)
     //-------------------------------
-    return func_2f30 (ix, *SOUND_COUNTER & 3);
+    return volumeDecreaseConditional_2f30 (effect, *SOUND_COUNTER & 3);
 }
 
-uint8_t func_2f43 (uint8_t *ix)
+/*  Decrease volume if lowest 3-bits of sound counter are zero, i.e. every
+ *  eighth interval */
+uint8_t volumeDecayEighthTime_2f43 (SOUND_EFFECT *effect)
 {
     //-------------------------------
     // 2f43  3a844c    ld      a,(#4c84)
     // 2f46  e607      and     #07
     // 2f48  18e6      jr      #2f30           ; (-26)
     //-------------------------------
-    return func_2f30 (ix, *SOUND_COUNTER & 7);
+    return volumeDecreaseConditional_2f30 (effect, *SOUND_COUNTER & 7);
 }
 
-uint8_t func_2f4a (uint8_t *ix)
+uint8_t soundEffectDoNothing_2f4a (SOUND_EFFECT *effect)
 {
     return 0;
 }
@@ -14407,7 +14472,7 @@ uint8_t func_2f4a (uint8_t *ix)
     // 2f54  c9        ret     
     //-------------------------------
 
-uint8_t func_2f55 (uint8_t *ix, uint8_t *iy)
+void soundEffectIndirect_2f55 (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2f55  dd6e06    ld      l,(ix+#06)
@@ -14419,13 +14484,13 @@ uint8_t func_2f55 (uint8_t *ix, uint8_t *iy)
     // 2f61  dd7707    ld      (ix+#07),a
     // 2f64  c9        ret     
     //-------------------------------
-    uint16_t addr = (ix[7] << 8) | ix[6];
-    ix[6] = MEM[addr];
-    ix[7] = MEM[addr+1];
-    return ix[7];
+    // uint16_t addr = effect->offset;
+    // effect->offset = (MEM[addr+1] << 8) | MEM[addr];
+    printf ("EFF indirect from addr %04x\n", effect->offset);
+    effect->offset = *((uint16_t*)&MEM[effect->offset]);
 }
 
-uint8_t func_2f65 (uint8_t *ix, uint8_t *iy)
+void soundEffectSelect_2f65 (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2f65  dd6e06    ld      l,(ix+#06)
@@ -14437,14 +14502,12 @@ uint8_t func_2f65 (uint8_t *ix, uint8_t *iy)
     // 2f73  dd7703    ld      (ix+#03),a
     // 2f76  c9        ret     
     //-------------------------------
-    uint16_t addr = (ix[7] << 8) | ix[6];
-    ix[6] = (addr + 1) & 0xff;
-    ix[7] = (addr + 1) >> 8;
-    ix[3] = MEM[addr];
-    return ix[3];
+    effect->selected = MEM[effect->offset++];
+    printf ("%s EFF read selected %02x from %04x\n", __func__, effect->selected,
+        effect->offset-1);
 }
 
-uint8_t func_2f77 (uint8_t *ix, uint8_t *iy)
+void soundEffectInitialFrequency_2f77 (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2f77  dd6e06    ld      l,(ix+#06)
@@ -14456,14 +14519,12 @@ uint8_t func_2f77 (uint8_t *ix, uint8_t *iy)
     // 2f85  dd7704    ld      (ix+#04),a
     // 2f88  c9        ret     
     //-------------------------------
-    uint16_t addr = (ix[7] << 8) | ix[6];
-    ix[6] = (addr + 1) & 0xff;
-    ix[7] = (addr + 1) >> 8;
-    ix[4] = MEM[addr];
-    return ix[4];
+    effect->frequencyInitial = MEM[effect->offset++];
+    printf ("%s EFF read freqi=%02x from %04x\n", __func__,
+            effect->frequencyInitial, effect->offset-1);
 }
 
-uint8_t func_2f89 (uint8_t *ix, uint8_t *iy)
+void soundEffectInitialVolume_2f89 (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2f89  dd6e06    ld      l,(ix+#06)
@@ -14475,14 +14536,12 @@ uint8_t func_2f89 (uint8_t *ix, uint8_t *iy)
     // 2f97  dd7709    ld      (ix+#09),a
     // 2f9a  c9        ret     
     //-------------------------------
-    uint16_t addr = (ix[7] << 8) | ix[6];
-    ix[6] = (addr + 1) & 0xff;
-    ix[7] = (addr + 1) >> 8;
-    ix[9] = MEM[addr];
-    return ix[9];
+    effect->volumeInitial = MEM[effect->offset++];
+    printf ("%s EFF read tbd9 %02x from %04x\n", __func__,
+            effect->volumeInitial, effect->offset-1);
 }
 
-uint8_t func_2f9b (uint8_t *ix, uint8_t *iy)
+void soundEffectType_2f9b (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2f9b  dd6e06    ld      l,(ix+#06)
@@ -14494,14 +14553,12 @@ uint8_t func_2f9b (uint8_t *ix, uint8_t *iy)
     // 2fa9  dd770b    ld      (ix+#0b),a
     // 2fac  c9        ret     
     //-------------------------------
-    uint16_t addr = (ix[7] << 8) | ix[6];
-    ix[6] = (addr + 1) & 0xff;
-    ix[7] = (addr + 1) >> 8;
-    ix[0xb] = MEM[addr];
-    return ix[0xb];
+    effect->type = MEM[effect->offset++];
+    printf ("%s EFF read type %02x from %04X\n", __func__, effect->type,
+            effect->offset-1);
 }
 
-uint8_t func_2fad (uint8_t *ix, uint8_t *iy)
+void soundEffectMarkDone_2fad (SOUND_EFFECT *effect, uint8_t *frequency)
 {
     //-------------------------------
     // 2fad  dd7e02    ld      a,(ix+#02)
@@ -14510,8 +14567,9 @@ uint8_t func_2fad (uint8_t *ix, uint8_t *iy)
     // 2fb4  dd7700    ld      (ix+#00),a
     // 2fb7  c3f42d    jp      #2df4
     //-------------------------------
-    ix[0] &= ~ix[2];
-    return func_2df4 (ix, iy);
+    effect->mask &= ~effect->current;
+    printf ("%s EFF clear mask %02x\n", __func__, effect->current);
+    soundEffectClear_2df4 (effect, frequency);
 }
 
     //-------------------------------
@@ -15169,7 +15227,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31a0  3e02      ld      a,#02
             // 31a2  329c4e    ld      (#4e9c),a	; Choose sound 2
             //-------------------------------
-            SND_CH1_EFF_NUM = 2;
+            CH1_SOUND_EFFECT->mask = 2;
         }
 
         //-------------------------------
@@ -15185,7 +15243,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31ae  3e01      ld      a,#01
             // 31b0  329c4e    ld      (#4e9c),a	; Choose sound 1
             //-------------------------------
-            SND_CH1_EFF_NUM = 1;
+            CH1_SOUND_EFFECT->mask = 1;
         }
 
         //-------------------------------
@@ -15200,7 +15258,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31b9  3e08      ld      a,#08
             // 31bb  32bc4e    ld      (#4ebc),a	; Choose sound 8
             //-------------------------------
-            SND_CH3_EFF_NUM = 8;
+            CH3_SOUND_EFFECT->mask = 8;
         }
 
         //-------------------------------
@@ -15215,7 +15273,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31c4  3e04      ld      a,#04
             // 31c6  32bc4e    ld      (#4ebc),a	; Choose sound 4
             //-------------------------------
-            SND_CH3_EFF_NUM = 4;
+            CH3_SOUND_EFFECT->mask = 4;
         }
 
         //-------------------------------
@@ -15230,7 +15288,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31cf  3e10      ld      a,#10
             // 31d1  32bc4e    ld      (#4ebc),a	; Choose sound 16
             //-------------------------------
-            SND_CH3_EFF_NUM = 0x10;
+            CH3_SOUND_EFFECT->mask = 0x10;
         }
 
         //-------------------------------
@@ -15245,7 +15303,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31da  3e20      ld      a,#20
             // 31dc  32bc4e    ld      (#4ebc),a	; Choose sound 32
             //-------------------------------
-            SND_CH3_EFF_NUM = 0x20;
+            CH3_SOUND_EFFECT->mask = 0x20;
         }
 
         //-------------------------------
@@ -16353,41 +16411,97 @@ void madeByNamco_3af4 (void)
     // 3b2e  AC 16   ; 8th key
     //-------------------------------
 
-    /*  Sound effects */
+    /*  Sound effects.  16 groups of 8 bytes.  bytes are:
+     *   0 - select  high nybble is frequency scale (<<) for effects
+     *   1 - tbd4
+     *   2 - freq delta 
+     *   3 - offset Lo
+     *   4 - offset Hi
+     *   5 - tbd8
+     *   6 - initial volume (0 to f) or'd with effect type << 4
+     *   7 - volume delta
+     */
 
+    /*  CH1 effects */
     //-------------------------------
     // 3b30  73 20 00 0c 00 0a 1f 00  72 20 fb 87 00 02 0f 00
+    //-------------------------------
 
+    /*  CH2 effects */
+    //-------------------------------
     // 3b40  36 20 04 8c 00 00 06 00  36 28 05 8b 00 00 06 00
-
     // 3b50  36 30 06 8a 00 00 06 00  36 3c 07 89 00 00 06 00
     // 3b60  36 48 08 88 00 00 06 00  24 00 06 08 00 00 0a 00
     // 3b70  40 70 fa 10 00 00 0a 00  70 04 00 00 00 00 08 00
-    // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00
+    //-------------------------------
 
+    /*  CH3 effects */
+    //-------------------------------
+    // 3b80  42 18 fd 06 00 01 0c 00  42 04 03 06 00 01 0c 00
     // 3b90  56 0c ff 8c 00 02 0f 00  05 00 02 20 00 01 0c 00
     // 3ba0  41 20 ff 86 fe 1c 0f ff  70 00 01 0c 00 01 08 00
+    //-------------------------------
 
-    // 3bb0  01 02 04 08 10 20 40 80  00 57 5c 61 67 6d 74 7b
-    // 3bc0  82 8a 92 9a a3 ad b8 c3  d4 3b f3 3b 58 3c 95 3c
-    // 3bd0  de 3c df 3c f1 02 f2 03  f3 0f f4 01 82 70 69 82
+    /*  Powers of 2 */
+    //-------------------------------
+    // 3bb0  01 02 04 08 10 20 40 80
+    //-------------------------------
+
+    /*  TODO frequency table */
+    //-------------------------------
+    // 3bb8                           00 57 5c 61 67 6d 74 7b
+    // 3bc0  82 8a 92 9a a3 ad b8 c3
+    //-------------------------------
+
+    /*  TODO song tables */
+    //-------------------------------
+    // 3bc8                           d4 3b f3 3b 58 3c 95 3c
+    // 3bd0  de 3c df 3c 
+    //-------------------------------
+
+
+    /*  f0 = indrection, load offset from ptr
+        f1 = next byte is "selected"
+        f2 = next byte is "frequencyInitial"
+        f3 = next byte is "volumeInitial"
+        f4 = next byte is "type"
+        ff = sound effect done
+
+        1f = (&1f) set dir
+             (&e0) duration (pow 2)
+             (&0f) freq table ix
+
+
+     */
+
+    //-------------------------------
+    // 3bd4  f1 02 f2 03 f3 0f f4 01 82 70 69 82
 
     // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b
-    // 3bf0  8d 8e ff f1 02 f2 03 f3  0f f4 01 67 50 30 47 30
+    // 3bf0  8d 8e ff
+
+    // 3bf3           f1 02 f2 03 f3  0f f4 01 67 50 30 47 30
     // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10
     // 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47
     // 3c20  30 4b 10 4c 10 4d 10 4e  10 67 50 30 47 30 67 50
     // 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10
     // 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30
-    // 3c50  66 30 67 40 70 f0 fb 3b  f1 00 f2 02 f3 0f f4 00
+    // 3c50  66 30 67 40 70 f0 fb 3b
+
+    // 3c58                           f1 00 f2 02 f3 0f f4 00
     // 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f
     // 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50
     // 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49
-    // 3c90  4a 4b 50 6e ff f1 01 f2  01 f3 0f f4 00 26 67 26
+    // 3c90  4a 4b 50 6e ff
+
+    // 3c95                 f1 01 f2  01 f3 0f f4 00 26 67 26
     // 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67
     // 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26
     // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b
-    // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c 00 00
+    // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c
+
+    // 3cde  00
+    // 3cdf  00
     // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     //-------------------------------
 

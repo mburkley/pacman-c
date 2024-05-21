@@ -151,6 +151,7 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
             col = colourLookup (col);
+            // TODO flipscreen
             videoPlot ((cx << 3) + x, (cy << 3) + y, col, false);
         }
     }

@@ -29,6 +29,7 @@
 
 #include "memmap.h"
 #include "video.h"
+#include "sound.h"
 #include "kbd.h"
 
 #include "pacman.5e.h"
@@ -68,14 +69,17 @@ int main (int argc, char *argv[])
 
     /*  Input switches are active low */
     IO_INPUT0 = 0xff;
-    IO_INPUT1 = 0xff;
-    DIP_INPUT = 0xff;
+    // IO_INPUT1 = 0xff;
+    IO_INPUT1 = 0x7f;
+    // DIP_INPUT = 0xff;
+    DIP_INPUT = 0x49;
     printf ("IN0=%02x\n", IO_INPUT0);
     if (argc > 1)
         DIP_INPUT = atoi (argv[1]);
 
 void reset_0000 (void);
     videoInit (3);
+    soundInit ();
     kbdOpen (NULL);
 
     #if 1
