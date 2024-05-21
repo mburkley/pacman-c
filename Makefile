@@ -1,16 +1,19 @@
 all: pacman
 
-SRCS=\
-pacman.c \
-cpu.c \
-harness.c \
-video.c \
-kbd.c
+OBJECTS=\
+pacman.o \
+cpu.o \
+harness.o \
+video.o \
+sound.o \
+kbd.o
 
 LIBS=\
 -l m\
 -l glut\
--l GL
+-l GL\
+-lpulse-simple\
+-lpulse
 
 ROMS=\
 pacman.5e \
@@ -24,7 +27,9 @@ namcopac.6f \
 namcopac.6h \
 namcopac.6j \
 82s123.7f \
-82s126.4a
+82s126.4a \
+82s126.1m \
+82s126.3m
 
 FILES=$(patsubst %,rom/%,$(ROMS))
 HDRS=$(patsubst %,%.h,$(ROMS))
@@ -38,5 +43,12 @@ HDRS=$(patsubst %,%.h,$(ROMS))
 $(HDRS) : %:
 	xxd -i rom/$(subst .h,,$@) > $@
 
-pacman: $(SRCS) $(HDRS)
-	$(CC) -ggdb3 -Wall $^ -o $@ $(LIBS)
+CFLAGS=-Wall -ggdb3
+
+pacman: $(OBJECTS)
+	@echo "\t[LD] $@..."
+	@$(CC) -ggdb3 -Wall -o $@ $^ $(LIBS)
+
+%.o: %.c $(HDRS)
+	@echo "\t[CC] $<..."
+	@$(CC) -c $(CFLAGS) $< -o $@

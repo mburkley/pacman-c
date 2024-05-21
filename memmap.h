@@ -378,6 +378,7 @@ extern uint8_t dipSwitches;
 #define CH1_FREQ3       memmap.mem[0x4e8f]
 #define CH1_FREQ4       memmap.mem[0x4e90]
 #define CH1_VOL         memmap.mem[0x4e91]
+// TODO renumber these as 0-3
 #define CH2_FREQ1       memmap.mem[0x4e92]   // 16 bits
 #define CH2_FREQ2       memmap.mem[0x4e93]
 #define CH2_FREQ3       memmap.mem[0x4e94]
@@ -389,24 +390,12 @@ extern uint8_t dipSwitches;
 #define CH3_FREQ4       memmap.mem[0x4e9a]
 #define CH3_VOL         memmap.mem[0x4e9b]
 
-#define SND_CH1_EFF_NUM                 memmap.mem[0x4e9c]
-#define SND_CH1_EFF_CUR                 memmap.mem[0x4e9e]
-#define SND_CH1_EFF_TABLE               (&memmap.mem[0x4e9f])
-#define SND_CH2_EFF_NUM                 memmap.mem[0x4eac]
-#define SND_CH2_EFF_CUR                 memmap.mem[0x4eae]
-#define SND_CH2_EFF_TABLE               (&memmap.mem[0x4eaf])
-#define SND_CH3_EFF_NUM                 memmap.mem[0x4ebc]
-#define SND_CH3_EFF_CUR                 memmap.mem[0x4ebe]
-#define SND_CH3_EFF_TABLE               (&memmap.mem[0x4ebf])
-#define SND_CH1_WAV_NUM                 memmap.mem[0x4ecc]
-#define SND_CH1_WAV_CUR                 memmap.mem[0x4ece]
-#define SND_CH1_WAV_SEL                 memmap.mem[0x4ecf]
-#define SND_CH2_WAV_NUM                 memmap.mem[0x4edc]
-#define SND_CH2_WAV_CUR                 memmap.mem[0x4ede]
-#define SND_CH2_WAV_SEL                 memmap.mem[0x4edf]
-#define SND_CH3_WAV_NUM                 memmap.mem[0x4eec]
-#define SND_CH3_WAV_CUR                 memmap.mem[0x4eee]
-#define SND_CH3_WAV_SEL                 memmap.mem[0x4eef]
+#define CH1_SOUND_EFFECT        ((SOUND_EFFECT *)&memmap.mem[0x4e9c])
+#define CH2_SOUND_EFFECT        ((SOUND_EFFECT *)&memmap.mem[0x4eac])
+#define CH3_SOUND_EFFECT        ((SOUND_EFFECT *)&memmap.mem[0x4ebc])
+#define CH1_SOUND_WAVE          ((SOUND_EFFECT *)&memmap.mem[0x4ecc])
+#define CH2_SOUND_WAVE          ((SOUND_EFFECT *)&memmap.mem[0x4edc])
+#define CH3_SOUND_WAVE          ((SOUND_EFFECT *)&memmap.mem[0x4eec])
 
 static inline void swap16 (uint8_t *a, uint8_t *b)
 {

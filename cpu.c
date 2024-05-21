@@ -50,7 +50,7 @@ static bool paused;
 /*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
-    usleep(20000);
+    usleep(16667);
     static bool inInterrupt;
     if (!inInterrupt && !paused && intVector)
     {
