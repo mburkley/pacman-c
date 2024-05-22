@@ -31,6 +31,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifndef __MEMMAP_H
+#define __MEMMAP_H
+
 typedef union
 {
     struct
@@ -232,8 +235,8 @@ extern uint8_t dipSwitches;
 #define MIN_DISTANCE_FOUND              (*(uint16_t*)&memmap.mem[0x4d44])
 #define PACMAN_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d46])
 #define PACMAN_MOVE_PAT_POWERUP         (*(uint32_t*)&memmap.mem[0x4d4a])
-#define PACMAN_MOVE_PAT_DIFF2           (*(uint32_t*)&memmap.mem[0x4d4e])
-#define PACMAN_MOVE_PAT_DIFF1           (*(uint32_t*)&memmap.mem[0x4d52])
+#define BLINKY_MOVE_PAT_DIFF2           (*(uint32_t*)&memmap.mem[0x4d4e])
+#define BLINKY_MOVE_PAT_DIFF1           (*(uint32_t*)&memmap.mem[0x4d52])
 #define BLINKY_MOVE_PAT_NORMAL          (*(uint32_t*)&memmap.mem[0x4d56])
 #define BLINKY_MOVE_PAT_EDIBLE          (*(uint32_t*)&memmap.mem[0x4d5a])
 #define BLINKY_MOVE_PAT_TUNNEL          (*(uint32_t*)&memmap.mem[0x4d5e])
@@ -446,3 +449,5 @@ static inline void assert (bool cond, char *file, int line)
 
 #include "structs.h"
 extern void showTarget (XYPOS a, XYPOS b, int col);
+
+#endif

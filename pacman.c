@@ -18,7 +18,6 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
  */
 
 #include <stdio.h>
@@ -28,366 +27,10 @@
 
 #include "memmap.h"
 #include "protos.h"
+#include "data.h"
 #include "consts.h"
 #include "structs.h"
 #include "cpu.h"
-
-// TODO prototypes are here temporarily to make find-and-replace easier */
-
-void updateCounters_01dc (void);
-void dispatchISRTasks_0221 (void);
-void checkCoinInput_0267 (void);
-void checkCoinCounterTimeout_02ad (void);
-void func_039d (void);
-void initResetGame_03dc (void);
-void introStateMachine_03fe (void);
-void introStart_045f (void);
-void introduceBlinky_0471 (void);
-void introduceShadow_047f (void);
-void introducePinky_048b (void);
-void introduceSpeedy_0499 (void);
-void introducePinkyNickname_049f (void);
-void introduceInky_04a5 (void);
-void introduceBashful_04b3 (void);
-void introduceBlinkyNickname_0485 (void);
-void introduceInkyNickname_04b9 (void);
-void introduceClyde_04bf (void);
-void introducePokey_04cd (void);
-void introduceClydeNickname_04d3 (void);
-void introducePoints_04d8 (void);
-void introSceneSetup_04e0 (void);
-void introStartMoveBlinky_051c (void);
-void introAdvanceState_0524 (uint8_t *hl, int b, int a);
-void introMain_052c (void);
-void introStartMovePinky_054b (void);
-void introStartMoveInky_0556 (void);
-void introStartMoveClyde_0561 (void);
-void introCheckAllGhostsEaten_056c (void);
-void introPlayGame_057c (void);
-void selectDisplayGhostName_0580(int c);
-void displayIntroMsg_0585(int c);
-void introduceGhost_0593(int c);
-XYPOS pacmanReverse_05a5 (void);
-void drawGhost_05bf (int hl, int a);
-void coinInsertedStateMachine_05e5 (void);
-void pushStartMsg_05f3 (void);
-void player1ReadyMsg_0674 (void);
-void creditStateReset_06a8 (void);
-void playGameStateMachine_06be (void);
-void setupGhostTimers_070e(int b);
-void setupMovePat_0814(uint8_t *hl);
-void levelStatePlayerReady_0899 (void);
-void playGameMain_08cd (void);
-void switchPlayers_0940 (void);
-void switchModeDemo_0972 (void);
-void gameOverOrNextPlayer_0988 (void);
-void mazeColour_09ea (int param);
-void advanceToLevelStatePlayGame_09d2 (void);
-void playGameSoundOff_09d8 (void);
-void mazeColourWhite_09e8 (void);
-void mazeColourBlue_09fe (void);
-void mazeColourWhite_0a02 (void);
-void mazeColourBlue_0a04 (void);
-void mazeColourWhite_0a06 (void);
-void mazeColourBlue_0a08 (void);
-void mazeColourWhite_0a0a (void);
-void mazeColourBlue_0a0c (void);
-void mazeReset_0a0e (void);
-void nextLevelStateMachine_0a2c (void);
-void nextLevel_0a7c (void);
-void gameOverOrNextPlayer_0aa0 (void);
-void advanceToLevelStatePlayGame_0aa3 (void);
-void swapP1P2Difficulty_0aa6 (void);
-void ghostsFlashBecomingInedible_0ac3 (void);
-void flashPowerups_0c0d (void);
-void ghostsLeaveHouse_0c42 (void);
-void toggleGhostAnimation_0e23 (void);
-void ghostsChangeOrientation_0e36 (void);
-void resetFruit_1000 (void);
-void func_100b (void);
-void updateGhostStates_1017 (void);
-void selectGhostState_1066 (void);
-void blinkyStateMachine_1094 (void);
-void pinkyStateMachine_109e (void);
-void inkyStateMachine_10a8 (void);
-void clydeStateMachine_10b4 (void);
-void blinkyStateDead_10c0 (void);
-void blinkyStateEnterHouse_10d2 (void);
-void ghostsAnyDeadSoundOff_1101 (void);
-void pinkyStateDead_1118 (void);
-void pinkyStateEnterHouse_112a (void);
-void inkyStateEnterHouse_116e (void);
-void inkyStateHouseMoveAside_118f (void);
-void clydeStateDead_11c9 (void);
-void clydeStateEnterHouse_11db (void);
-void clydeStateHouseMoveAside_11fc (void);
-void ghostKilledState_1235 (void);
-void pacmanDeadAnimState5_12cb (void);
-void pacmanDeadAnimState6_12f9 (void);
-void pacmanDeadAnimState7_1306 (void);
-void pacmanDeadAnimState8_130e (void);
-void pacmanDeadAnimState9_1316 (void);
-void pacmanDeadAnimState10_131e (void);
-void pacmanDeadAnimState11_1326 (void);
-void pacmanDeadAnimState12_132e (void);
-void pacmanDeadAnimState13_1336 (void);
-void pacmanDeadAnimState14_133e (void);
-void pacmanDeadAnimState15_1346 (void);
-void decrementLives_1353 (void);
-void powerupOver_1376 (void);
-void spriteAnimationUpright_141f (void);
-void spriteAnimationCocktail_1490 (void);
-void spriteAnimation_14fe (bool invert);
-void ghostsCocktailMode_15b4 (bool invert);
-void scene1Animation_15e6 (void);
-void scene2Animation_162d (void);
-void pacmanCheckGhostCoincidence_171d (void);
-void pacmanGhostCoincide_1763 (int b);
-void pacmanCheckEatGhost_1789 (void);
-void pacmanUpdateMovePat_1806 (void);
-void pacmanCheckMoveClear_18e4 (int b);
-void pacmanUpdatePos_1985(XYPOS pos);
-void pacmanMoveTile_1a19 (void);
-void checkGhostsBecomeEdible_1a6a (void);
-void ghostsBecomeEdible_1a70 (void);
-void blinkyUpdateMovePat_1b36 (void);
-void pinkyUpdateMovePat_1c4b (void);
-void inkyUpdateMovePat_1d22 (void);
-void clydeUpdateMovePat_1df9 (void);
-bool checkTunnelTBD_1ed0(int ghost);
-void blinkyCheckReverse_1efe (void);
-void pinkyCheckReverse_1f25 (void);
-void inkyCheckReverse_1f4c (void);
-void clydeCheckReverse_1f73 (void);
-uint16_t getScreenOffset_202d (XYPOS hl);
-void checkGhostEnterTunnel_205a (XYPOS pos, uint8_t *aux);
-void inkyCheckLeaveHouse_208c (void);
-void clydeCheckLeaveHouse_20af (void);
-void scene1StateMachine_2108 (void);
-void scene1State0_211a (void);
-void updateMoveVectorPacmanBlinky_2130 (void);
-void updateMoveVectorBlinky_2136 (void);
-void scene1State1_2140 (void);
-void scene1State2_214b (void);
-void scene1State4_2170 (void);
-void scene1State5_217b (void);
-void scene1State6_2186 (void);
-void scene2StateMachine_219e (void);
-void scene2State0_21c2(uint16_t iy);
-void scene2State2_21e1(uint16_t iy);
-void scene2State3_21f5(uint16_t iy);
-void scene2State4_220c(uint16_t iy);
-void updateMoveVector_2237 (void);
-void scene2State6_2244(uint16_t iy);
-void scene2State7_225d(uint16_t iy);
-void scene2State9_226a(uint16_t iy);
-void scene2State11_2286(uint16_t iy);
-void scene2State13_228d(uint16_t iy);
-void scene3StateMachine_2297 (void);
-void scene3State1_22be (void);
-void scene3State3_22dd (void);
-void scene3FruitPos_22e4 (void);
-void scene3State4_22f5 (void);
-void scene3State5_22fe (void);
-void initSelfTest_230b (void);
-void clearScreen_23f3 (void);
-void clearScreenMazeOnly_2400 (void);
-void clearColour_240d (int param);
-void drawMaze_2419 (int param);
-void drawPills_2448(int param);
-void clearPillArrays_24c9 ();
-void blinkySubstateTBD_268b(int param);
-void clearGhostState_26a2 ();
-void pinkyScatterOrChase_276c (int param);
-void inkyScatterOrChase_27a9 (int param);
-void clydeScatterOrChase_27f1 (int param);
-void pacmanOrientationDemo_28e3 ();
-void clearPillsScreen_2a35 ();
-void addToScore_2a5a(int b);
-void clearScores_2ae0 ();
-uint8_t* getPlayerScorePtr_2b0b (void);
-void drawBlankSquare_2b7e(uint8_t *hl);
-void drawCharSquare_2b80 (uint8_t *hl, int a);
-void drawFruit_2b8f (uint8_t *hl, int a);
-void bottomTextColourAndDisplayLives_2b6a (int unused);
-void displayFruitHistory_2bfd (uint8_t *table, int level);
-void func_2c44(uint8_t a);
-void playSongsAllChannels_2cc1 (void);
-void displayMsg_2c5e (int b);
-uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8_t *table);
-uint8_t soundEffectClear_2df4 (SOUND_EFFECT *effect, uint8_t *frequency);
-uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
-uint8_t *table, int chan);
-uint8_t frequencyScaledWithVolume_2ee4 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue, uint8_t a);
-uint8_t volumeDecayNone_2f22 (SOUND_EFFECT *effect);
-uint8_t volumeDecay_2f26 (SOUND_EFFECT *effect);
-uint8_t volumeDecayHalfTime_2f2b (SOUND_EFFECT *effect);
-uint8_t volumeDecreaseConditional_2f30 (SOUND_EFFECT *effect, int condition);
-uint8_t volumeDecrease_2f34 (SOUND_EFFECT *effect, uint8_t a);
-uint8_t volumeDecayQuarterTime_2f3c (SOUND_EFFECT *effect);
-uint8_t volumeDecayEighthTime_2f43 (SOUND_EFFECT *effect);
-void soundEffectIndirect_2f55 (SOUND_EFFECT *effect, uint8_t *frequency);
-void soundEffectSelect_2f65 (SOUND_EFFECT *effect, uint8_t *frequency);
-void soundEffectInitialFrequency_2f77 (SOUND_EFFECT *effect, uint8_t *frequency);
-void soundEffectInitialVolume_2f89 (SOUND_EFFECT *effect, uint8_t *frequency);
-void soundEffectType_2f9b (SOUND_EFFECT *effect, uint8_t *frequency);
-void soundEffectMarkDone_2fad (SOUND_EFFECT *effect, uint8_t *frequency);
-
-void kickWatchdog (void);
-void mainStateMachine_03c8  (void);
-// void addISRTask(uint8_t *ptr, int count, uint8_t* data);
-void addTask (uint8_t task, uint8_t param);
-void mainStateMachine_03c8  (void);
-void resetStateMachine_03d4 (void);
-void checkStartButtons (void);
-void displayCredits_2ba1 ();
-void drawPlayerScore_2aaf (uint8_t *score);
-void drawScore_2abe (uint16_t screenLoc, uint8_t *score, int blanks);
-void extraLife_2b33 (uint8_t *score);
-void fillScreenArea_2bcd (int addr, int ch, int cols, int rows);
-void incLevelStateSubr_0894 (void);
-void incMainSub2_06a3 (void);
-void initLeaveHouseCounters_083a(uint8_t *hl);
-void isr_008d (void);
-void jumpClearScreen_23ed(int param);
-void nothing (void);
-void oneBlank_0383 (uint8_t *ix);
-void oneUp_0369 (uint8_t *ix);
-void pacmanDeadAnimation_12d6(int ch, int count);
-void playerDied_090d (void);
-void playerUp (void);
-uint8_t random_2a23 (void);
-void resetGameState_2698 ();
-void setGhostPosition_267e (int y, int x);
-void resetPlayerParams_0879 (void);
-void resetPositions_2675 ();
-void schedISRTask (uint8_t time, uint8_t routine, uint8_t param);
-void schedTask (int b, int c);
-void selectPacmanLeftSprite_168c (void);
-void selectPacmanDownSprite_16b1 (void);
-void selectPacmanRightSprite_16d6 (void);
-void selectPacmanUpSprite_16f7 (void);
-void configureGame_26d0 (int unused);
-void setGhostColour_0bd6 (void);
-void setMemory (int addr, int count, uint8_t value);
-void showBonusLifeScore_26b2 ();
-void tableCall (void (*func[])(), uint8_t index, uint8_t param);
-void homeOrRandomBlinky_283b ();
-void homeOrRandomClyde_28b9 ();
-void homeOrRandomInky_288f ();
-void homeOrRandomPinky_2865 ();
-void twoBlank_0390 (uint8_t *iy);
-void twoUp_0376 (uint8_t *iy);
-void updatePillsFromScreen_2487 (int param);
-void waitForever (void);
-void showStartNumPlayers_02fd (void);
-void soundEffectsAllChannels_2d0c (void);
-void incMainStateIntro_058e(void);
-void addTask_0042 (uint8_t task, uint8_t param);
-void addISRTask_0051(uint8_t *ptr, int count, uint8_t* data);
-void incKilledState_1272 (void);
-void displayReady_0263 (void);
-void incScene1State_212b (void);
-void incScene2State_212b (void);
-void checkCoinCredit_02df (void);
-void incScene3State_22b9 (void);
-void selectFruit_0ead (void);
-void fruitHistoryLevelCheck_2bea (int param);
-void checkInactivityCounter_13dd (void);
-void updatePillsEatenSoundEffect_0e6c (void);
-void incLevelState_0a6f (void);
-XYPOS addXYOffset_2000 (XYPOS ix, XYPOS iy);
-void pinkyReverse_1f2e (void);
-void inkyReverse_1f55 (void);
-void clydeReverse_1f7c (void);
-void pacmanDeadAnimState_1291 (void);
-void pinkyCheckLeaveHouse_2069 (void);
-void inkyStateDead_115c(void);
-void blinkyUpdatePosition_1bd8 (void);
-void pinkyUpdatePosition_1caf (void);
-void inkyUpdatePosition_1d86 (void);
-void clydeUpdatePosition_1e5d (void);
-void showKillPoints_123f (void);
-void pacmanDeadAnimState1To4_12b7 (void);
-void scene3Animation_1652 (void);
-void pacmanHitMazeWall_1940 (int b);
-void pacmanMove_1950 (void);
-void pacmanOrientLeft_1ac9 (void);
-void pacmanOrientRight_1ad9 (void);
-void pacmanOrientUp_1ae8 (void);
-void pacmanOrientDown_1af8 (void);
-uint8_t getScreenCharPosOffset_200f (XYPOS offset, XYPOS pos);
-XYPOS pixelToTile_2018 (XYPOS pos);
-void resetFruitState_1004 (void);
-void updateLeaveHouseCounters_1b08 (void);
-void pacmanMove_1a5c (void);
-void updateDifficultyTBD_20d7 (void);
-uint16_t getColourOffset_2052 (XYPOS pos);
-void demoMazeHorizontal_0506 (void);
-void scene2State5_221e (uint16_t param);
-void scene3State0_22a7 (void);
-void mainTaskLoop_234b (void);
-void advanceLevelState_23e8 (int param);
-void mazeColours_24d7(int param);
-void initialisePositions_25d3 (int param);
-void blinkyScatterOrChase_2730 (int param);
-XYPOS findBestOrientation_2966 (XYPOS hl, XYPOS de, uint8_t *a);
-uint16_t computeDistance_29ea(XYPOS ix, XYPOS iy);
-XYPOS randomDirection_291e (XYPOS hl, uint8_t *orientation);
-uint16_t calcSquare_2a12(uint8_t a);
-uint16_t scoreTable_2b17[];
-int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks);
-uint16_t displayLives_2b4a (int lives);
-void fruitHistoryLevelHigherThan8_2c2e (int level);
-uint8_t soundEffectOneChannel_2dee (SOUND_EFFECT *effect, uint8_t *frequency,
-                                    uint8_t *table, int chan);
-void func_2dd7 (void);
-uint8_t frequencyWithVolume_2ee8 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue);
-uint8_t soundEffectDoNothing_2f4a (SOUND_EFFECT *effect);
-void isr_3000 (void);
-void romChecksumBad_3031 (uint8_t h, uint8_t checksum);
-void ramTest_3042 (void);
-void badRam_30b5 (uint8_t e, uint8_t checksum);
-void testResultRamRom (int e, uint8_t checksum, int b);
-void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum);
-void serviceModeOrStartGame_3174 (void);
-void delay_32ed (void);
-void madeByNamco_3af4 (void);
-
-#define DATA_0219 (&ROM[0x0219])
-#define DATA_0796 (&ROM[0x0796])
-#define DATA_0843 (&ROM[0x0843])
-#define DATA_084f (&ROM[0x084f])
-#define DATA_0861 (&ROM[0x0861])
-#define DATA_0873 (&ROM[0x0873])
-#define FRUIT_DATA (&ROM[0x0efd])
-#define BONUS_LIFE_DATA (&ROM[0x2728])
-#define DIFFICULTY_DATA ((uint16_t*)(&ROM[0x272c]))
-#define MOVE_VECTOR_DATA ((XYPOS*)(&ROM[0x32ff]))
-#define MOVE_VECTOR_RIGHT ((XYPOS*)(&ROM[0x32ff]))
-#define MOVE_VECTOR_DOWN ((XYPOS*)(&ROM[0x3301]))
-#define MOVE_VECTOR_LEFT ((XYPOS*)(&ROM[0x3303]))
-#define MOVE_VECTOR_UP ((XYPOS*)(&ROM[0x3305]))
-#define MOVE_DATA_330f (&ROM[0x330f])
-#define DATA_3435 &ROM[0x3435]
-#define DATA_35b5 (&ROM[0x35b5])
-#define EFFECT_TABLE_CH3_3b80 (&ROM[0x3b80])
-#define EFFECT_TABLE_CH1_3b30 (&ROM[0x3b30])
-#define EFFECT_TABLE_CH2_3b40 (&ROM[0x3b40])
-#define FRUIT_TABLE (&ROM[0x3b08])
-#define DATA_MSG_TABLE (&ROM[0x36a5])
-#define SONG_TABLE_CH1_3bc8 (&ROM[0x3bc8])
-#define POWER_OF_2_3bb0 (&ROM[0x3bb0])
-#define FREQ_TABLE_3bb8 (&ROM[0x3bb8])
-#define SONG_TABLE_CH2_3bcc (&ROM[0x3bcc])
-#define SONG_TABLE_CH3_3bd0 (&ROM[0x3bd0])
-#define DATA_3154 ((uint16_t *)(&ROM[0x3154]))
-#define BAD_ROM_316c (&ROM[0x316c])
-#define BAD_W_RAM_316e (&ROM[0x316e])
-#define BAD_V_RAM_3170 (&ROM[0x3170])
-#define BAD_C_RAM_3172 (&ROM[0x3172])
-#define DATA_32f9 (&ROM[0x32f9])
-#define DATA_3ae2 ((uint16_t *)(&ROM[0x3ae2]))
 
 void reset_0000 (void)
 {
@@ -422,12 +65,6 @@ void nothing_000c ()
 /*  Same as above but takes a parameter */
 void nothingParam_000c (uint16_t unused)
 {
-}
-
-/*  Same as above but takes a parameter and returns a uint8 */
-uint8_t nothingReturnParam_000c (SOUND_EFFECT *unused1, uint8_t *unused2)
-{
-    return 0;
 }
 
 void setupGhostTimers_000d (int param)
@@ -1143,7 +780,7 @@ void dispatchISRTasks_0221 (void)
                         func_100b,
                         displayReady_0263,
                         incScene1State_212b,
-                        incScene2State_212b,
+                        incScene2State_21f0,
                         incScene3State_22b9
                     };
                     tableCall_0020 (func, task->func);
@@ -1186,9 +823,9 @@ void checkCoinInput_0267 (void)
     // 0270  1f        rra     
     // 0271  d0        ret     nc
     //-------------------------------
-    COINLOCKOUT = CREDITS<<1;
+    COINLOCKOUT = CREDITS << 1;
 
-    if (CREDITS >= 99)
+    if (CREDITS >= 0x99)
         return;
 
     //-------------------------------
@@ -1345,9 +982,10 @@ void checkCoinCredit_02df (void)
     // 02f6  77        ld      (hl),a		; store #credits, max 99 
     //-------------------------------
     CREDITS += CREDITS_PER_COIN;
+    bcdAdjust (&CREDITS);
 
-    if (CREDITS > 99)
-        CREDITS = 99;
+    if (CREDITS > 0x99)
+        CREDITS = 0x99;
 
     //-------------------------------
     // 02f7  219c4e    ld      hl,#4e9c
@@ -2290,7 +1928,7 @@ void coinInsertedStateMachine_05e5 (void)
     void (*func[])() =
     {
         pushStartMsg_05f3,
-        checkStartButtons,
+        checkStartButtons_061b,
         player1ReadyMsg_0674,
         nothing_000c,
         creditStateReset_06a8
@@ -2352,7 +1990,7 @@ void pushStartMsg_05f3 (void)
 }
 
 /*  4e00 ==0 && 4e03==1, if start pushed, 4e03=2 */
-void checkStartButtons (void)
+void checkStartButtons_061b (void)
 {
     //-------------------------------
     // 	;; Display 1/2 player and check start buttons
@@ -2383,7 +2021,7 @@ void checkStartButtons (void)
     // 063c  32704e    ld      (#4e70),a
     // 063f  c34906    jp      #0649
     //-------------------------------
-    if (CREDITS!= 1 && !IN1_START2)
+    if (CREDITS != 1 && !IN1_START2)
         TWO_PLAYERS = 1;
 
     //-------------------------------
@@ -2407,33 +2045,20 @@ void checkStartButtons (void)
     //-------------------------------
 
     /*  Seems to be a redundant check.  We couldn't be here if we have no credit */
-    if (CREDITS!= 0)
+    if (CREDITS != 0)
     {
         //-------------------------------
         // 064f  3a704e    ld      a,(#4e70)            ; two players
         // 0652  a7        and     a
         // 0653  3a6e4e    ld      a,(#4e6e)
         // 0656  2803      jr      z,#065b         ; (3)
+        // 0658  c699      add     a,#99
+        // 065a  27        daa     
+        // 065b  c699      add     a,#99
+        // 065d  27        daa     
         //-------------------------------
-
-        /*  Note - to maintain BCD encoding, if lowest digit is zero,
-         *  subtract 7 instead of 1 to make 0x10 become 0x09.  Do this twice
-         *  if TWO_PLAYERS.  We use a for loop where original used a jump TODO
-         *  use bcd function */
-        for (int i = 0; i <= TWO_PLAYERS; i++)
-        {
-            //-------------------------------
-            // 0658  c699      add     a,#99
-            // 065a  27        daa     
-            // 065b  c699      add     a,#99
-            // 065d  27        daa     
-            //-------------------------------
-
-            if ((CREDITS & 0x0f) ==0)
-                CREDITS-= 7;
-            else
-                CREDITS--;
-        }
+        CREDITS -= (1 + TWO_PLAYERS);
+        bcdAdjust (&CREDITS);
 
         //-------------------------------
         // 065e  326e4e    ld      (#4e6e),a
@@ -2441,6 +2066,7 @@ void checkStartButtons (void)
         //-------------------------------
         displayCredits_2ba1();
     }
+
     //-------------------------------
     // 0664  21034e    ld      hl,#4e03
     // 0667  34        inc     (hl)
@@ -2827,10 +2453,37 @@ void initLeaveHouseCounters_083a(uint8_t *hl)
     /*  Leave home counter data, groups of 3 bytes */
 
     //-------------------------------
-    // 0843           14 1e 46 00 1e  3c 00 00 32 00 00 00 14
-    // 0850  0a 1e 0f 28 14 32 19 3c  1e 50 28 64 32 78 3c 8c
-    // 0860  46 c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78
-    // 0870  00 01 00 f0 00 f0 00 b4  00                    
+    // 0843  14 1e 46
+    // 0846  00 1e 3c
+    // 0849  00 00 32
+    // 084c  00 00 00
+    //-------------------------------
+
+    /*  Pills remaining before blinky goes cruise elroy (DIFF1 and DIFF2) */
+
+    //-------------------------------
+    // 084f  14 0a
+    // 0851  1e 0f
+    // 0853  28 14
+    // 0855  32 19
+    // 0857  3c 1e
+    // 0859  50 28
+    // 085b  64 32
+    // 085d  78 3c
+    // 085f  8c 46
+    //-------------------------------
+
+    /*  Time that ghosts remain edible - 16 bit values */
+
+    //-------------------------------
+    // 0861     c0 03 48 03 d0 02 58  02 e0 01 68 01 f0 00 78
+    // 0870  00 01 00
+    //-------------------------------
+
+    /*  Units for ghost leaving home timer.  16-bits */
+
+    //-------------------------------
+    // 0873  f0 00 f0 00 b4  00                    
     //-------------------------------
 
 /*  side-effect: Sets HL to 0x4e04 */
@@ -4813,6 +4466,7 @@ void selectFruit_0ead (void)
 
     /*  Fruit data.  3 byte sets contains sprite, colour and points */
 
+    //-------------------------------
     // 0efd                                          00 14 06
     // 0f00  01 0f 07 02 15 08 02 15  08 04 14 09 04 14 09 05
     // 0f10  17 0a 05 17 0a 06 09 0b  06 09 0b 03 16 0c 03 16
@@ -4830,6 +4484,7 @@ void selectFruit_0ead (void)
     // 0fd0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 0fe0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
     // 0ff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 48 36
+    //-------------------------------
 
 void resetFruit_1000 (void)
 {
@@ -7952,6 +7607,9 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     // 19f9  cafd19    jp      z,#19fd
     //-------------------------------
 
+    /*  Pill is 0x0 and powerup is 0x2.  Add 1 and double if powerup which
+     *  causes 1 cycle delay when eating a pill and 6 cycles when eating a
+     *  powerup */
     a++;
     if (a!= 1)
     {
@@ -8431,9 +8089,9 @@ void blinkyUpdateMovePat_1b36 (void)
         // 1ba2  34        inc     (hl)
         // 1ba3  c3d81b    jp      #1bd8
         //-------------------------------
-        rotate32 (&PACMAN_MOVE_PAT_DIFF2, 1);
+        rotate32 (&BLINKY_MOVE_PAT_DIFF2, 1);
 
-        if ((PACMAN_MOVE_PAT_DIFF2 & 0x10000) == 0)
+        if ((BLINKY_MOVE_PAT_DIFF2 & 0x10000) == 0)
             return;
     }
     else
@@ -8457,9 +8115,9 @@ void blinkyUpdateMovePat_1b36 (void)
             // 1bc0  34        inc     (hl)
             // 1bc1  c3d81b    jp      #1bd8
             //-------------------------------
-            rotate32 (&PACMAN_MOVE_PAT_DIFF1, 1);
+            rotate32 (&BLINKY_MOVE_PAT_DIFF1, 1);
 
-            if ((PACMAN_MOVE_PAT_DIFF1 & 0x10000) == 0)
+            if ((BLINKY_MOVE_PAT_DIFF1 & 0x10000) == 0)
                 return;
         }
         else
@@ -9925,32 +9583,32 @@ void scene1State0_211a (void)
     // 211d  d621      sub     #21
     // 211f  200f      jr      nz,#2130        ; (15)
     //-------------------------------
-    if (PACMAN_TILE2.x == 0x21)
+    if (PACMAN_TILE2.x != 0x21)
     {
-        //-------------------------------
-        // 2121  3c        inc     a
-        // 2122  32a04d    ld      (#4da0),a
-        // 2125  32b74d    ld      (#4db7),a
-        //-------------------------------
-        BLINKY_SUBSTATE = SUBSTATE_CHASE;
-        DIFF_FLAG_2 = 1;
-
-        //-------------------------------
-        // 2128  cd0605    call    #0506
-        // 212b  21064e    ld      hl,#4e06
-        // 212e  34        inc     (hl)
-        // 212f  c9        ret     
-        //-------------------------------
-        demoMazeHorizontal_0506 ();
-        SCENE1_STATE++;
+        updateMoveVectorPacmanBlinky_2130();
         return;
     }
 
-    updateMoveVectorPacmanBlinky_2130();
+    //-------------------------------
+    // 2121  3c        inc     a
+    // 2122  32a04d    ld      (#4da0),a
+    // 2125  32b74d    ld      (#4db7),a
+    // 2128  cd0605    call    #0506
+    //-------------------------------
+    BLINKY_SUBSTATE = SUBSTATE_CHASE;
+    DIFF_FLAG_2 = 1;
+    demoMazeHorizontal_0506 ();
+
+    incScene1State_212b ();
 }
 
 void incScene1State_212b (void)
 {
+    //-------------------------------
+    // 212b  21064e    ld      hl,#4e06
+    // 212e  34        inc     (hl)
+    // 212f  c9        ret     
+    //-------------------------------
     SCENE1_STATE++;
 }
 
@@ -10171,7 +9829,7 @@ void scene2State0_21c2 (uint16_t iy)
     //-------------------------------
     // 21df  180f      jr      #21f0           ; (15)
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State2_21e1(uint16_t iy)
@@ -10194,10 +9852,10 @@ void scene2State2_21e1(uint16_t iy)
     //-------------------------------
     BLINKY_SUBSTATE = 
     DIFF_FLAG_2 = 1;
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
-void incScene2State_212b (void)
+void incScene2State_21f0 (void)
 {
     //-------------------------------
     // 21f0  21074e    ld      hl,#4e07
@@ -10232,12 +9890,12 @@ void scene2State3_21f5 (uint16_t iy)
     // 2204  224e4d    ld      (#4d4e),hl
     // 2207  22504d    ld      (#4d50),hl
     //-------------------------------
-    PACMAN_MOVE_PAT_DIFF2 = 0x20842084;
+    BLINKY_MOVE_PAT_DIFF2 = 0x20842084;
 
     //-------------------------------
     // 220a  18e4      jr      #21f0           ; (-28)
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State4_220c (uint16_t iy)
@@ -10263,7 +9921,7 @@ void scene2State4_220c (uint16_t iy)
     //-------------------------------
     // 221c  18d2      jr      #21f0           ; (-46)
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State5_221e (uint16_t iy)
@@ -10293,7 +9951,7 @@ void scene2State5_221e (uint16_t iy)
     //-------------------------------
     // 2235  18b9      jr      #21f0           ; (-71)
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 /*  This is very simliar to 2136 but only updates blinky's move pattern once */
@@ -10336,7 +9994,7 @@ void scene2State6_2244 (uint16_t iy)
     MEM[iy+1] = 0x69;
     MEM[iy+0x20] = 0x6a;
     MEM[iy+0x21] = 0x6b;
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State7_225d (uint16_t iy)
@@ -10357,7 +10015,7 @@ void scene2State7_225d (uint16_t iy)
     // 2268  1886      jr      #21f0           ; (-122)
     //-------------------------------
     schedISRTask (0x4f, ISRTASK_INC_SCENE2_STATE, 0x00);
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State9_226a (uint16_t iy)
@@ -10389,7 +10047,7 @@ void scene2State9_226a (uint16_t iy)
     //-------------------------------
     // 2283  c3f021    jp      #21f0
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State11_2286 (uint16_t iy)
@@ -10403,7 +10061,7 @@ void scene2State11_2286 (uint16_t iy)
     //-------------------------------
     // 228a  c3f021    jp      #21f0
     //-------------------------------
-    incScene2State_212b();
+    incScene2State_21f0();
 }
 
 void scene2State13_228d (uint16_t iy)
@@ -14702,7 +14360,7 @@ void romChecksumBad_3031 (uint8_t h, uint8_t checksum)
     // 303f  c3bd30    jp      #30bd
     //-------------------------------
     printf ("ROM checksum fail\n");
-    testResultRamRom (h>>4, checksum, 0);
+    testResultRamRom_30bd (h>>4, checksum, 0);
 }
 
 /* RAM test (4c00) */
@@ -14924,7 +14582,7 @@ void ramTest_3042 (void)
     // 30b2  c3bd30    jp      #30bd
     //-------------------------------
     printf ("RAM test pass\n");
-    testResultRamRom ((de & 0xff), testValue, 1);
+    testResultRamRom_30bd ((de & 0xff), testValue, 1);
 }
 
 /* Display bad ram (?) */
@@ -14938,11 +14596,11 @@ void badRam_30b5 (uint8_t e, uint8_t c)
     // 30ba  5f        ld      e,a
     // 30bb  0600      ld      b,#00
     //-------------------------------
-    testResultRamRom ((e&1)^1, c, 0);
+    testResultRamRom_30bd ((e&1)^1, c, 0);
 }
 
 /* Display bad rom (?) */
-void testResultRamRom (int e, uint8_t checksum, int pass)
+void testResultRamRom_30bd (int e, uint8_t checksum, int pass)
 {
     printf ("Check RAM/ROM tests passed\n");
     //-------------------------------
@@ -15746,14 +15404,15 @@ void delay_32ed (void)
      *  through a shift register to control speed of movement.  So for example
      *  55555555 is move at half-speed, skipping a move every second frame.
      *
-     *  Pacman has 4 move registers (normal, poweredup, difficulty1 and
-     *  difficulty2) while ghosts have 3 (normal, edible and tunnel) */
+     *  Pacman has 2 move registers (normal, poweredup) while ghosts have 3
+     *  (normal, edible and tunnel) and blinky has an additional two
+     *  (difficulty1 and difficulty2) */
 
     //-------------------------------
     // 330f  55 2a 55 2a // pacman normal - 14 of 32 = 44%
     //       55 55 55 55 // pacman powered - 16 of 32 = 50%
-    //       55 2a 55 2a // difficulty2 - 14 if 32 = 44%
-    //       52 4a a5 94 // difficulty1 - 13 of 32 = 41%
+    //       55 2a 55 2a // blinky difficulty2 - 14 if 32 = 44%
+    //       52 4a a5 94 // blinky difficulty1 - 13 of 32 = 41%
     //       25 25 25 25 // ghost normal - 12 of 32 = 37.5%
     //       22 22 22 22 // ghost edible - 8 of 32 = 25%
     //       01 01 01 01 // ghost tunnel - 4 of 32 = 12.5%
@@ -15769,24 +15428,55 @@ void delay_32ed (void)
     /*  Next move pattern */
 
     //-------------------------------
-    // 3339                              52 4a a5 94 aa 2a 55
-    // 3340  55 55 2a 55 2a 52 4a a5  94 92 24 25 49 48 24 22
-    // 3350  91 01 01 01 01 00 00 00  00 00 00 00 00 00 00 00
-    // 3360  00 00 00 
-    // 3363           55 2a 55 2a 55  55 55 55 aa 2a 55 55 55
-    // 3370  2a 55 2a 52 4a a5 94 48  24 22 91 21 44 44 08 58
-    // 3380  02 34 08 d8 09 b4 0f 58  11 08 16 34 17
-    // 338d                                          55 55 55
-    // 3390  55 d5 6a d5 6a aa 6a 55  d5 55 55 55 55 aa 2a 55
-    // 33a0  55 92 24 92 24 22 22 22  22 a4 01 54 06 f8 07 a8
-    // 33b0  0c d4 0d 84 12 b0 13
-    // 33b7                       d5  6a d5 6a d6 5a ad b5 d6
-    // 33c0  5a ad b5 d5 6a d5 6a aa  6a 55 d5 92 24 25 49 48
-    // 33d0  24 22 91 a4 01 54 06 f8  07 a8 0c d4 0d fe ff ff
-    // 33e0  ff
-    // 33e1     6d 6d 6d 6d 6d 6d 6d  6d b6 6d 6d db 6d 6d 6d
-    // 33f0  6d d6 5a ad b5 25 25 25  25 92 24 92 24 2c 01 dc
-    // 3400  05 08 07 b8 0b e4 0c fe  ff ff ff
+    // 3339  52 4a a5 94
+    //       aa 2a 55 55
+    //       55 2a 55 2a
+    //       52 4a a5 94
+    //       92 24 25 49
+    //       48 24 22 91
+    //       01 01 01 01
+
+    //       00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+    //       55 2a 55 2a
+    //       55 55 55 55
+    //       aa 2a 55 55
+    //       55 2a 55 2a
+    //       52 4a a5 94
+    //       48 24 22 91
+    //       21 44 44 08
+
+    //       58 02 34 08 d8 09 b4 0f 58 11 08 16 34 17
+
+    //       55 55 55 55
+    //       d5 6a d5 6a
+    //       aa 6a 55 d5
+    //       55 55 55 55
+    //       aa 2a 55 55
+    //       92 24 92 24
+    //       22 22 22 22
+
+    //       a4 01 54 06 f8 07 a8 0c d4 0d 84 12 b0 13
+    // 33b7                       
+    //       d5 6a d5 6a
+    //       d6 5a ad b5
+    //       d6 5a ad b5
+    //       d5 6a d5 6a
+    //       aa 6a 55 d5
+    //       92 24 25 49
+    //       48 24 22 91
+
+    //       a4 01 54 06 f8 07 a8 0c d4 0d fe ff ff ff
+
+    // 33e1  6d 6d 6d 6d
+    //       6d 6d 6d 6d
+    //       b6 6d 6d db
+    //       6d 6d 6d 6d
+    //       d6 5a ad b5
+    //       25 25 25 25
+    //       92 24 92 24
+
+    //       2c 01 dc 05 08 07 b8 0b e4 0c fe  ff ff ff
 
     // 340b  d5 6a d5 6a // pacman normal - 18 of 32 = 56%
     // 340f  d5 6a d5 6a // pacman powered - 18
@@ -16471,16 +16161,28 @@ void madeByNamco_3af4 (void)
     // 3bb0  01 02 04 08 10 20 40 80
     //-------------------------------
 
-    /*  TODO frequency table */
+    /*  Frequency table */
     //-------------------------------
-    // 3bb8                           00 57 5c 61 67 6d 74 7b
+    // 3bb8  00 57 5c 61 67 6d 74 7b
     // 3bc0  82 8a 92 9a a3 ad b8 c3
     //-------------------------------
 
-    /*  TODO song tables */
+    /*  song table CH1 */
     //-------------------------------
-    // 3bc8                           d4 3b f3 3b 58 3c 95 3c
-    // 3bd0  de 3c df 3c 
+    // 3bc8  d4 3b
+    // 3bca  f3 3b
+    //-------------------------------
+
+    /*  song table CH2 */
+    //-------------------------------
+    // 3bcc  58 3c
+    // 3bce  95 3c
+    //-------------------------------
+
+    /*  song table CH3 */
+    //-------------------------------
+    // 3bd0  de 3c
+    // 3bd2  df 3c 
     //-------------------------------
 
 
@@ -16494,16 +16196,17 @@ void madeByNamco_3af4 (void)
         1f = (&1f) set dir
              (&e0) duration (pow 2)
              (&0f) freq table ix
-
-
      */
 
+    /*  song CH1, wave 1, start of game bass track */
     //-------------------------------
-    // 3bd4  f1 02 f2 03 f3 0f f4 01 82 70 69 82
-
+    // 3bd4              f1 02 f2 03  f3 0f f4 01 82 70 69 82
     // 3be0  70 69 83 70 6a 83 70 6a  82 70 69 82 70 69 89 8b
     // 3bf0  8d 8e ff
+    //-------------------------------
 
+    /*  song CH1, wave 2, cut scenes bass track */
+    //-------------------------------
     // 3bf3           f1 02 f2 03 f3  0f f4 01 67 50 30 47 30
     // 3c00  67 50 30 47 30 67 50 30  47 30 4b 10 4c 10 4d 10
     // 3c10  4e 10 67 50 30 47 30 67  50 30 47 30 67 50 30 47
@@ -16511,19 +16214,28 @@ void madeByNamco_3af4 (void)
     // 3c30  30 47 30 67 50 30 47 30  4b 10 4c 10 4d 10 4e 10
     // 3c40  77 20 4e 10 4d 10 4c 10  4a 10 47 10 46 10 65 30
     // 3c50  66 30 67 40 70 f0 fb 3b
+    //-------------------------------
 
+    /*  song CH2, wave 1, start of game treble track */
+    //-------------------------------
     // 3c58                           f1 00 f2 02 f3 0f f4 00
     // 3c60  42 50 4e 50 49 50 46 50  4e 49 70 66 70 43 50 4f
     // 3c70  50 4a 50 47 50 4f 4a 70  67 70 42 50 4e 50 49 50
     // 3c80  46 50 4e 49 70 66 70 45  46 47 50 47 48 49 50 49
     // 3c90  4a 4b 50 6e ff
+    //-------------------------------
 
+    /*  song CH2, wave 2, cut scenes treble track */
+    //-------------------------------
     // 3c95                 f1 01 f2  01 f3 0f f4 00 26 67 26
     // 3ca0  67 26 67 23 44 42 47 30  67 2a 8b 70 26 67 26 67
     // 3cb0  26 67 23 44 42 47 30 67  23 84 70 26 67 26 67 26
     // 3cc0  67 23 44 42 47 30 67 29  6a 2b 6c 30 2c 6d 40 2b
     // 3cd0  6c 29 6a 67 20 29 6a 40  26 87 70 f0 9d 3c
+    //-------------------------------
 
+    /*  song CH3, not used */
+    //-------------------------------
     // 3cde  00
     // 3cdf  00
     // 3ce0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
