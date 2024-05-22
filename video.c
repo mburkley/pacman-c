@@ -71,7 +71,7 @@ static pixel *frameBuffer;
 static int frameBufferXSize;
 static int frameBufferYSize;
 static int frameBufferScale;
-static bool drawTargetEnable = false;
+bool drawTargetEnable = false;
 
 /*  Raw plot, doesn't do any scaling, expects absolute coords */
 static void videoPlotRaw (int x, int y, pixel p)

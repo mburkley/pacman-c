@@ -72,8 +72,8 @@ int main (int argc, char *argv[])
     IO_INPUT0 = 0xef;
     IO_INPUT1 = 0x6f;
     IO_INPUT0 |= 0x10; // remove for rack advance
-     IO_INPUT1 |= 0x10; // remove for service
-    IO_INPUT1 |= 0x80; // upright mode, remove for cabinet
+    IO_INPUT1 |= 0x10; // remove for service mode
+    IO_INPUT1 |= 0x80; // upright mode, remove for cocktail mode
     // DIP_INPUT = 0xff; default, 5 lives, 2 coins per game, etc
     DIP_INPUT = 0x49; 
     DIP_INPUT |= 0x80; // remove for alt names
@@ -81,22 +81,11 @@ int main (int argc, char *argv[])
     if (argc > 1)
         DIP_INPUT = atoi (argv[1]);
 
-    void reset_0000 (void);
-    videoInit (3);
+    videoInit (3); // scale is 3 x 3
     soundInit ();
-    keyboardInit (&paused);
+    keyboardInit ();
 
-    #if 1
+    void reset_0000 (void);
     reset_0000 ();
-    #else
-
-    /*  Test code to display all chars (or all sprites) on screen */
-    for (int i = 0; i < 0x400; i++)
-        COLOUR[i]=1;
-    for (int i = 0; i < 0x400; i++)
-        SCREEN[i]=i;
-    memcpy (&charset[0x0000], rom_pacman_5f, 0x1000);
-    usleep (100000000);
-    #endif
 }
 

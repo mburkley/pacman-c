@@ -33,6 +33,7 @@
 #include "structs.h"
 
 static void (*intVector) (void);
+bool cpuPaused;
 
 void interruptEnable ()
 {
@@ -46,19 +47,19 @@ void interruptMode (int mode)
 {
 }
 
-extern bool paused;
-/*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
-    usleep(16667);
     static bool inInterrupt;
-    if (!inInterrupt && !paused && intVector)
+
+    /*  TODO pend on cond var set by video or use a timer */
+    usleep(16667); // 60 Hz
+
+    if (!inInterrupt && !cpuPaused && intVector)
     {
         inInterrupt = true;
         intVector();
     }
     inInterrupt = false;
-    // kbdPoll(&paused);
 
     printf ("sprite-at: ");
     for (int i = 0; i < 16; i++)

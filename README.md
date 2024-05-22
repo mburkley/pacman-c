@@ -9,12 +9,6 @@ This project does not include original ROM files although they are required.
 You will need to download them from somewhere else.  The code itself is a
 derived work from the original (a translation).
 
-build
-=====
-Builds under debian / ubuntu Linux.  Should build under other distros too but
-hasn't been tested.  Uses the "glut" and "pulse[-simple]" libraries to provide video
-using openGL and audio using pulseaudio.
-
 Goals
 =====
 Create a full functional working version of pacman that behaves identically to
@@ -24,6 +18,21 @@ C instead of emulated Z80.
 Why?  To gain understanding of the original game mostly.  Being able to add
 printfs has been very useful.  Also I can use gdb to examine and modify RAM
 locations.
+
+build
+=====
+Builds under debian / ubuntu Linux.  Should build under other distros too but
+hasn't been tested.  Uses the "glut" and "pulse[-simple]" libraries to provide video
+using openGL and audio using pulseaudio.
+
+Keys
+====
+Numeric keypad = up,down,left,right
+5 = add coin
+1 = 1 player start
+2 = 2 player start
+P = pause
+D = draw vectors showing ghost and pacman targets
 
 Notes
 =====

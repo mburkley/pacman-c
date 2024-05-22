@@ -45,6 +45,9 @@ static char keyboardDevice[256];
 // static bool keyboardThreadRunning = false;
 static pthread_t thKeyboardThread;
 
+extern bool cpuPaused;
+extern bool drawTargetEnable;
+
 static struct _keyCode
 {
     int code;
@@ -80,7 +83,7 @@ static void keyboardReopen (void)
     }
 }
 
-static void decodeEvent (struct input_event ev, bool *paused)
+static void decodeEvent (struct input_event ev)
 {
     int i;
     bool mapped = false;
@@ -89,7 +92,13 @@ static void decodeEvent (struct input_event ev, bool *paused)
     {
         if (ev.code == 25 && ev.value != 0)
         {
-            *paused = !*paused;
+            cpuPaused = !cpuPaused;
+            return;
+        }
+
+        if (ev.code == 32 && ev.value != 0)
+        {
+            drawTargetEnable = !drawTargetEnable;
             return;
         }
 
@@ -184,50 +193,34 @@ void keyboardFindInputDevice (void)
 
 static void *keyboardThread (void *arg)
 {
-    bool *paused = (bool *) arg;
     struct input_event ev;
-    // struct pollfd pfds[2];
     int n;
-    // int ret;
 
-#if 0
-    pfds[0].fd = 0;
-    pfds[0].events = POLLIN;
-    pfds[1].fd = keyboardFd;
-    pfds[1].events = POLLIN;
-    ret = poll(pfds, 2, 0);
-
-    if (ret < 1)
-        return;
-
-    if (!(pfds[1].revents & POLLIN))
-        return;
-#endif
-while (1)
-{
-    n = read (keyboardFd, &ev, sizeof (ev));
-
-    if (n < 0)
+    while (1)
     {
-        printf ("problem reading from device %s: %s\n",
-                keyboardDevice, strerror (errno));
-        keyboardReopen ();
-        return NULL;
+        n = read (keyboardFd, &ev, sizeof (ev));
+
+        if (n < 0)
+        {
+            printf ("problem reading from device %s: %s\n",
+                    keyboardDevice, strerror (errno));
+            keyboardReopen ();
+            return NULL;
+        }
+
+        if (n < (int) sizeof (ev))
+        {
+            printf ("Partial read of HID device, got %d / %lu bytes ", n,
+              sizeof (struct input_event));
+            return NULL;
+        }
+
+        decodeEvent (ev);
     }
 
-    if (n < (int) sizeof (ev))
-    {
-        printf ("Partial read of HID device, got %d / %lu bytes ", n,
-          sizeof (struct input_event));
-        return NULL;
-    }
-
-    decodeEvent (ev, paused);
-}
-return NULL;
+    return NULL;
 }
 
-#if 0
 void keyboardClose (void)
 {
     if (keyboardFd != -1)
@@ -237,9 +230,8 @@ void keyboardClose (void)
         keyboardFd = -1;
     }
 }
-#endif
 
-void keyboardInit (bool *paused)
+void keyboardInit (void)
 {
     keyboardFindInputDevice ();
 
@@ -248,7 +240,7 @@ void keyboardInit (bool *paused)
 
     printf ("%s dev %s opened as fd %d\n", __func__, keyboardDevice, keyboardFd);
 
-    if (pthread_create (&thKeyboardThread, NULL, keyboardThread, paused) != 0)
+    if (pthread_create (&thKeyboardThread, NULL, keyboardThread, NULL) != 0)
     {
         fprintf (stderr, "!! keyboard thread\n");
         exit (1);
