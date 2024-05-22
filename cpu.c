@@ -46,7 +46,7 @@ void interruptMode (int mode)
 {
 }
 
-static bool paused;
+extern bool paused;
 /*  TODO pend on cond var set up interrupt */
 void interruptHalt (void)
 {
@@ -58,7 +58,7 @@ void interruptHalt (void)
         intVector();
     }
     inInterrupt = false;
-    kbdPoll(&paused);
+    // kbdPoll(&paused);
 
     printf ("sprite-at: ");
     for (int i = 0; i < 16; i++)

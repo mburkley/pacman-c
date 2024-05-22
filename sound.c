@@ -30,70 +30,56 @@
 
 #include "memmap.h"
 
+/* TODO is audio rom 1 needed?  Highest waveform (32B) I've seen is 6 */
+
 #include "82s126.1m.h"  // audio rom 0
 #include "82s126.3m.h"  // audio rom 1
 
 uint8_t soundRom[0x200];
 
-/*  The frequency at which we are playing samples to pulse audio
- */
-#define AUDIO_FREQUENCY 48000
+/*  The frequency at which we are playing samples to pulse audio */
+#define AUDIO_FREQUENCY 96000
 
-/* At 44,100Hz we need to generate 480 samples per call as we are called every
- * 20msec.
- */
-#define SAMPLE_COUNT 480
-
-/*  Move to memmap? */
-typedef struct
-{
-    uint8_t v1FreqCount[5];             // 0x5040
-    uint8_t v1WaveForm;                 // 0x5045
-    uint8_t v2FreqCount[4];             // 0x5046
-    uint8_t v2WaveForm;                 // 0x504a
-    uint8_t v3FreqCount[4];             // 0x504b
-    uint8_t v3WaveForm;                 // 0x504f
-    uint8_t v1Frequency[5];             // 0x5050
-    uint8_t v1Volume;                   // 0x5055
-    uint8_t v2Frequency[4];             // 0x5056
-    uint8_t v2Volume;                   // 0x505a
-    uint8_t v3Frequency[4];             // 0x505b
-    uint8_t v3Volume;                   // 0x505f
-}
-SOUNDREGS;
+/* Generate 10ms of samples at a time */
+#define SAMPLE_COUNT (AUDIO_FREQUENCY / 100)
 
 static short generateTone (uint8_t *freqCountPtr, uint8_t *freqPtr, uint8_t volume,
-uint8_t waveForm, int bytes)
+                           uint8_t waveForm, int bytes)
 {
     short sample;
     int freq = 0;
     int freqCounter = 0;
 
-    /*  Right shift nybbles into a 16 or 20 bit word */
-    for (int i = 0; i < 5; i++)
+    /*  Shift nybbles into a 16 or 20 bit word */
+    for (int i = bytes - 1; i >= 0; i--)
     {
-        freq >>= 4;
-        freqCounter >>= 4;
+        freq <<= 4;
+        freqCounter <<= 4;
 
-        if (i < bytes)
-        {
-            freq |= (freqPtr[i] & 0xf) << 16;
-            freqCounter |= (freqCountPtr[i] & 0xf) << 16;
-        }
+        freq |= (freqPtr[i] & 0xf);
+        freqCounter |= (freqCountPtr[i] & 0xf);
     }
 
     freqCounter += freq;
-    freqCounter &= 0xfffff;
 
-    /*  soundRom has 512 bytes.  32B x 16 */
-    waveForm&=0xf;
-    sample = soundRom[(freqCounter>>15) | (waveForm << 5)];
+    /* soundRom has 512 bytes: 2 x 256 = 32 x 16 waveforms */
+    waveForm &= 0xf;
 
-    for (int i = 0; i < 5; i++)
+    /*  Fetch the highest 5 bits of the 16 or 20 bit freq counter */
+    int ix;
+    if (bytes == 5)
+        ix = (freqCounter>>15) & 0x1f;
+    else
+        ix = (freqCounter>>11) & 0x1f;
+
+    /*  Select the waveform */
+    ix |= (waveForm << 5);
+
+    sample = soundRom[ix];
+
+    for (int i = 0; i < bytes; i++)
     {
-        if (bytes == 5 || i > 0)
-            freqCountPtr[i] = freqCounter & 0xf;
-
+        freqCountPtr[i] = freqCounter & 0xf;
         freqCounter >>= 4;
     }
 
@@ -102,8 +88,8 @@ uint8_t waveForm, int bytes)
     return sample; //  * 72 - 8192;
 }
 
-#define TEST_SMP 192 // generate a 250hz wave (48khz => 192 samples)
-#define TEST_AMP 128 // 128 / 32768 = 1/2^8 = -24dB ?
+#define TEST_SMP 1600 // generate a 60hz wave @ 96kHz
+#define TEST_AMP 32 // 32 / 32768 = 1/2^10 = -30dB 
 static short testWave (void)
 {
     static int counter;
@@ -129,16 +115,10 @@ static short generateSample (void)
     return sample;
 }
 
-static void dump16 (uint8_t *data)
-{
-    for (int i = 0; i < 16; i++)
-        printf ("%02x ", data[i]);
-}
-
 /*  Every 10 msec, generate data to feed pulse audio device using a combination
  *  from currently active tone and noise generators.
  */
-static bool soundUpdate (pa_simple *pulseAudioHandle)
+static void soundUpdate (pa_simple *pulseAudioHandle)
 {
     int i;
 
@@ -146,14 +126,11 @@ static bool soundUpdate (pa_simple *pulseAudioHandle)
      *  signed 16-bit so for one channels we have 2 bytes for sample.
      */
     int16_t sampleData[SAMPLE_COUNT];
-    printf ("%s AUDX REG= ", __func__); dump16 (&SOUND[16]); printf ("\n");
 
     for (i = 0; i < SAMPLE_COUNT; i++)
         sampleData[i] = generateSample ();
 
     pa_simple_write (pulseAudioHandle, sampleData, 2*SAMPLE_COUNT, NULL);
-
-    return true;
 }
 
 static bool soundThreadRunning = false;
@@ -164,14 +141,10 @@ static void *soundThread (void *arg)
     pa_simple *pulseAudioHandle = (pa_simple*) arg;
 
     while (soundThreadRunning)
-    {
-        if (!soundUpdate (pulseAudioHandle))
-            usleep (10000);
-    }
+        soundUpdate (pulseAudioHandle);
 
     return NULL;
 }
-
 
 void soundInit (void)
 {
@@ -216,5 +189,4 @@ void soundClose (void)
     soundThreadRunning = false;
     pthread_join (audioThread, NULL);
 }
-
 

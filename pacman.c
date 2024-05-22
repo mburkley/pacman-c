@@ -340,7 +340,7 @@ int drawDigit_2ace(uint16_t *screenLoc, int digit, int blanks);
 uint16_t displayLives_2b4a (int lives);
 void fruitHistoryLevelHigherThan8_2c2e (int level);
 uint8_t soundEffectOneChannel_2dee (SOUND_EFFECT *effect, uint8_t *frequency,
-uint8_t *table, int chan);
+                                    uint8_t *table, int chan);
 void func_2dd7 (void);
 uint8_t frequencyWithVolume_2ee8 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue);
 uint8_t soundEffectDoNothing_2f4a (SOUND_EFFECT *effect);
@@ -718,6 +718,7 @@ void isr_008d (void)
         a = CH3_SOUND_EFFECT->selected;
 
     SOUND[0xf] = a; // voice 3 wave form
+    printf ("AUD w1=%02x w2=%02x w3=%02x\n", SOUND[5], SOUND[10], SOUND[15]);
 
     //-------------------------------
     // 00d5  21024c    ld      hl,#4c02
@@ -1513,7 +1514,7 @@ void twoUp_0376 (uint8_t *iy)
     //-------------------------------
     *iy = 0x50;
     *(iy+1) = 0x55;
-    *(iy+2) = 0x31;
+    *(iy+2) = 0x32;
 }
 
 void oneBlank_0383 (uint8_t *ix)
@@ -3262,7 +3263,7 @@ void playGameSoundOff_09d8 (void)
     // 09e4  32bc4e    ld      (#4ebc),a
     // 09e7  c9        ret     
     //-------------------------------
-    CH2_SOUND_EFFECT->mask = 
+    CH2_SOUND_EFFECT->mask = 0;
     CH3_SOUND_EFFECT->mask = 0;
 }
 
@@ -3403,7 +3404,7 @@ void nextLevelStateMachine_0a2c (void)
     // 0a2d  32ac4e    ld      (#4eac),a
     // 0a30  32bc4e    ld      (#4ebc),a
     //-------------------------------
-    CH2_SOUND_EFFECT->mask = 
+    CH2_SOUND_EFFECT->mask = 0;
     CH3_SOUND_EFFECT->mask = 0;
 
     //-------------------------------
@@ -7175,12 +7176,6 @@ void pacmanGhostCoincide_1763 (int b)
     CH3_SOUND_EFFECT->mask |= 0x8;
 }
 
-/*  TODO I don't understand how this function works.  Just comparing x and y
- *  differences to 4 and jumping if there is a carry will cause a false detetion
- *  of pacman eatng a ghost any time he is to the upper left of the ghost??? 
- *
- *  Disabled for now.  Seems redundant anyway? */
-
 void pacmanCheckEatGhost_1789 (void)
 {
     //-------------------------------
@@ -7199,7 +7194,6 @@ void pacmanCheckEatGhost_1789 (void)
     if (PACMAN_POWEREDUP == 0)
         return;
 
-// return;
     //-------------------------------
     // 1793  0e04      ld      c,#04
     // 1795  0604      ld      b,#04
@@ -13489,7 +13483,7 @@ void displayMsg_2c5e (int b)
     uint16_t hl = tableLookup_0018 (DATA_MSG_TABLE, b);
     int16_t de = *(int16_t*)(&ROM[hl]);
     uint8_t *chr = &ROM[hl+1];
-    printf ("%s msg = %02x -> %x -> %x \n", __func__, b, hl, de);
+    // printf ("%s msg = %02x -> %x -> %x \n", __func__, b, hl, de);
 
     /* TODO if the msg starts with 0x4d, 0x83, then what prevents the video
      * address from being c74d ???? */
@@ -13546,8 +13540,8 @@ void displayMsg_2c5e (int b)
             // 2c8d  dd19      add     ix,de		; Calc next VRAM pos
             // 2c8f  04        inc     b		; Inc char count
             //-------------------------------
-            printf ("%s normal %04lx => [%04lx]='%c', move %d\n", __func__,
-                    chr-MEM, video-MEM, *chr, de);
+            // printf ("%s normal %04lx => [%04lx]='%c', move %d\n", __func__,
+            //         chr-MEM, video-MEM, *chr, de);
             *video = *chr++;
             video += de;
             bc++;
@@ -13579,8 +13573,8 @@ jump_2c93:
                 // 2c9e  23        inc     hl		; Next color 
                 // 2c9f  dd19      add     ix,de		; Calc next CRAM pos
                 //-------------------------------
-                printf ("%s multi-colour [%04lx] => [%04lx]=%02x, move %d\n", __func__, 
-                        chr-MEM, colour-MEM, *chr, de);
+                // printf ("%s multi-colour [%04lx] => [%04lx]=%02x, move %d\n", __func__, 
+                //         chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr++;
                 colour += de;
 
@@ -13603,8 +13597,8 @@ jump_2c93:
                 // 2ca9  10f9      djnz    #2ca4           ; Loop until b = 0
                 // 2cab  c9        ret     
                 //-------------------------------
-                printf ("%s single-colour [%04lx] => [%04lx]=%02x, move %d\n",
-                        __func__, chr-MEM, colour-MEM, *chr, de);
+                // printf ("%s single-colour [%04lx] => [%04lx]=%02x, move %d\n",
+                //         __func__, chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr;
                 colour += de;
             }
@@ -13629,7 +13623,7 @@ jump_2c93:
             // 2cb6  dd19      add     ix,de		; Next screen pos
             // 2cb8  04        inc     b		; Inc char count  
             //-------------------------------
-            printf ("%s blank [%04lx]=0x40, move %d\n", __func__, video-MEM, de);
+            // printf ("%s blank [%04lx]=0x40, move %d\n", __func__, video-MEM, de);
             *video = 0x40;
             chr++;
             video += de;
@@ -13654,7 +13648,7 @@ jump_2c93:
         bc++;
         while (*chr != 0x2f && bc > 0)
         {
-            printf ("%s skip [%04lX] count=%d\n", __func__, chr-MEM, bc);
+            // printf ("%s skip [%04lX] count=%d\n", __func__, chr-MEM, bc);
             chr++;
             bc--;
         }
@@ -13793,9 +13787,9 @@ uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8
     // 2d4e  1e80      ld      e,#80
     //-------------------------------
     printf ("%s process mask %02x\n", __func__, effect->mask);
-    uint8_t e = 0x80;
-    int b;
-    for (b = 8; b > 0; b--)
+    uint8_t mask = 0x80;
+    int bit;
+    for (bit = 8; bit > 0; bit--)
     {
         //-------------------------------
         // 2d50  7b        ld      a,e
@@ -13805,16 +13799,16 @@ uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8
         // 2d56  10f8      djnz    #2d50           ; (-8)
         //-------------------------------
 
-        if ((effect->mask & e) != 0)
+        if ((effect->mask & mask) != 0)
             break;
 
-        e >>= 1;
+        mask >>= 1;
     }
 
     //-------------------------------
     // 2d58  c9        ret     
     //-------------------------------
-    if (b == 0)
+    if (bit == 0)
         return 0;
 
     //-------------------------------
@@ -13823,20 +13817,20 @@ uint8_t playSongOneChannel_2d44 (SOUND_EFFECT *effect, uint8_t *frequency, uint8
     // 2d5d  2007      jr      nz,#2d66        ; (7)
     //-------------------------------
     uint16_t addr;
-    if ((effect->current & e) == 0)
+    if ((effect->current & mask) == 0)
     {
         //-------------------------------
         // 2d5f  dd7302    ld      (ix+#02),e
         // 2d62  05        dec     b
         //-------------------------------
-        effect->current = e;
+        effect->current = mask;
         printf ("%s new note %02x\n", __func__, effect->current);
-        b--;
+        bit--;
         //-------------------------------
         // 2d63  df        rst     #18
         // 2d64  180c      jr      #2d72
         //-------------------------------
-        addr = tableLookup_0018 (table, b);
+        addr = tableLookup_0018 (table, bit);
         printf ("%s fetched addr %04x\n", __func__, addr);
     }
     else
@@ -14060,6 +14054,8 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
     // 2e1c  0608      ld      b,#08
     // 2e1e  1e80      ld      e,#80
     //-------------------------------
+
+    /*  Find the highest bit set in the sound effect mask */
     printf ("\n%s EFF BEGIN ch=%d mask %02x\n", __func__,
             chan, effect->mask);
     uint8_t mask = 0x80;
@@ -14080,8 +14076,8 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
         mask >>= 1;
     }
 
+    /*  No bits set, this channel is quiet */
     if (bit == 0)
-        // return e << 1;
         return 0;
  
     //-------------------------------
@@ -14089,6 +14085,8 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
     // 2e2c  a3        and     e
     // 2e2d  203f      jr      nz,#2e6e        ; (63)
     //-------------------------------
+
+    /*  Check if the bit found is already being played or not.  */
     if ((effect->current & mask) == 0)
     {
         //-------------------------------
@@ -14103,6 +14101,11 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
         // 2e3a  e5        push    hl
         // 2e3b  09        add     hl,bc
         //-------------------------------
+
+        /*  This effect is not yet being played.  Set the current to be the mask
+         *  corresponding to this effect.  Lookup the table based on the bit
+         *  number times 8.  Note var table is not used again in this function
+         *  so we can ignore the "pop hl" to restore table */
         effect->current = mask;
         printf ("%s EFF new effect %02x\n", __func__, effect->current);
         table += (bit - 1) * 8;
@@ -14116,6 +14119,8 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
         // 2e42  010800    ld      bc,#0008
         // 2e45  edb0      ldir    
         //-------------------------------
+
+        /*  effect + 3 is effect->selected so inc de x 3 selects this element */
         memcpy (&effect->selected, table, 8);
         printf ("%s EFF memcpy %04lx sel=%02x fri=%02x frd=%d off=%02x%02x "
                 "repeat=%02x volinit=%d vold=%d\n",
@@ -14193,6 +14198,8 @@ uint8_t soundEffectProcess_2e1b (SOUND_EFFECT *effect, uint8_t *frequency,
         // 2e83  dd7700    ld      (ix+#00),a
         // 2e86  c3ee2d    jp      #2dee
         //-------------------------------
+        /*  A repeat counter is set.  Call the function again.  This causes
+         *  recursion but it is limited so it's acceptable */
         printf ("%s EFF repeat is %d, clear %02x\n", __func__, effect->repeat,
         mask);
         effect->mask &= ~mask;
@@ -14292,7 +14299,8 @@ jump_2ecd:
         return frequencyWithVolume_2ee8 (effect, frequency, effect->frequency);
     else
         return frequencyScaledWithVolume_2ee4 (effect, frequency,
-                                              effect->frequency, effect->selected >> 4);
+                                              effect->frequency,
+                                              (effect->selected & 0x70) >> 4);
 }
 
 uint8_t frequencyScaledWithVolume_2ee4 (SOUND_EFFECT *effect, uint8_t *frequency, uint16_t frequencyValue, uint8_t scale)
@@ -14303,9 +14311,7 @@ uint8_t frequencyScaledWithVolume_2ee4 (SOUND_EFFECT *effect, uint8_t *frequency
     // 2ee6  10fd      djnz    #2ee5           ; (-3)
     //-------------------------------
     printf ("%s EFF scale freq by %d from %d to %d\n", __func__, scale,
-    frequencyValue, frequencyValue<<scale);
-    // while (scale--)
-    //     frequencyValue *= 2;
+            frequencyValue, frequencyValue<<scale);
     frequencyValue <<= scale;
 
     return frequencyWithVolume_2ee8 (effect, frequency, frequencyValue);
@@ -14365,7 +14371,7 @@ uint8_t frequencyWithVolume_2ee8 (SOUND_EFFECT *effect, uint8_t *frequency, uint
         soundEffectDoNothing_2f4a
     };
     int vol = func[effect->type] (effect);
-    printf ("%s volume-effect %d freq %d ret vol %d\n", __func__, effect->type,
+    printf ("%s EFF volume-effect %d freq %d ret vol %d\n", __func__, effect->type,
         frequencyValue, vol);
     return vol;
 }
@@ -15159,7 +15165,7 @@ void badRomOrRamMessage_30fb (int e, int h, uint8_t checksum)
     // 3170  4156				; A V -> BAD V RAM 
     // 3172  4143				; A C -> BAD C RAM 
     //-------------------------------
-/* Start the game ?!?!? */
+
 void serviceModeOrStartGame_3174 (void)
 {
     //-------------------------------
@@ -15176,36 +15182,43 @@ void serviceModeOrStartGame_3174 (void)
     P1START = 
     P2START = 
     COINLOCKOUT = 1;
+
     //-------------------------------
     // 317d  af        xor     a		; 0x00->a
     // 317e  320350    ld      (#5003),a	; unflip screen
     //-------------------------------
     FLIPSCREEN = 0;
+
     //-------------------------------
     // 3181  d604      sub     #04		; 0xfc->a
     // 3183  d300      out     (#00),a		; set vector
     //-------------------------------
     interruptVector (isr_008d);
+
     //-------------------------------
     // 3185  31c04f    ld      sp,#4fc0
     //-------------------------------
 
     do
     {
+        printf ("service loop\n");
         //-------------------------------
         // 3188  32c050    ld      (#50c0),a	; Kick the dog
         //-------------------------------
         kickWatchdog();
+
         //-------------------------------
         // 318b  af        xor     a		; 0x00->a
         // 318c  32004e    ld      (#4e00),a
         //-------------------------------
         MAIN_STATE = MAIN_STATE_INIT;
+
         //-------------------------------
         // 318f  3c        inc     a		; 0x01->a
         // 3190  32014e    ld      (#4e01),a
         //-------------------------------
         RESET_STATE = RESET_STATE_DONE;
+
         //-------------------------------
         // 3193  320050    ld      (#5000),a	; enable interrupts
         // 3196  fb        ei			; enable interrupts
@@ -15227,6 +15240,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31a0  3e02      ld      a,#02
             // 31a2  329c4e    ld      (#4e9c),a	; Choose sound 2
             //-------------------------------
+            printf ("SRV play eff 2\n");
             CH1_SOUND_EFFECT->mask = 2;
         }
 
@@ -15243,6 +15257,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31ae  3e01      ld      a,#01
             // 31b0  329c4e    ld      (#4e9c),a	; Choose sound 1
             //-------------------------------
+            printf ("SRV play eff 1\n");
             CH1_SOUND_EFFECT->mask = 1;
         }
 
@@ -15258,6 +15273,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31b9  3e08      ld      a,#08
             // 31bb  32bc4e    ld      (#4ebc),a	; Choose sound 8
             //-------------------------------
+            printf ("SRV play eff 8\n");
             CH3_SOUND_EFFECT->mask = 8;
         }
 
@@ -15273,6 +15289,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31c4  3e04      ld      a,#04
             // 31c6  32bc4e    ld      (#4ebc),a	; Choose sound 4
             //-------------------------------
+            printf ("SRV play eff 4\n");
             CH3_SOUND_EFFECT->mask = 4;
         }
 
@@ -15288,6 +15305,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31cf  3e10      ld      a,#10
             // 31d1  32bc4e    ld      (#4ebc),a	; Choose sound 16
             //-------------------------------
+            printf ("SRV play eff 16\n");
             CH3_SOUND_EFFECT->mask = 0x10;
         }
 
@@ -15303,6 +15321,7 @@ void serviceModeOrStartGame_3174 (void)
             // 31da  3e20      ld      a,#20
             // 31dc  32bc4e    ld      (#4ebc),a	; Choose sound 32
             //-------------------------------
+            printf ("SRV play eff 32\n");
             CH3_SOUND_EFFECT->mask = 0x20;
         }
 
@@ -15360,6 +15379,7 @@ void serviceModeOrStartGame_3174 (void)
             // 3214  322a42    ld      (#422a),a
             //-------------------------------
             SCREEN[0x22a] = DATA_32f9[DIP_SWITCH_BONUS];
+
             //-------------------------------
             // 3217  23        inc     hl
             // 3218  7e        ld      a,(hl)
@@ -15382,18 +15402,20 @@ void serviceModeOrStartGame_3174 (void)
         //-------------------------------
 
         /* DIP switches = 3 means 5-lives so add 1 */
-
         if (a == 0x34)
             a++;
+
         //-------------------------------
         // 322a  320c42    ld      (#420c),a
         //-------------------------------
         SCREEN[0x20c] = a;
+
         //-------------------------------
         // 322d  0629      ld      b,#29
         // 322f  cd5e2c    call    #2c5e
         //-------------------------------
         displayMsg_2c5e (MSG_PACMAN);
+        
         //-------------------------------
         // 3232  3a4050    ld      a,(#5040)
         // 3235  07        rlca    
@@ -15402,17 +15424,19 @@ void serviceModeOrStartGame_3174 (void)
         // 323a  47        ld      b,a
         // 323b  cd5e2c    call    #2c5e
         //-------------------------------
-        displayMsg_2c5e (((IN1_CABINET == 0) ? 1 : 0) + MSG_TABLE);
-        printf ("ret from dsp msg TABLE\n");
+
+        /*  Display "TABLE" or "UPRIGHT" */
+        displayMsg_2c5e (((IN1_CABINET == 0) ? 0 : 1) + MSG_TABLE);
+
         //-------------------------------
         // 323e  3a4050    ld      a,(#5040)
         // 3241  e610      and     #10
         // 3243  ca8831    jp      z,#3188
         //-------------------------------
-        usleep (500000);  // Allow user to see test progress
+        // usleep (500000);  // Allow user to see test progress
+        interruptHalt();
     }
     while (IN1_SERVICE == 0);
-    printf ("service loop done\n");
 
     //-------------------------------
     // 3246  af        xor     a
@@ -15459,7 +15483,7 @@ void serviceModeOrStartGame_3174 (void)
             //-------------------------------
             kickWatchdog();
             uint16_t bc = *stackData++;
-        printf ("%s hl = %4x de=%04x, bc=%04x\n", __func__, hl, de, bc);
+            printf ("%s hl = %4x de=%04x, bc=%04x\n", __func__, hl, de, bc);
 
             // for (int i = 0; i < (bc >> 8); i++)
             for (int i = 0; i < 0x10; i++)
@@ -16413,11 +16437,11 @@ void madeByNamco_3af4 (void)
 
     /*  Sound effects.  16 groups of 8 bytes.  bytes are:
      *   0 - select  high nybble is frequency scale (<<) for effects
-     *   1 - tbd4
+     *   1 - initial frequency
      *   2 - freq delta 
      *   3 - offset Lo
      *   4 - offset Hi
-     *   5 - tbd8
+     *   5 - repeat count
      *   6 - initial volume (0 to f) or'd with effect type << 4
      *   7 - volume delta
      */

@@ -39,8 +39,11 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-static int kbdFd;
-static char kbdDevice[256];
+static int keyboardFd;
+static char keyboardDevice[256];
+
+// static bool keyboardThreadRunning = false;
+static pthread_t thKeyboardThread;
 
 static struct _keyCode
 {
@@ -61,17 +64,17 @@ keyCode[] =
 
 #define NUM_KEY 7
 
-static void kbdReopen (void)
+static void keyboardReopen (void)
 {
-    if (kbdFd != -1)
-        close (kbdFd);
+    if (keyboardFd != -1)
+        close (keyboardFd);
 
-    kbdFd = open (kbdDevice, O_RDONLY);
+    keyboardFd = open (keyboardDevice, O_RDONLY);
 
-    if (kbdFd == -1)
+    if (keyboardFd == -1)
     {
         printf ("%s failed to open device %s error %s\n", __func__,
-              kbdDevice, strerror (errno));
+              keyboardDevice, strerror (errno));
         fprintf (stderr, "!! check keyboard input device");
         exit(1);
     }
@@ -118,7 +121,7 @@ static void decodeEvent (struct input_event ev, bool *paused)
 #define HANDLERS "H: Handlers="
 #define EVENTS "B: EV="
 
-void kbdFindInputDevice (void)
+void keyboardFindInputDevice (void)
 {
     FILE *fp;
     unsigned events = 0;
@@ -164,8 +167,8 @@ void kbdFindInputDevice (void)
     {
         if (!strncmp (tok, "event", 5))
         {
-            sprintf (kbdDevice, "/dev/input/%s", tok);
-            printf ("Found kbd input dev %s\n", kbdDevice);
+            sprintf (keyboardDevice, "/dev/input/%s", tok);
+            printf ("Found keyboard input dev %s\n", keyboardDevice);
             found = true;
         }
 
@@ -179,16 +182,18 @@ void kbdFindInputDevice (void)
     }
 }
 
-void kbdPoll (bool *paused)
+static void *keyboardThread (void *arg)
 {
+    bool *paused = (bool *) arg;
     struct input_event ev;
-    struct pollfd pfds[2];
+    // struct pollfd pfds[2];
     int n;
-    int ret;
+    // int ret;
 
+#if 0
     pfds[0].fd = 0;
     pfds[0].events = POLLIN;
-    pfds[1].fd = kbdFd;
+    pfds[1].fd = keyboardFd;
     pfds[1].events = POLLIN;
     ret = poll(pfds, 2, 0);
 
@@ -197,48 +202,57 @@ void kbdPoll (bool *paused)
 
     if (!(pfds[1].revents & POLLIN))
         return;
-
-    n = read (kbdFd, &ev, sizeof (ev));
+#endif
+while (1)
+{
+    n = read (keyboardFd, &ev, sizeof (ev));
 
     if (n < 0)
     {
         printf ("problem reading from device %s: %s\n",
-                kbdDevice, strerror (errno));
-        kbdReopen ();
-        return;
+                keyboardDevice, strerror (errno));
+        keyboardReopen ();
+        return NULL;
     }
 
     if (n < (int) sizeof (ev))
     {
         printf ("Partial read of HID device, got %d / %lu bytes ", n,
           sizeof (struct input_event));
-        return;
+        return NULL;
     }
 
     decodeEvent (ev, paused);
 }
-
-void kbdClose (void)
-{
-    if (kbdFd != -1)
-    {
-        printf ("%s closing\n", __func__);
-        close (kbdFd);
-        kbdFd = -1;
-    }
+return NULL;
 }
 
-void kbdOpen (const char *device)
+#if 0
+void keyboardClose (void)
 {
-    if (device)
-        strcpy (kbdDevice, device);
-    else
-        kbdFindInputDevice ();
+    if (keyboardFd != -1)
+    {
+        printf ("%s closing\n", __func__);
+        close (keyboardFd);
+        keyboardFd = -1;
+    }
+}
+#endif
 
-    kbdFd = -1;
-    kbdReopen ();
+void keyboardInit (bool *paused)
+{
+    keyboardFindInputDevice ();
 
-    printf ("%s dev %s opened as fd %d\n", __func__, kbdDevice, kbdFd);
+    keyboardFd = -1;
+    keyboardReopen ();
+
+    printf ("%s dev %s opened as fd %d\n", __func__, keyboardDevice, keyboardFd);
+
+    if (pthread_create (&thKeyboardThread, NULL, keyboardThread, paused) != 0)
+    {
+        fprintf (stderr, "!! keyboard thread\n");
+        exit (1);
+    }
 
 }
 

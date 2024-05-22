@@ -49,6 +49,7 @@ CPU_MEMMAP memmap;
 uint8_t input0;
 uint8_t input1;
 uint8_t dipSwitches;
+bool paused;
 
 int main (int argc, char *argv[])
 {
@@ -68,19 +69,22 @@ int main (int argc, char *argv[])
     #endif
 
     /*  Input switches are active low */
-    IO_INPUT0 = 0xff;
-    IO_INPUT1 = 0xff;
-    // IO_INPUT1 = 0x7f; cocktail mode
+    IO_INPUT0 = 0xef;
+    IO_INPUT1 = 0x6f;
+    IO_INPUT0 |= 0x10; // remove for rack advance
+     IO_INPUT1 |= 0x10; // remove for service
+    IO_INPUT1 |= 0x80; // upright mode, remove for cabinet
     // DIP_INPUT = 0xff; default, 5 lives, 2 coins per game, etc
     DIP_INPUT = 0x49; 
+    DIP_INPUT |= 0x80; // remove for alt names
     printf ("IN0=%02x\n", IO_INPUT0);
     if (argc > 1)
         DIP_INPUT = atoi (argv[1]);
 
-void reset_0000 (void);
+    void reset_0000 (void);
     videoInit (3);
     soundInit ();
-    kbdOpen (NULL);
+    keyboardInit (&paused);
 
     #if 1
     reset_0000 ();

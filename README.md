@@ -5,6 +5,10 @@ comments.  Assembly that has been translated is boxed off with //----
 
 The main file is pacman.c.  Others are just support.
 
+This project does not include original ROM files although they are required.
+You will need to download them from somewhere else.  The code itself is a
+derived work from the original (a translation).
+
 build
 =====
 Builds under debian / ubuntu Linux.  Should build under other distros too but

@@ -1,18 +1,13 @@
-/*  X and Y coords are frequently stored together and accessed as a single 16-
- *  bit value (e.g. through the hl reg).  To simplify C code, declare a union of
- *  y and x byte values with a 16 bit hl reg */
-
 #ifndef __STRUCTS_H
 #define __STRUCTS_H
 
+/*  X and Y coords are frequently stored together and accessed as a single 16-
+ *  bit value (e.g. through the hl reg).  To simplify C code, declare a union of
+ *  y and x byte values with a 16 bit hl reg */
 typedef struct // union
 {
-    // struct
-    // {
-        uint8_t y; // l
-        uint8_t x; // h
-    // };
-    // uint16_t hl;
+    uint8_t y; // l
+    uint8_t x; // h
 }
 XYPOS;
 
@@ -45,5 +40,22 @@ typedef struct
     uint8_t volume;        // f
 }
 SOUND_EFFECT;
+
+typedef struct
+{
+    uint8_t v1FreqCount[5];             // 0x5040
+    uint8_t v1WaveForm;                 // 0x5045
+    uint8_t v2FreqCount[4];             // 0x5046
+    uint8_t v2WaveForm;                 // 0x504a
+    uint8_t v3FreqCount[4];             // 0x504b
+    uint8_t v3WaveForm;                 // 0x504f
+    uint8_t v1Frequency[5];             // 0x5050
+    uint8_t v1Volume;                   // 0x5055
+    uint8_t v2Frequency[4];             // 0x5056
+    uint8_t v2Volume;                   // 0x505a
+    uint8_t v3Frequency[4];             // 0x505b
+    uint8_t v3Volume;                   // 0x505f
+}
+SOUNDREGS;
 
 #endif

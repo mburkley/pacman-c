@@ -23,8 +23,6 @@
 #ifndef __KBD_H
 #define __KBD_H
 
-void kbdPoll (bool *paused);
-void kbdClose (void);
-void kbdOpen (const char *device);
+    void keyboardInit (bool *);
 
 #endif
