@@ -49,10 +49,15 @@ CPU_MEMMAP memmap;
 uint8_t input0;
 uint8_t input1;
 uint8_t dipSwitches;
-bool paused;
 
 int main (int argc, char *argv[])
 {
+    if (argc < 2)
+    {
+        fprintf (stderr, "Please provide test pattern (1-3)\n");
+        exit (1);
+    }
+
     memcpy (&charset[0x0000], rom_pacman_5e, 0x1000);
     memcpy (&charset[0x1000], rom_pacman_5f, 0x1000);
 
@@ -68,24 +73,57 @@ int main (int argc, char *argv[])
     memcpy (&ROM[0x3000], rom_namcopac_6j, 0x1000);
     #endif
 
-    /*  Input switches are active low */
-    IO_INPUT0 = 0xef;
-    IO_INPUT1 = 0x6f;
-    IO_INPUT0 |= 0x10; // remove for rack advance
-    IO_INPUT1 |= 0x10; // remove for service mode
-    IO_INPUT1 |= 0x80; // upright mode, remove for cocktail mode
-    // DIP_INPUT = 0xff; default, 5 lives, 2 coins per game, etc
-    DIP_INPUT = 0x49; 
-    DIP_INPUT |= 0x80; // remove for alt names
-    printf ("IN0=%02x\n", IO_INPUT0);
-    if (argc > 1)
-        DIP_INPUT = atoi (argv[1]);
+    extern bool redrawEnable;
+    redrawEnable = false;
+    videoInit (300, 300, 3); // 32 x 8 + 8
 
-    videoInit (224, 288, 3); // scale is 3 x 3
-    soundInit ();
-    keyboardInit ();
+    switch (argv[1][0])
+    {
+    case '1':
+        for (int i = 0; i < 16; i++)
+        {
+            for (int j = 0; j < 16; j++)
+            {
+                // SCREEN[0x380+i*2-(0x20*j)] = (i*16)+j;
+                // COLOUR[0x380+i*2-(0x20*j)] = 0x1;
+                int col = 0x1f;
+                if (j>5) col = 1;
+                if (j>8) col = 0x14;
+                if (j>0xa) col = 0x1;
+                if (j>0xb) col = 0x10;
 
-    void reset_0000 (void);
-    reset_0000 ();
+                videoDrawChar (1+i*2, 1+j*2, j*16+i, col);
+            }
+        }
+        break;
+    case '2':
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 8; j++)
+            {
+                videoDrawSprite (i*24 + 8, j*24 + 8, j*8+i, 0, 1);
+            }
+        }
+        break;
+    case '3':
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 32; j++)
+            {
+                pixel p = videoColourLookup ((j << 2) | i);
+                for (int x = 0; x < 8; x++)
+                {
+                    for (int y = 0; y < 8; y++)
+                    {
+                        videoPlot (8+i*9+x, 8+j*9+y, p);
+                    }
+                }
+            }
+        }
+        break;
+    }
+
+
+    usleep (100000000);
 }
 

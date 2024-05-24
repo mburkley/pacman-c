@@ -3,7 +3,6 @@ all: pacman
 OBJECTS=\
 pacman.o \
 cpu.o \
-harness.o \
 video.o \
 sound.o \
 kbd.o
@@ -45,7 +44,11 @@ $(HDRS) : %:
 
 CFLAGS=-Wall -ggdb3
 
-pacman: $(OBJECTS)
+pacman: $(OBJECTS) harness.o
+	@echo "\t[LD] $@..."
+	@$(CC) -ggdb3 -Wall -o $@ $^ $(LIBS)
+
+test: $(OBJECTS) test.o
 	@echo "\t[LD] $@..."
 	@$(CC) -ggdb3 -Wall -o $@ $^ $(LIBS)
 

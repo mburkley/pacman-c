@@ -148,7 +148,6 @@ void schedTask (int b, int c)
     // 002d  e5        push    hl              ; put ret addr+2 on stack to skip // data
     // 002e  1812      jr      #0042           ; (18)
     //-------------------------------
-    // printf("%s t = %d p=%d\n", __func__, b, c);
     addTask_0042 (b, c);
 }
 
@@ -165,7 +164,6 @@ void schedISRTask (uint8_t time, uint8_t routine, uint8_t param)
     task.timer = time;
     task.func = routine;
     task.param = param;
-    // printf ("%s t = %d f=%d p=%d\n", __func__, time, routine, param);
     addISRTask_0051 (ISR_TASKS, 0x10, (uint8_t*)&task);
 }
 
@@ -436,7 +434,7 @@ void isr_008d (void)
         //-------------------------------
 
         /*  If a ghost has been eaten, then make that sprite the highest
-         *  priority by swapping it with blinky.  I presume this is to ensure
+         *  priority by swapping it with blinky.  This is to ensure
          *  the points aren't hidden behind any other ghost
          *  sprites.*/
 
@@ -508,7 +506,6 @@ void isr_008d (void)
     //-------------------------------
     if (MAIN_STATE != MAIN_STATE_INIT)
     {
-        // printf ("ISR: MAIN != 0\n");
         func_039d();
         spriteAnimationCocktail_1490();
         spriteAnimationUpright_141f();
@@ -543,7 +540,6 @@ void isr_008d (void)
     //-------------------------------
     soundEffectsAllChannels_2d0c();
     playSongsAllChannels_2cc1();
-    printf ("2cc1 done\n");
 
     //-------------------------------
     // 01c6  3a004e    ld      a,(#4e00)
@@ -572,7 +568,6 @@ void isr_008d (void)
 
 void updateCounters_01dc (void)
 {
-    printf("%s\n", __func__);
     //-------------------------------
     // 01dc  21844c    ld      hl,#4c84
     // 01df  34        inc     (hl)
@@ -776,7 +771,7 @@ void dispatchISRTasks_0221 (void)
                         incMainSub2_06a3,
                         incMainStateIntro_058e,
                         incKilledState_1272,      // 3 ISRTASK_INC_KILLED_STATE
-                        resetFruit_1000,
+                        resetFruit_1000,          // 4 ISRTASK_RESET_FRUIT
                         func_100b,
                         displayReady_0263,
                         incScene1State_212b,
@@ -1643,14 +1638,12 @@ void introAdvanceState_0524 (uint8_t *ghostSubstate, int target, int tile)
     // 0527  3601      ld      (hl),#01
     // 0529  c38e05    jp      #058e
     //-------------------------------
-    // printf ("%s a = %d b=%d\n", __func__, a, b);
     if (tile != target)
     {
         introMain_052c();
         return;
     }
 
-    // printf ("%s %04lx = 1\n", __func__, hl-MEM);
     *ghostSubstate = SUBSTATE_CHASE;
     incMainStateIntro_058e();
     return;
@@ -1740,7 +1733,6 @@ void introCheckAllGhostsEaten_056c (void)
 
 void introPlayGame_057c (void)
 {
-    printf ("%s lss=%d\n", __func__, LEVEL_STATE);
     //-------------------------------
     // 057c  cdbe06    call    #06be
     // 057f  c9        ret     
@@ -1812,7 +1804,6 @@ void introduceGhost_0593 (int c)
 
 XYPOS pacmanReverse_05a5 (void)
 {
-    printf ("%s \n", __func__);
     //-------------------------------
     // 05a5  3ab54d    ld      a,(#4db5)
     // 05a8  a7        and     a
@@ -1820,7 +1811,6 @@ XYPOS pacmanReverse_05a5 (void)
     //-------------------------------
     XYPOS vector = { 0, 0 };
 
-    printf ("%s orient chg = %d\n", __func__, PACMAN_ORIENT_CHG_FLAG);
     if (PACMAN_ORIENT_CHG_FLAG == 0)
         return vector;
 
@@ -2190,7 +2180,6 @@ void playGameStateMachine_06be (void)
     // 06f0  0c 00 08 0a 0c 00 0a 0a  0c 00 0c 0a 0c 00 0e 0a 
     // 0700  0c 00 2c 0a 0c 00 7c 0a  a0 0a 0c 00 a3 0a      
     //-------------------------------
-    printf ("%s\n", __func__);
     void (*func[])() = 
     {
         resetPlayerParams_0879,
@@ -2231,8 +2220,6 @@ void setupGhostTimers_070e (int b)
     // 0712  2a0a4e    ld      hl,(#4e0a)
     // 0715  7e        ld      a,(hl)
     //-------------------------------
-    printf ("%s diff = %d\n", __func__, b);
-
     if (b == 0)
     {
         b = ROM[P1_CURR_DIFFICULTY];
@@ -2787,7 +2774,6 @@ void switchModeDemo_0972 (void)
     // 097c  32094e    ld      (#4e09),a
     // 097f  320350    ld      (#5003),a
     //-------------------------------
-    printf ("%s\n", __func__);
     INTRO_STATE = 
     LEVEL_STATE = 
     TWO_PLAYERS = 
@@ -3087,9 +3073,8 @@ void nextLevelStateMachine_0a2c (void)
     //-------------------------------
     void (*func[])() =
     {
-        scene3StateMachine_2297,
         incLevelState_0a6f,
-        // scene1StateMachine_2108,
+        scene1StateMachine_2108,
         incLevelState_0a6f,
         incLevelState_0a6f,
         scene2StateMachine_219e,
@@ -3330,7 +3315,7 @@ void ghostsFlashBecomingInedible_0ac3 (void)
             // 0b23  ddbe03    cp      (ix+#03)
             // 0b26  2807      jr      z,#0b2f         ; (7)
             //-------------------------------
-            if (BLINKY_COLOUR != 3)
+            if (BLINKY_COLOUR != 1)
             {
                 //-------------------------------
                 // 0b28  dd360301  ld      (ix+#03),#01
@@ -3392,20 +3377,20 @@ void ghostsFlashBecomingInedible_0ac3 (void)
             // 0b58  ddbe05    cp      (ix+#05)
             // 0b5b  2807      jr      z,#0b64         ; (7)
             //-------------------------------
-            if (PINKY_COLOUR != 0x03)
+            if (PINKY_COLOUR != 3)
             {
                 //-------------------------------
                 // 0b5d  dd360503  ld      (ix+#05),#03
                 // 0b61  c3680b    jp      #0b68
                 //-------------------------------
-                PINKY_COLOUR = 0x3;
+                PINKY_COLOUR = 3;
             }
             else
             {
                 //-------------------------------
                 // 0b64  dd360503  ld      (ix+#05),#03
                 //-------------------------------
-                PINKY_COLOUR = 0x3;
+                PINKY_COLOUR = 3;
             }
         }
 
@@ -3645,6 +3630,8 @@ void flashPowerups_0c0d (void)
         // 0c21  3e10      ld      a,#10
         //-------------------------------
         int a = 0x10;
+
+        //-------------------------------
         // 0c23  be        cp      (hl)
         // 0c24  2002      jr      nz,#0c28        ; (2)
         // 0c26  3e00      ld      a,#00
@@ -3701,7 +3688,6 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c45  a7        and     a
     // 0c46  c0        ret     nz
     //-------------------------------
-    // printf ("%s killed = %d\n", __func__, KILLED_GHOST_INDEX);
     if (KILLED_GHOST_INDEX != 0)
         return;
 
@@ -3711,7 +3697,6 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c4b  32944d    ld      (#4d94),a
     // 0c4e  d0        ret     nc
     //-------------------------------
-    // printf ("%s count = %02x\n", __func__, GHOST_HOUSE_MOVE_COUNT);
     rotate8 (&GHOST_HOUSE_MOVE_COUNT, 1);
 
     if ((GHOST_HOUSE_MOVE_COUNT & 0x01) == 0)
@@ -3722,7 +3707,6 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c52  a7        and     a
     // 0c53  c2900c    jp      nz,#0c90
     //-------------------------------
-    // printf ("%s blinky-sub = %d\n", __func__, BLINKY_SUBSTATE);
     if (BLINKY_SUBSTATE == SUBSTATE_IN_HOUSE)
     {
         //-------------------------------
@@ -3785,10 +3769,8 @@ void ghostsLeaveHouse_0c42 (void)
     // 0c93  fe01      cp      #01
     // 0c95  cafb0c    jp      z,#0cfb
     //-------------------------------
-    // printf ("%s pinky-sub = %d\n", __func__, PINKY_SUBSTATE);
     if (PINKY_SUBSTATE != SUBSTATE_CHASE)
     {
-        // printf ("pinky-y=%02x\n",PINKY_POS.y);
         //-------------------------------
         // 0c98  fe00      cp      #00
         // 0c9a  c2c10c    jp      nz,#0cc1
@@ -3883,10 +3865,8 @@ void ghostsLeaveHouse_0c42 (void)
     // 0cfe  fe01      cp      #01
     // 0d00  ca930d    jp      z,#0d93
     //-------------------------------
-    // printf ("%s inky-sub = %d\n", __func__, INKY_SUBSTATE);
     if (INKY_SUBSTATE != SUBSTATE_CHASE)
     {
-        // printf ("%s inky-y=%02x\n", __func__, INKY_POS.y);
         //-------------------------------
         // 0d03  fe00      cp      #00
         // 0d05  c22c0d    jp      nz,#0d2c
@@ -3915,9 +3895,6 @@ void ghostsLeaveHouse_0c42 (void)
             // 0d23  cd0020    call    #2000
             // 0d26  22044d    ld      (#4d04),hl
             //-------------------------------
-            // printf ("%s inky tile-ch=%d,%d\n", __func__,
-            // INKY_VECTOR2.x,INKY_VECTOR2.y);
-
             INKY_POS = addXYOffset_2000 (INKY_VECTOR2, INKY_POS);
 
             //-------------------------------
@@ -4163,13 +4140,12 @@ void toggleGhostAnimation_0e23 (void)
     // 0e29  be        cp      (hl)
     // 0e2a  c0        ret     nz
     //-------------------------------
-    // printf ("%s count = %d\n", __func__, COUNTER_TO_8);
-    if (COUNTER_TO_8++ != 8)
+    if (GHOST_ANIMATION_COUNTER++ != 8)
         return;
     //-------------------------------
     // 0e2b  3600      ld      (hl),#00
     //-------------------------------
-    COUNTER_TO_8 = 0;
+    GHOST_ANIMATION_COUNTER = 0;
 
     //-------------------------------
     // 0e2d  3ac04d    ld      a,(#4dc0)
@@ -4177,7 +4153,6 @@ void toggleGhostAnimation_0e23 (void)
     // 0e32  32c04d    ld      (#4dc0),a
     // 0e35  c9        ret     
     //-------------------------------
-    // printf ("%s ghost anim = %d\n", __func__, GHOST_ANIMATION);
     GHOST_ANIMATION ^= 1;
 }
 
@@ -4423,7 +4398,7 @@ void selectFruit_0ead (void)
     // 0ee3  3802      jr      c,#0ee7         ; (2)
     // 0ee5  3e14      ld      a,#14
     //-------------------------------
-    if (a > 20) a = 20;
+    if (a >= 20) a = 20;
 
     //-------------------------------
     // 0ee7  47        ld      b,a
@@ -4436,7 +4411,7 @@ void selectFruit_0ead (void)
     // 0eea  d7        rst     #10
     // 0eeb  320c4c    ld      (#4c0c),a
     //-------------------------------
-    uint8_t *hl = FRUIT_DATA;
+    uint8_t *hl = FRUIT_DATA_0efd;
     FRUIT_SPRITE = fetchOffset_0010 (&hl, a);
 
     //-------------------------------
@@ -4444,14 +4419,14 @@ void selectFruit_0ead (void)
     // 0eef  7e        ld      a,(hl)
     // 0ef0  320d4c    ld      (#4c0d),a
     //-------------------------------
-    FRUIT_COLOUR = *hl++;
+    FRUIT_COLOUR = hl[1];
 
     //-------------------------------
     // 0ef3  23        inc     hl
     // 0ef4  7e        ld      a,(hl)
     // 0ef5  32d44d    ld      (#4dd4),a
     //-------------------------------
-    FRUIT_POINTS = *hl;
+    FRUIT_POINTS = hl[2];
 
     //-------------------------------
     // 0ef8  f7        rst     #30
@@ -5321,7 +5296,6 @@ void pacmanDeadAnimState_1291 (void)
 
 void incKilledState_1272 (void)
 {
-    printf ("%s\n", __func__);
     KILLED_STATE++;
 }
 
@@ -5982,8 +5956,6 @@ void spriteAnimationCocktail_1490 (void)
 
 void spriteAnimation_14fe (bool invert)
 {
-    // printf ("%s anim = %d killed=%d\n", __func__,
-    //         PAC_DEAD_ANIM_STATE, KILLED_GHOST_INDEX);
     //-------------------------------
     // 14fe  3aa54d    ld      a,(#4da5)
     // 1501  a7        and     a
@@ -6968,7 +6940,6 @@ void pacmanCheckEatGhost_1789 (void)
 
 void pacmanUpdateMovePat_1806 (void)
 {
-    printf ("%s\n", __func__);
     //-------------------------------
     // 1806  219d4d    ld      hl,#4d9d
     // 1809  3eff      ld      a,#ff
@@ -7063,7 +7034,7 @@ void pacmanUpdateMovePat_1806 (void)
         // 1864  3e01      ld      a,#01
         // 1866  32bf4d    ld      (#4dbf),a
         //-------------------------------
-        PACMAN_ENTERING_TUNNEL = 1;
+        PACMAN_IN_TUNNEL = 1;
 
         //-------------------------------
         // 1869  3a004e    ld      a,(#4e00)
@@ -7072,7 +7043,7 @@ void pacmanUpdateMovePat_1806 (void)
         //-------------------------------
         if (MAIN_STATE == MAIN_STATE_DEMO)
         {
-            pacmanMoveTile_1a19();
+            pacmanDemoMoveTile_1a19();
             return;
         }
 
@@ -7083,7 +7054,7 @@ void pacmanUpdateMovePat_1806 (void)
         //-------------------------------
         if (LEVEL_STATE >= 0x10)
         {
-            pacmanMoveTile_1a19();
+            pacmanDemoMoveTile_1a19();
             return;
         }
 
@@ -7145,13 +7116,13 @@ void pacmanUpdateMovePat_1806 (void)
             //-------------------------------
             PACMAN_ORIENTATION = ORIENT_RIGHT;
             PACMAN_VECTOR = *MOVE_VECTOR_RIGHT;
-
-            //-------------------------------
-            // 18a8  c35019    jp      #1950
-            //-------------------------------
-            pacmanMove_1950();
-            return;
         }
+
+        //-------------------------------
+        // 18a8  c35019    jp      #1950
+        //-------------------------------
+        pacmanMove_1950();
+        return;
     }
 
     //-------------------------------
@@ -7161,7 +7132,7 @@ void pacmanUpdateMovePat_1806 (void)
     //-------------------------------
     if (MAIN_STATE == MAIN_STATE_DEMO)
     {
-        pacmanMoveTile_1a19();
+        pacmanDemoMoveTile_1a19();
         return;
     }
 
@@ -7172,7 +7143,7 @@ void pacmanUpdateMovePat_1806 (void)
     //-------------------------------
     if (LEVEL_STATE >= 0x10)
     {
-        pacmanMoveTile_1a19();
+        pacmanDemoMoveTile_1a19();
         return;
     }
 
@@ -7264,7 +7235,6 @@ void pacmanCheckMoveClear_18e4 (int noInput)
     // 18f1  d6c0      sub     #c0
     // 18f3  204b      jr      nz,#1940        ; (75)
     //-------------------------------
-    // printf("%s a = %02x\n", __func__, a);
     if ((a & CHAR_MAZE_MASK) != CHAR_MAZE_MASK)
     {
         pacmanHitMazeWall_1940 (noInput);
@@ -7381,7 +7351,6 @@ void pacmanCheckMoveClear_18e4 (int noInput)
 
 void pacmanHitMazeWall_1940 (int noInput)
 {
-    // printf ("%s\n", __func__);
     //-------------------------------
     // 1940  2a264d    ld      hl,(#4d26)
     // 1943  221c4d    ld      (#4d1c),hl
@@ -7485,7 +7454,8 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     //-------------------------------
     PACMAN_POS = pos;
     PACMAN_TILE2 = pixelToTile_2018 (pos);
-    // printf ("%s %d,%d -> %d,%d\n", __func__, PACMAN_POS.x,PACMAN_POS.y,pos.x,pos.y);
+    printf ("%s %d,%d -> %d,%d\n", __func__,
+            PACMAN_POS.x,PACMAN_POS.y,PACMAN_TILE2.x,PACMAN_TILE2.y);
 
     //-------------------------------
     // 198e  dd21bf4d  ld      ix,#4dbf
@@ -7494,9 +7464,9 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     // 1999  a7        and     a
     // 199a  c0        ret     nz
     //-------------------------------
-    if (PACMAN_ENTERING_TUNNEL)
+    if (PACMAN_IN_TUNNEL)
     {
-        PACMAN_ENTERING_TUNNEL = 0;
+        PACMAN_IN_TUNNEL = 0;
         return;
     }
 
@@ -7658,7 +7628,7 @@ void pacmanUpdatePos_1985 (XYPOS pos)
     }
 }
 
-void pacmanMoveTile_1a19 (void)
+void pacmanDemoMoveTile_1a19 (void)
 {
     printf ("%s pos=%d,%d\n", __func__, PACMAN_POS.x, PACMAN_POS.y);
     //-------------------------------
@@ -7704,7 +7674,7 @@ void pacmanMoveTile_1a19 (void)
     // 1a3a  cdd01e    call    #1ed0
     // 1a3d  3803      jr      c,#1a42         ; (3)
     //-------------------------------
-    if (!checkTunnelTBD_1ed0(5))
+    if (!checkTunnelWrap_1ed0 (DEMO_PACMAN))
     {
         //-------------------------------
         // 1a3f  ef        rst     #28
@@ -7725,24 +7695,12 @@ void pacmanMoveTile_1a19 (void)
     // 1a50  2a264d    ld      hl,(#4d26)
     // 1a53  221c4d    ld      (#4d1c),hl
     //-------------------------------
-    // printf ("%s tile change %d,%d -> %d,%d\n",
-    //         __func__,
-    //         PACMAN_VECTOR2.x, PACMAN_VECTOR2.y,
-    //         PACMAN_VECTOR.x, PACMAN_VECTOR.y);
     PACMAN_VECTOR = PACMAN_VECTOR2;
-    // printf ("%s tile change %d,%d -> %d,%d\n",
-    //         __func__,
-    //         PACMAN_VECTOR2.x, PACMAN_VECTOR2.y,
-    //         PACMAN_VECTOR.x, PACMAN_VECTOR.y);
 
     //-------------------------------
     // 1a56  3a3c4d    ld      a,(#4d3c)
     // 1a59  32304d    ld      (#4d30),a
     //-------------------------------
-    // printf ("%s orient change %d,%d\n",
-    //         __func__,
-    //         PACMAN_DESIRED_ORIENTATION,
-    //         PACMAN_ORIENTATION);
     PACMAN_ORIENTATION = PACMAN_DESIRED_ORIENTATION;
 
     pacmanMove_1a5c ();
@@ -7805,7 +7763,6 @@ void ghostsBecomeEdible_1a70 (void)
     INKY_ORIENT_CHG_FLAG = 
     CLYDE_ORIENT_CHG_FLAG = 
     PACMAN_ORIENT_CHG_FLAG = 1;
-    // printf ("%s orient chg = %d\n", __func__, PACMAN_ORIENT_CHG_FLAG);
 
     //-------------------------------
     // 1a96  af        xor     a
@@ -8011,7 +7968,7 @@ void blinkyUpdateMovePat_1b36 (void)
     //-------------------------------
     // 1b40  cdd720    call    #20d7
     //-------------------------------
-    updateDifficultyTBD_20d7();
+    cruiseElroyMode_20d7();
 
     //-------------------------------
     // 1b43  2a314d    ld      hl,(#4d31)
@@ -8024,7 +7981,7 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b4f  a7        and     a
     // 1b50  ca6a1b    jp      z,#1b6a
     //-------------------------------
-    printf ("%s aux = %d\n", __func__, BLINKY_IN_TUNNEL);
+    printf ("%s blinky tunnel %d\n", __func__, BLINKY_IN_TUNNEL);
     if (BLINKY_IN_TUNNEL != 0)
     {
         //-------------------------------
@@ -8075,7 +8032,7 @@ void blinkyUpdateMovePat_1b36 (void)
     // 1b8b  a7        and     a
     // 1b8c  caa61b    jp      z,#1ba6
     //-------------------------------
-    else if (DIFF_FLAG_2 != 0)
+    else if (CRUISE_ELROY_MODE_2 != 0)
     {
         //-------------------------------
         // 1b8f  2a504d    ld      hl,(#4d50)
@@ -8101,7 +8058,7 @@ void blinkyUpdateMovePat_1b36 (void)
         // 1ba9  a7        and     a
         // 1baa  cac41b    jp      z,#1bc4
         //-------------------------------
-        if (DIFF_FLAG_1 != 0)
+        if (CRUISE_ELROY_MODE_1 != 0)
         {
             //-------------------------------
             // 1bad  2a544d    ld      hl,(#4d54)
@@ -8180,7 +8137,7 @@ void blinkyUpdatePosition_1bd8 (void)
     // 1bf9  cdd01e    call    #1ed0
     // 1bfc  381b      jr      c,#1c19         ; (27)
     //-------------------------------
-    if (!checkTunnelTBD_1ed0(GHOST_BLINKY))
+    if (!checkTunnelWrap_1ed0(GHOST_BLINKY))
     {
         //-------------------------------
         // 1bfe  3aa74d    ld      a,(#4da7)
@@ -8396,7 +8353,7 @@ void pinkyUpdatePosition_1caf (void)
     // 1cd0  cdd01e    call    #1ed0
     // 1cd3  381b      jr      c,#1cf0         ; (27)
     //-------------------------------
-    if (!checkTunnelTBD_1ed0(GHOST_PINKY))
+    if (!checkTunnelWrap_1ed0(GHOST_PINKY))
     {
         //-------------------------------
         // 1cd5  3aa84d    ld      a,(#4da8)
@@ -8612,7 +8569,7 @@ void inkyUpdatePosition_1d86 (void)
     // 1da7  cdd01e    call    #1ed0
     // 1daa  381b      jr      c,#1dc7         ; (27)
     //-------------------------------
-    if (!checkTunnelTBD_1ed0(GHOST_INKY))
+    if (!checkTunnelWrap_1ed0(GHOST_INKY))
     {
         //-------------------------------
         // 1dac  3aa94d    ld      a,(#4da9)
@@ -8822,7 +8779,7 @@ void clydeUpdatePosition_1e5d (void)
     // 1e7e  cdd01e    call    #1ed0
     // 1e81  381b      jr      c,#1e9e         ; (27)
     //-------------------------------
-    if (!checkTunnelTBD_1ed0(GHOST_CLYDE))
+    if (!checkTunnelWrap_1ed0(GHOST_CLYDE))
     {
         //-------------------------------
         // 1e83  3aaa4d    ld      a,(#4daa)
@@ -8901,7 +8858,7 @@ jump_1ebb:
 /*  Ghost number 1-4 or 5 for pacman.  Checking if in tunnel ?
  *  Tile positions are 0x1e to 0x3d for x and 0x22 to 0x3e for y
  *  Wrap-around is when x reaches 0x1d or 0x3e */
-bool checkTunnelTBD_1ed0 (int ghost)
+bool checkTunnelWrap_1ed0 (int ghost)
 {
     //-------------------------------
     // 1ed0  87        add     a,a
@@ -8913,7 +8870,7 @@ bool checkTunnelTBD_1ed0 (int ghost)
     //-------------------------------
     /*  Note 4d09 is odd, it's 4d08 + 1 which is (blinky-1).x */
     XYPOS *tile = &BLINKY_TILE + ghost - 1;
-    printf ("%s check %04lx\n", __func__, (uint8_t*)tile-MEM);
+    printf ("%s check %04lx x=%02x\n", __func__, (uint8_t*)tile-MEM, tile->x);
 
     //-------------------------------
     // 1ed9  fe1d      cp      #1d
@@ -9492,7 +9449,7 @@ void clydeCheckLeaveHouse_20af (void)
     CLYDE_SUBSTATE = SUBSTATE_HOUSE_MOVE;
 }
 
-void updateDifficultyTBD_20d7 (void)
+void cruiseElroyMode_20d7 (void)
 {
     //-------------------------------
     // 20d7  3aa34d    ld      a,(#4da3)
@@ -9508,7 +9465,7 @@ void updateDifficultyTBD_20d7 (void)
     // 20e2  a7        and     a
     // 20e3  c2f420    jp      nz,#20f4
     //-------------------------------
-    if (DIFF_FLAG_1 == 0)
+    if (CRUISE_ELROY_MODE_1 == 0)
     {
         //-------------------------------
         // 20e6  3ef4      ld      a,#f4
@@ -9525,7 +9482,7 @@ void updateDifficultyTBD_20d7 (void)
         // 20ef  3e01      ld      a,#01
         // 20f1  32b64d    ld      (#4db6),a
         //-------------------------------
-        DIFF_FLAG_1 = 1;
+        CRUISE_ELROY_MODE_1 = 1;
     }
 
     //-------------------------------
@@ -9533,7 +9490,7 @@ void updateDifficultyTBD_20d7 (void)
     // 20f7  a7        and     a
     // 20f8  c0        ret     nz
     //-------------------------------
-    if (DIFF_FLAG_2 == 0)
+    if (CRUISE_ELROY_MODE_2 == 0)
         return;
 
     //-------------------------------
@@ -9552,7 +9509,7 @@ void updateDifficultyTBD_20d7 (void)
     // 2104  32b74d    ld      (#4db7),a
     // 2107  c9        ret     
     //-------------------------------
-    DIFF_FLAG_2 = 1;
+    CRUISE_ELROY_MODE_2 = 1;
 }
 
 void scene1StateMachine_2108 (void)
@@ -9596,7 +9553,7 @@ void scene1State0_211a (void)
     // 2128  cd0605    call    #0506
     //-------------------------------
     BLINKY_SUBSTATE = SUBSTATE_CHASE;
-    DIFF_FLAG_2 = 1;
+    CRUISE_ELROY_MODE_2 = 1;
     demoMazeHorizontal_0506 ();
 
     incScene1State_212b ();
@@ -9851,7 +9808,7 @@ void scene2State2_21e1(uint16_t iy)
     // 21ed  32b74d    ld      (#4db7),a
     //-------------------------------
     BLINKY_SUBSTATE = 
-    DIFF_FLAG_2 = 1;
+    CRUISE_ELROY_MODE_2 = 1;
     incScene2State_21f0();
 }
 
@@ -10121,7 +10078,7 @@ void scene3State0_22a7 (void)
     // 22b3  32b74d    ld      (#4db7),a
     // 22b6  cd0605    call    #0506
     //-------------------------------
-    BLINKY_SUBSTATE = DIFF_FLAG_2 = 1;
+    BLINKY_SUBSTATE = CRUISE_ELROY_MODE_2 = 1;
     demoMazeHorizontal_0506();
     incScene3State_22b9();
 }
@@ -11468,7 +11425,7 @@ void blinkyScatterOrChase_2730 (int param)
         // 273b  a7        and     a
         // 273c  201a      jr      nz,#2758        ; (26)
         //-------------------------------
-        if (DIFF_FLAG_1 == 0)
+        if (CRUISE_ELROY_MODE_1 == 0)
         {
             //-------------------------------
             // 273e  3a044e    ld      a,(#4e04)
@@ -11622,7 +11579,7 @@ void inkyScatterOrChase_27a9 (int param)
     // 27da  91        sub     c
     // 27db  6f        ld      l,a
     //-------------------------------
-    target.y = target.y * 2 - BLINKY_TILE.x;
+    target.y = target.y * 2 - BLINKY_TILE.y;
 
     //-------------------------------
     // 27dc  7c        ld      a,h
@@ -11630,7 +11587,7 @@ void inkyScatterOrChase_27a9 (int param)
     // 27de  90        sub     b
     // 27df  67        ld      h,a
     //-------------------------------
-    target.x = target.x * 2 - BLINKY_TILE.y;
+    target.x = target.x * 2 - BLINKY_TILE.x;
 
     //-------------------------------
     // 27e0  eb        ex      de,hl
@@ -13144,7 +13101,7 @@ void displayMsg_2c5e (int b)
     // printf ("%s msg = %02x -> %x -> %x \n", __func__, b, hl, de);
 
     /* TODO if the msg starts with 0x4d, 0x83, then what prevents the video
-     * address from being c74d ???? */
+     * address from being c74d ???? Maybe the address bus is only 15 bits? */
     de &= 0x7fff;
 
     //-------------------------------
@@ -13349,7 +13306,7 @@ void playSongsAllChannels_2cc1 (void)
     // 2ce1  fd21924e  ld      iy,#4e92
     // 2ce5  cd442d    call    #2d44
     //-------------------------------
-    volume = playSongOneChannel_2d44 (CH2_SOUND_WAVE, &CH2_FREQ1, SONG_TABLE_CH2_3bcc);
+    volume = playSongOneChannel_2d44 (CH2_SOUND_WAVE, &CH2_FREQ0, SONG_TABLE_CH2_3bcc);
 
     //-------------------------------
     // 2ce8  47        ld      b,a
@@ -13372,7 +13329,7 @@ void playSongsAllChannels_2cc1 (void)
     // 2cfa  fd21974e  ld      iy,#4e97
     // 2cfe  cd442d    call    #2d44
     //-------------------------------
-    volume = playSongOneChannel_2d44 (CH3_SOUND_WAVE, &CH3_FREQ1, SONG_TABLE_CH3_3bd0);
+    volume = playSongOneChannel_2d44 (CH3_SOUND_WAVE, &CH3_FREQ0, SONG_TABLE_CH3_3bd0);
 
     //-------------------------------
     // 2d01  47        ld      b,a
@@ -13409,7 +13366,7 @@ void soundEffectsAllChannels_2d0c (void)
     // 2d28  cdee2d    call    #2dee
     // 2d2b  32964e    ld      (#4e96),a
     //-------------------------------
-    CH2_VOL = soundEffectOneChannel_2dee (CH2_SOUND_EFFECT, &CH2_FREQ1, EFFECT_TABLE_CH2_3b40, 2);
+    CH2_VOL = soundEffectOneChannel_2dee (CH2_SOUND_EFFECT, &CH2_FREQ0, EFFECT_TABLE_CH2_3b40, 2);
 
     //-------------------------------
     // 2d2e  21803b    ld      hl,#3b80
@@ -13418,7 +13375,7 @@ void soundEffectsAllChannels_2d0c (void)
     // 2d39  cdee2d    call    #2dee
     // 2d3c  329b4e    ld      (#4e9b),a
     //-------------------------------
-    CH3_VOL = soundEffectOneChannel_2dee (CH3_SOUND_EFFECT, &CH3_FREQ1, EFFECT_TABLE_CH3_3b80, 3);
+    CH3_VOL = soundEffectOneChannel_2dee (CH3_SOUND_EFFECT, &CH3_FREQ0, EFFECT_TABLE_CH3_3b80, 3);
 
     //-------------------------------
     // 2d3f  af        xor     a
@@ -15456,27 +15413,27 @@ void delay_32ed (void)
     //       92 24 92 24
     //       22 22 22 22
 
-    //       a4 01 54 06 f8 07 a8 0c d4 0d 84 12 b0 13
-    // 33b7                       
-    //       d5 6a d5 6a
-    //       d6 5a ad b5
-    //       d6 5a ad b5
-    //       d5 6a d5 6a
-    //       aa 6a 55 d5
-    //       92 24 25 49
-    //       48 24 22 91
+    // 33a9  a4 01 54 06 f8 07 a8 0c d4 0d 84 12 b0 13
 
-    //       a4 01 54 06 f8 07 a8 0c d4 0d fe ff ff ff
+    // 33b7  d5 6a d5 6a
+    // 33bb  d6 5a ad b5
+    // 33bf  d6 5a ad b5
+    // 33c3  d5 6a d5 6a
+    // 33c7  aa 6a 55 d5
+    // 33cb  92 24 25 49
+    // 33cf  48 24 22 91
+
+    // 33d3  a4 01 54 06 f8 07 a8 0c d4 0d fe ff ff ff
 
     // 33e1  6d 6d 6d 6d
-    //       6d 6d 6d 6d
-    //       b6 6d 6d db
-    //       6d 6d 6d 6d
-    //       d6 5a ad b5
-    //       25 25 25 25
-    //       92 24 92 24
+    // 33e5  6d 6d 6d 6d
+    // 33e9  b6 6d 6d db
+    // 33ed  6d 6d 6d 6d
+    // 33f1  d6 5a ad b5
+    // 33f5  25 25 25 25
+    // 33f9  92 24 92 24
 
-    //       2c 01 dc 05 08 07 b8 0b e4 0c fe  ff ff ff
+    // 33fd  2c 01 dc 05 08 07 b8 0b e4 0c fe ff ff ff
 
     // 340b  d5 6a d5 6a // pacman normal - 18 of 32 = 56%
     // 340f  d5 6a d5 6a // pacman powered - 18
@@ -15486,7 +15443,7 @@ void delay_32ed (void)
     // 341f  48 24 22 91 // ghost edible - 9
     // 3423  92 24 92 24 // ghost tunnel - 10
 
-    // 3427  2c 01 dc 05 08 07 b8 0b  e4 0c fe ff ff ff
+    // 3427  2c 01 dc 05 08 07 b8 0b e4 0c fe ff ff ff
     //-------------------------------
 
     /*  Maze draw data */

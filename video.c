@@ -46,9 +46,6 @@
 #include "82s123.7f.h"
 #include "82s126.4a.h"
 
-#define SCREEN_XSIZE 224
-#define SCREEN_YSIZE 288
-
 uint8_t charset[0x2000];
 
 /*  The framebuffer is a 2D array of pixels with 4 bytes per pixel.  The first 3
@@ -57,20 +54,16 @@ uint8_t charset[0x2000];
  *  factor.  Since this is
  *  configurable, the framebuffer is allocated at runtime.
  */
-typedef struct _pixel
-{
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t unused;
-}
-pixel;
-
 static pixel *frameBuffer;
+
+static int screenXSize;
+static int screenYSize;
 
 static int frameBufferXSize;
 static int frameBufferYSize;
 static int frameBufferScale;
+
+bool redrawEnable = true;
 bool drawTargetEnable = false;
 
 /*  Raw plot, doesn't do any scaling, expects absolute coords */
@@ -80,7 +73,7 @@ static void videoPlotRaw (int x, int y, pixel p)
     frameBuffer[y*frameBufferXSize+x] = p;
 }
 
-static pixel colourLookup (uint8_t col)
+pixel videoColourLookup (uint8_t col)
 {
     /*  Lookup the colour in the 128-entry colour table to find the 4-bit colour */
     col = rom_82s126_4a[col & 0x7f];
@@ -89,19 +82,22 @@ static pixel colourLookup (uint8_t col)
     col = rom_82s123_7f[col & 0xf];
 
     pixel p;
-    p.r = (col & 0x07) << 5;
-    p.g = (col & 0x31) << 2;
-    p.b = (col & 0xc0);
+    // p.r = (col & 0x07) << 5;
+    // p.g = (col & 0x31) << 2;
+    // p.b = (col & 0xc0);
+    p.r = (col & 7) * 36;
+    p.g = ((col >> 3) & 7) * 36;
+    p.b = (col >> 6) * 85;
     return p;
 }
 
 /*  Scaling plot, scales up x and y and draws a square of pixels */
-static void videoPlot (unsigned x, unsigned y, pixel p)
+void videoPlot (unsigned x, unsigned y, pixel p)
 {
     int i, j;
 
-    if (x >= SCREEN_XSIZE || 
-        y >= SCREEN_YSIZE)
+    if (x >= screenXSize || 
+        y >= screenYSize)
     {
         // fprintf (stderr,"!! SCREEN coords %d,%d out of range\n", x, y);
         // exit(1);
@@ -125,7 +121,7 @@ static void videoPlot (unsigned x, unsigned y, pixel p)
  *
  *      https://aarongiles.com/old/mamemem/part3.html
  */
-static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
+void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
 {
     unsigned x, y;
 
@@ -142,21 +138,25 @@ static void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol)
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
 
             // TODO flipscreen
-            pixel p = colourLookup (col);
+            pixel p = videoColourLookup (col);
             videoPlot ((cx << 3) + x, (cy << 3) + y, p);
         }
     }
 }
 
-static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int colour)
+void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int colour)
 {
     unsigned x, y;
 
     /*  x==0 is RHS of screen, screen is over-sized 256 pixels */
     px = 256 - px;
 
+    /*  Sprites are not visible if too far left */
+    if (px < 0x12)
+        return;
+
     /*  sprite coords are upside down */
-    py = SCREEN_YSIZE - py;
+    py = screenYSize - py;
 
     /*  Origin of sprite is bottom right.  Found these values by trial and error */
     px -= 0x12;
@@ -177,14 +177,14 @@ static void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int 
             uint8_t col = colour << 2;
             col |= (pixelData & (0x08 >> (y&3))) ? 0x01 : 0;
             col |= (pixelData & (0x80 >> (y&3))) ? 0x02 : 0;
-            pixel p = colourLookup (col);
+            pixel p = videoColourLookup (col);
 
             /*  Black sprite pixels are transparent, so only plot if any component is
              *  non zero */
             if (p.r > 0 || p.g > 0 || p.b > 0)
             {
-                if (px+x >= SCREEN_XSIZE || 
-                    py+y >= SCREEN_YSIZE)
+                if (px+x >= screenXSize || 
+                    py+y >= screenYSize)
                 {
                     // fprintf (stderr,"SPRITE coords (%d,%d) out of range\n", px+x, py+y);
                 }
@@ -267,7 +267,7 @@ static void drawTargets (void)
 
         /*  Use the ghost colour but at half intensity so instead of div 255 we
          *  div 511 */
-        pixel p = colourLookup (targets[i].col);
+        pixel p = videoColourLookup (targets[i].col);
         glColor4f (p.r / 511.0, p.g / 511.0, p.b / 511.0, 0.1);
 
         glBegin(GL_LINE_LOOP);
@@ -279,7 +279,9 @@ static void drawTargets (void)
 
 static void displayFunc (void)
 {
-    videoRedraw ();
+    if (redrawEnable)
+        videoRedraw ();
+
     glDrawPixels (frameBufferXSize, frameBufferYSize, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer);
 
     if (drawTargetEnable)
@@ -325,10 +327,13 @@ static void *videoThread (void *arg)
     return NULL;
 }
 
-void videoInit (int scale)
+void videoInit (int xsize, int ysize, int scale)
 {
-    frameBufferXSize = SCREEN_XSIZE * scale;
-    frameBufferYSize = SCREEN_YSIZE * scale;
+    screenXSize = xsize;
+    screenYSize = ysize;
+
+    frameBufferXSize = screenXSize * scale;
+    frameBufferYSize = screenYSize * scale;
     frameBufferScale = scale;
 
     frameBuffer = calloc (frameBufferXSize * frameBufferYSize,

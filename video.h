@@ -20,10 +20,23 @@
  * SOFTWARE.
  */
 
-#ifndef __SCREEN_H
-#define __SCREEN_H
+#ifndef __VIDEO_H
+#define __VIDEO_H
 
-void videoInit (int scale);
+typedef struct _pixel
+{
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t unused;
+}
+pixel;
+
+void videoInit (int xsize, int ysize, int scale);
+void videoDrawSprite (unsigned px, unsigned py, int shape, int mode, int colour);
+void videoDrawChar (unsigned cx, unsigned cy, int chr, int chrCol);
+void videoPlot (unsigned x, unsigned y, pixel p);
+pixel videoColourLookup (uint8_t col);
 
 #endif
 

@@ -286,20 +286,20 @@ extern uint8_t dipSwitches;
 #define INKY_ORIENT_CHG_FLAG            memmap.mem[0x4db3]
 #define CLYDE_ORIENT_CHG_FLAG           memmap.mem[0x4db4]
 #define PACMAN_ORIENT_CHG_FLAG          memmap.mem[0x4db5]
-#define DIFF_FLAG_1                     memmap.mem[0x4db6] // Blinky chases even in scatter mode?
-#define DIFF_FLAG_2                     memmap.mem[0x4db7] // Cruise elroy mode?
+#define CRUISE_ELROY_MODE_1             memmap.mem[0x4db6] // Blinky faster and chases even in scatter mode
+#define CRUISE_ELROY_MODE_2             memmap.mem[0x4db7] // Cruise Elroy mode
 #define PINKY_LEAVE_HOME_COUNTER        memmap.mem[0x4db8]
 #define INKY_LEAVE_HOME_COUNTER         memmap.mem[0x4db9]
 #define CLYDE_LEAVE_HOME_COUNTER        memmap.mem[0x4dba]
 #define PILLS_REM_DIFF_1                memmap.mem[0x4dbb]
 #define PILLS_REM_DIFF_2                memmap.mem[0x4dbc]
 #define GHOST_EDIBLE_TIME               (*(uint16_t*)&memmap.mem[0x4dbd])
-#define PACMAN_ENTERING_TUNNEL          memmap.mem[0x4dbf]
+#define PACMAN_IN_TUNNEL                memmap.mem[0x4dbf]
 
 #define GHOST_ANIMATION                 memmap.mem[0x4dc0]
 #define NONRANDOM_MOVEMENT              memmap.mem[0x4dc1]
 #define ORIENTATION_CHANGE_COUNT        (*(uint16_t*)&memmap.mem[0x4dc2])
-#define COUNTER_TO_8                    memmap.mem[0x4dc4]
+#define GHOST_ANIMATION_COUNTER         memmap.mem[0x4dc4]
 #define COUNT_SINCE_PAC_KILLED          (*(uint16_t*)&memmap.mem[0x4dc5])
 #define TRIAL_ORIENTATION               memmap.mem[0x4dc7]
 #define GHOST_COL_POWERUP_COUNTER       memmap.mem[0x4dc8]
@@ -381,16 +381,15 @@ extern uint8_t dipSwitches;
 #define CH1_FREQ3       memmap.mem[0x4e8f]
 #define CH1_FREQ4       memmap.mem[0x4e90]
 #define CH1_VOL         memmap.mem[0x4e91]
-// TODO renumber these as 0-3
-#define CH2_FREQ1       memmap.mem[0x4e92]   // 16 bits
-#define CH2_FREQ2       memmap.mem[0x4e93]
-#define CH2_FREQ3       memmap.mem[0x4e94]
-#define CH2_FREQ4       memmap.mem[0x4e95]
+#define CH2_FREQ0       memmap.mem[0x4e92]   // 16 bits
+#define CH2_FREQ1       memmap.mem[0x4e93]
+#define CH2_FREQ2       memmap.mem[0x4e94]
+#define CH2_FREQ3       memmap.mem[0x4e95]
 #define CH2_VOL         memmap.mem[0x4e96]
-#define CH3_FREQ1       memmap.mem[0x4e97]   // 16 bits
-#define CH3_FREQ2       memmap.mem[0x4e98]
-#define CH3_FREQ3       memmap.mem[0x4e99]
-#define CH3_FREQ4       memmap.mem[0x4e9a]
+#define CH3_FREQ0       memmap.mem[0x4e97]   // 16 bits
+#define CH3_FREQ1       memmap.mem[0x4e98]
+#define CH3_FREQ2       memmap.mem[0x4e99]
+#define CH3_FREQ3       memmap.mem[0x4e9a]
 #define CH3_VOL         memmap.mem[0x4e9b]
 
 #define CH1_SOUND_EFFECT        ((SOUND_EFFECT *)&memmap.mem[0x4e9c])

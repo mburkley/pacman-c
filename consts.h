@@ -95,7 +95,7 @@
 #define CHAR_MAZE_MASK  0xc0  // Maze characters are 0xc0-0xff
 
 #define GHOST_STATE_ALIVE               0
-#define GHOST_STATE_DEAD                1 // eyes?
+#define GHOST_STATE_DEAD                1 // eyes
 #define GHOST_STATE_ENTER_HOUSE         2
 #define GHOST_STATE_HOUSE_MOVE          3 // move left (inky) or right (clyde)
 
@@ -103,6 +103,7 @@
 #define GHOST_PINKY     2
 #define GHOST_INKY      3
 #define GHOST_CLYDE     4
+#define DEMO_PACMAN     5
 
 #define ORIENT_RIGHT    0
 #define ORIENT_DOWN     1

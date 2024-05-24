@@ -3,14 +3,17 @@ pacman in C
 This is a C translation of original pac-man ROM code.  Original code remains as
 comments.  Assembly that has been translated is boxed off with //---- 
 
-The main file is pacman.c.  Others are just support.
-
 This project does not include original ROM files although they are required.
 You will need to download them from somewhere else.  The code itself is a
 derived work from the original (a translation).
 
+The main file is pacman.c.  Others are just support.  There are a few comments
+in the code and there is a blog [here][1]
+that contains
+more details.
+
 Goals
-=====
+-----
 Create a full functional working version of pacman that behaves identically to
 the original (patterns work as they would on mame, etc) but the code is compiled
 C instead of emulated Z80.
@@ -20,23 +23,24 @@ printfs has been very useful.  Also I can use gdb to examine and modify RAM
 locations.
 
 build
-=====
+-----
 Builds under debian / ubuntu Linux.  Should build under other distros too but
 hasn't been tested.  Uses the "glut" and "pulse[-simple]" libraries to provide video
 using openGL and audio using pulseaudio.
 
 Keys
-====
-Numeric keypad = up,down,left,right
-5 = add coin
-1 = 1 player start
-2 = 2 player start
-P = pause
-D = draw vectors showing ghost and pacman targets
+-----
+Keys read directly from /dev/input devices.  The current user needs to be in the
+"input" group.  The keys are:
+* Numeric keypad = up,down,left,right
+* 5 = add coin
+* 1 = 1 player start
+* 2 = 2 player start
+* P = pause
+* D = draw vectors showing ghost and pacman targets
 
 Notes
-=====
-
+-----
 In general, I have directly translated from the assembler even when it could be
 done more efficiently with a new implementation.
 
@@ -67,13 +71,15 @@ function that updates a state or other operation.  In many cases I've just
 inserted the action into the caller code instead of creating a function.
 
 bugs
-====
+----
 
 Still a few.  See bugs
 
 Screenshots
-===========
+-----------
 ![screen1](screenshots/Screenshot_2024-04-25_08-46-43.png)
 ![screen2](screenshots/Screenshot_2024-04-25_08-47-23.png)
 ![screen3](screenshots/Screenshot_2024-04-25_08-50-21.png)
 ![screen4](screenshots/Screenshot_2024-04-25_08-51-13.png)
+
+[1]: https://pacmanc.blogspot.com/

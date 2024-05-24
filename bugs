@@ -28,3 +28,4 @@ pacman can move vertically in tunnel
 in demo mode when inky eats pacman, pacman's sprite appears over inky
 demo pacman stutters in tunnel
 pacman appears left screen at start of demo
+why can pacman hide?  This happens in the original too
