@@ -76,6 +76,15 @@ static void videoPlotRaw (int x, int y, pixel p)
 pixel videoColourLookup (uint8_t col)
 {
     /*  Lookup the colour in the 128-entry colour table to find the 4-bit colour */
+    #if 0
+    if (col == (0x1a<<2))
+        col = 0xf;
+    else if (col == (0x1b<<2))
+        col = 0xe;
+    // else if (col == (0x10<<2))
+    //     col = 0xd;
+    else
+    #endif
     col = rom_82s126_4a[col & 0x7f];
 
     /*  Lookup the least significant 4 bits in the RGB colour in the 16-entry colour palette */

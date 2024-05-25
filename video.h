@@ -23,6 +23,8 @@
 #ifndef __VIDEO_H
 #define __VIDEO_H
 
+#include <stdint.h>
+
 typedef struct _pixel
 {
     uint8_t r;

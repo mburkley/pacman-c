@@ -2437,7 +2437,8 @@ void initLeaveHouseCounters_083a(uint8_t *hl)
     memcpy (&PINKY_LEAVE_HOME_COUNTER, hl, 3);
 }
 
-    /*  Leave home counter data, groups of 3 bytes */
+    /*  Leave home counter data, groups of 3 bytes for pinky, inky and clyde
+     *  respectively  */
 
     //-------------------------------
     // 0843  14 1e 46
@@ -3623,7 +3624,7 @@ void flashPowerups_0c0d (void)
     // 0c1a  fe03      cp      #03
     // 0c1c  2015      jr      nz,#0c33        ; (21)
     //-------------------------------
-    if (LEVEL_STATE == 3)
+    if (LEVEL_STATE == LEVEL_STATE_PLAY_GAME)
     {
         //-------------------------------
         // 0c1e  216444    ld      hl,#4464
@@ -4581,7 +4582,7 @@ void updateGhostStates_1017 (void)
     // 1056  fe03      cp      #03
     // 1058  c0        ret     nz
     //-------------------------------
-    if (LEVEL_STATE != 3)
+    if (LEVEL_STATE != LEVEL_STATE_PLAY_GAME)
         return;
 
     //-------------------------------
@@ -6104,7 +6105,7 @@ void spriteAnimation_14fe (bool invert)
             BLINKY_SPRITE = BLINKY_ORIENTATION * 2 + GHOST_ANIMATION + 0x20;
         }
 
-        printf ("%s BLINKY sprite=%2x\n", __func__, BLINKY_SPRITE);
+        // printf ("%s BLINKY sprite=%2x\n", __func__, BLINKY_SPRITE);
 
         //-------------------------------
         // 1575  3aad4d    ld      a,(#4dad)
@@ -8101,7 +8102,6 @@ void blinkyUpdateMovePat_1b36 (void)
 
 void blinkyUpdatePosition_1bd8 (void)
 {
-    printf ("%s\n", __func__);
     //-------------------------------
     // 1bd8  21144d    ld      hl,#4d14
     // 1bdb  7e        ld      a,(hl)
@@ -8174,8 +8174,12 @@ void blinkyUpdatePosition_1bd8 (void)
                 //-------------------------------
                 schedTask (TASK_SCATTER_CHASE_BLINKY, 0x00);
             }
+            else
+                printf ("%s BLINKY col %x\n", __func__, COLOUR[addr]);
         }
     }
+    else
+        printf ("%s BLINKY in tunnel\n", __func__);
 
     //-------------------------------
     // 1c19  cdfe1e    call    #1efe
@@ -10857,6 +10861,7 @@ void mazeColours_24d7 (int param)
         ix[0xc] = 0x1a;
         ix[0x18] = 0x1a;
         ix+= 0x20;
+        printf ("NOGO %04lx,%04lx\n", ix+0xc-COLOUR,ix+0x18-COLOUR);
     }
 
     /*  Put colour marker 0x1b to outline the tunnel entrances */
@@ -11413,6 +11418,7 @@ void configureGame_26d0 (int unused)
 
 void blinkyScatterOrChase_2730 (int param)
 {
+    printf ("%s BLINKY \n", __func__);
     //-------------------------------
     // 2730  3ac14d    ld      a,(#4dc1)
     // 2733  cb47      bit     0,a
@@ -11432,7 +11438,7 @@ void blinkyScatterOrChase_2730 (int param)
             // 2741  fe03      cp      #03
             // 2743  2013      jr      nz,#2758        ; (19)
             //-------------------------------
-            if (LEVEL_STATE == 3)
+            if (LEVEL_STATE == LEVEL_STATE_PLAY_GAME)
             {
                 //-------------------------------
                 // 2745  2a0a4d    ld      hl,(#4d0a)
@@ -11443,6 +11449,7 @@ void blinkyScatterOrChase_2730 (int param)
                 // 2754  322c4d    ld      (#4d2c),a
                 // 2757  c9        ret     
                 //-------------------------------
+                printf ("%s BLINKY home\n", __func__);
                 XYPOS target = { 0x1d, 0x22 };
                 BLINKY_VECTOR2 = 
                     findBestOrientation_2966 (BLINKY_TILE, target, &BLINKY_ORIENTATION);
@@ -11461,6 +11468,7 @@ void blinkyScatterOrChase_2730 (int param)
     // 2768  322c4d    ld      (#4d2c),a
     // 276b  c9        ret     
     //-------------------------------
+    printf ("%s BLINKY chase\n", __func__);
     BLINKY_VECTOR2 = findBestOrientation_2966 (BLINKY_TILE, PACMAN_TILE2, &BLINKY_ORIENTATION);
     showTarget (BLINKY_TILE, PACMAN_TILE2, GHOST_BLINKY);
 }
@@ -11480,7 +11488,7 @@ void pinkyScatterOrChase_276c (int param)
         // 2779  2013      jr      nz,#278e        ; (19)
         //-------------------------------
 
-        if (LEVEL_STATE == 3)
+        if (LEVEL_STATE == LEVEL_STATE_PLAY_GAME)
         {
             //-------------------------------
             // 277b  2a0c4d    ld      hl,(#4d0c)
@@ -11539,7 +11547,7 @@ void inkyScatterOrChase_27a9 (int param)
         // 27b4  fe03      cp      #03
         // 27b6  2013      jr      nz,#27cb        ; (19)
         //-------------------------------
-        if (LEVEL_STATE == 3)
+        if (LEVEL_STATE == LEVEL_STATE_PLAY_GAME)
         {
             //-------------------------------
             // 27b8  2a0e4d    ld      hl,(#4d0e)
@@ -11617,7 +11625,7 @@ void clydeScatterOrChase_27f1 (int param)
         // 27fc  fe03      cp      #03
         // 27fe  2013      jr      nz,#2813        ; (19)
         //-------------------------------
-        if (LEVEL_STATE == 3)
+        if (LEVEL_STATE == LEVEL_STATE_PLAY_GAME)
         {
             random:
             //-------------------------------
@@ -13086,7 +13094,7 @@ void func_2c44(uint8_t a)
  * coordinates and message data
  *  b = message # in table
  */
-void displayMsg_2c5e (int b)
+void displayMsg_2c5e (int msg)
 {
     //-------------------------------
     // 2c5e  21a536    ld      hl,#36a5
@@ -13095,20 +13103,20 @@ void displayMsg_2c5e (int b)
     // 2c63  23        inc     hl
     // 2c64  56        ld      d,(hl)
     //-------------------------------
-    uint16_t hl = tableLookup_0018 (DATA_MSG_TABLE, b);
-    int16_t de = *(int16_t*)(&ROM[hl]);
-    uint8_t *chr = &ROM[hl+1];
+    uint16_t msgDataAddr = tableLookup_0018 (DATA_MSG_TABLE_36a5, msg);
+    int16_t screenLoc = *(int16_t*)(&ROM[msgDataAddr]);
+    uint8_t *chr = &ROM[msgDataAddr+1];
     // printf ("%s msg = %02x -> %x -> %x \n", __func__, b, hl, de);
 
-    /* TODO if the msg starts with 0x4d, 0x83, then what prevents the video
-     * address from being c74d ???? Maybe the address bus is only 15 bits? */
-    de &= 0x7fff;
+    /* TODO if the msg starts with 0xd4, 0x83, then what prevents the video
+     * address from being c7d4 ???? Maybe the address bus is only 15 bits? */
+    screenLoc &= 0x7fff;
 
     //-------------------------------
     // 2c65  dd210044  ld      ix,#4400	; Start of Color RAM
     // 2c69  dd19      add     ix,de	; Calculate starting pos in CRAM
     //-------------------------------
-    uint8_t *colour = &COLOUR[de];
+    uint8_t *colour = &COLOUR[screenLoc];
 
     //-------------------------------
     // 2c6b  dde5      push    ix		; 4400 + (hl) -> stack 
@@ -13116,8 +13124,8 @@ void displayMsg_2c5e (int b)
     // 2c70  dd19      add     ix,de	; Calculate starting pos in VRAM
     // 2c72  11ffff    ld      de,#ffff	; Offset for normal text  
     //-------------------------------
-    uint8_t *video = &SCREEN[de];
-    de = -1;
+    uint8_t *video = &SCREEN[screenLoc];
+    int posDelta = -1;
 
     //-------------------------------
     // 2c75  cb7e      bit     7,(hl)  
@@ -13128,7 +13136,7 @@ void displayMsg_2c5e (int b)
         //-------------------------------
         // 2c79  11e0ff    ld      de,#ffe0	; Offset for top + bottom 2 lines 
         //-------------------------------
-        de = -0x20;
+        posDelta = -0x20;
     }
 
     //-------------------------------
@@ -13139,8 +13147,8 @@ void displayMsg_2c5e (int b)
     // 2c82  3828      jr      c,#2cac         ; Special Draw routine for entries 80+
     //-------------------------------
     chr++;
-    uint16_t bc = 0;
-    if (b < 0x80)
+    uint16_t byteCount = 0;
+    if (msg < 0x80)
     {
         //-------------------------------
         // 2c84  7e        ld      a,(hl)		; Read next char 
@@ -13158,8 +13166,8 @@ void displayMsg_2c5e (int b)
             // printf ("%s normal %04lx => [%04lx]='%c', move %d\n", __func__,
             //         chr-MEM, video-MEM, *chr, de);
             *video = *chr++;
-            video += de;
-            bc++;
+            video += posDelta;
+            byteCount++;
 
             //-------------------------------
             // 2c90  18f2      jr      #2c84           ; loop
@@ -13180,7 +13188,7 @@ jump_2c93:
         //-------------------------------
         if (*chr < 0x80)
         {
-            while (bc--)
+            while (byteCount--)
             {
                 //-------------------------------
                 // 2c9a  7e        ld      a,(hl)		; Get color  
@@ -13191,7 +13199,7 @@ jump_2c93:
                 // printf ("%s multi-colour [%04lx] => [%04lx]=%02x, move %d\n", __func__, 
                 //         chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr++;
-                colour += de;
+                colour += posDelta;
 
                 //-------------------------------
                 // 2ca1  10f7      djnz    #2c9a           ; Loop until b = 0
@@ -13204,7 +13212,7 @@ jump_2c93:
         else
         {
             // 	;; Same as above, but all the same color
-            while (bc--)
+            while (byteCount--)
             {
                 //-------------------------------
                 // 2ca4  dd7700    ld      (ix+#00),a	; Drop in CRAM
@@ -13215,7 +13223,7 @@ jump_2c93:
                 // printf ("%s single-colour [%04lx] => [%04lx]=%02x, move %d\n",
                 //         __func__, chr-MEM, colour-MEM, *chr, de);
                 *colour = *chr;
-                colour += de;
+                colour += posDelta;
             }
 
             return;
@@ -13229,7 +13237,6 @@ jump_2c93:
         // 2cad  fe2f      cp      #2f
         // 2caf  280a      jr      z,#2cbb         ; Done with VRAM
         //-------------------------------
-        int TODO_count = 0;
         while (*chr != 0x2f)
         {
             //-------------------------------
@@ -13241,13 +13248,8 @@ jump_2c93:
             // printf ("%s blank [%04lx]=0x40, move %d\n", __func__, video-MEM, de);
             *video = 0x40;
             chr++;
-            video += de;
-            bc++;
-            if (++TODO_count > 20)
-            {
-                printf ("!! %s taking too long\n", __func__);
-                exit(1);
-            }
+            video += posDelta;
+            byteCount++;
 
             //-------------------------------
             // 2cb9  18f1      jr      #2cac           ; Loop
@@ -13260,13 +13262,17 @@ jump_2c93:
         // 2cbd  edb1      cpir			; Loop until [hl] = 2f 
         //-------------------------------
         chr++;
-        bc++;
-        while (*chr != 0x2f && bc > 0)
+        byteCount++;
+        while (*chr != 0x2f && byteCount > 0)
         {
             // printf ("%s skip [%04lX] count=%d\n", __func__, chr-MEM, bc);
             chr++;
-            bc--;
+            byteCount--;
         }
+
+        /*  The CPIR opcode finishes with hl one byte beyond the found char so
+         *  inc chr to emulate */
+        chr++;
 
         //-------------------------------
         // 2cbf  18d2      jr      #2c93           ; Do CRAM
