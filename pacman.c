@@ -58,12 +58,19 @@ void setMemory_0008 (uint8_t *hl, uint8_t b, uint8_t a)
 
 /*  Memory location 000c is referenced in several tables.  It is just a return
  *  so define an empty function to add to the jump tables */
-void nothing_000c ()
+void nothing_000c (void)
 {
 }
 
 /*  Same as above but takes a parameter */
 void nothingParam_000c (uint16_t unused)
+{
+}
+
+/*  As above with sound effect function parameters.  Using the function
+ *  nothing_000c causes an incompatible pointer error so best to declare a new
+ *  empty function here specifically for sound effects. */
+void nothingSound_000c (SOUND_EFFECT *effect, uint8_t *frequency)
 {
 }
 
@@ -13503,19 +13510,19 @@ jump_2d6c:
         // 2d90  00 0c 00 0c 00 0c 00 0c  00 0c 00 0c 00 0c 00 0c
         // 2da0  00 0c 00 ad 2f                                 
         //-------------------------------
-        void (*func[])(SOUND_EFFECT*, uint8_t *) = 
+        void (*func[])(SOUND_EFFECT*, uint8_t *) =
         {
             soundEffectIndirect_2f55,
             soundEffectSelect_2f65,
             soundEffectInitialFrequency_2f77,
             soundEffectInitialVolume_2f89,
             soundEffectType_2f9b,
-            nothing_000c,
-            nothing_000c,
-            nothing_000c, nothing_000c,
-            nothing_000c, nothing_000c, 
-            nothing_000c, nothing_000c,
-            nothing_000c, nothing_000c,
+            nothingSound_000c,
+            nothingSound_000c,
+            nothingSound_000c, nothingSound_000c,
+            nothingSound_000c, nothingSound_000c,
+            nothingSound_000c, nothingSound_000c,
+            nothingSound_000c, nothingSound_000c,
             soundEffectMarkDone_2fad
         };
         func[a] (effect, frequency);
