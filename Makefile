@@ -42,7 +42,7 @@ HDRS=$(patsubst %,%.h,$(ROMS))
 $(HDRS) : %:
 	xxd -i rom/$(subst .h,,$@) > $@
 
-CFLAGS=-Wall -ggdb3
+CFLAGS=-Wall -ggdb3 -Wincompatible-pointer-types
 
 pacman: $(OBJECTS) harness.o
 	@echo "\t[LD] $@..."
